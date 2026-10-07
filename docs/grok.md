@@ -160,6 +160,9 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 5) **Local session signals** (informational fallback)
    - Quota fetches scan `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` for the last 30 local calendar days,
      including today. Files dated outside that window are excluded so daily buckets and aggregate totals agree.
+   - Discovery stops at each session directory and reads only its direct `signals.json`; artifact subtrees are not
+     traversed, and nested signal files do not count as sessions. Quota enrichment and billing-failure fallback share
+     this bounded scan.
    - Aggregates `totalTokensBeforeCompaction`, `contextTokensUsed`, `modelsUsed`,
      and the most recent session timestamp.
 
@@ -357,3 +360,14 @@ points to `https://status.x.ai`.
 - `Sources/CodexBarCore/Providers/Grok/GrokStatusProbe.swift`
 - `Sources/CodexBarCore/Providers/Grok/GrokLocalSessionScanner.swift`
 - `Sources/CodexBar/Providers/Grok/GrokProviderImplementation.swift`
+
+## Purchased credits in CLI JSON
+
+When the CLI proxy publishes `config.prepaidBalance`, `usage --provider grok --json` exports it as
+`usage.providerCost.balance` with `currencyCode: "USD"`. The proxy's typed `Cent.val` is USD cents,
+so `1446` becomes `14.46`; an empty Cent object (`{}`) is a confirmed zero. A missing, null, negative,
+or malformed wallet remains absent instead of being reported as zero. This balance is separate
+from the included quota; the balance-only snapshot has neutral `used`/`limit` values of zero and
+does not infer a spending limit, consumed amount, or reset period.
+
+Unit contract: [official Grok billing source](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs).

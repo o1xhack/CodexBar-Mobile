@@ -40,9 +40,7 @@ struct CostUsageStoreReadView: Sendable {
     }
 
     var hasPendingScan: Bool {
-        self.cache.codexScanCatchUpPending == true || self.cache.files.values.contains {
-            $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
-        }
+        self.cache.codexScanCatchUpPending == true || self.cache.files.values.contains(where: \.hasPendingCodexScanWork)
     }
 
     func scoped(to roots: [URL]) -> Self {
@@ -65,6 +63,14 @@ struct CostUsageStoreReadView: Sendable {
 
         let roots = rootsFingerprint.keys.map { URL(fileURLWithPath: $0, isDirectory: true) }
         let scoped = self.scoped(to: roots)
+        // Exhausted parent discovery settles scheduling, not accounting. Only disjoint,
+        // fully parsed windows can be published while the missing baseline is retained.
+        guard scoped.cache.files.values.allSatisfy({ usage in
+            !CostUsageScanner.isUnresolvedMissingParentFork(usage)
+                || (usage.codexScanComplete == true && usage.hasCurrentCodexParser
+                    && !usage.touchesCodexScanWindow(
+                        sinceKey: range.sinceKey, untilKey: range.untilKey, calendar: range.calendar))
+        }) else { return false }
         guard scoped.hasPendingScan else { return true }
 
         if let discovery = scoped.cache.codexSessionDiscovery,
@@ -77,8 +83,7 @@ struct CostUsageStoreReadView: Sendable {
         guard scoped.purpose != .status,
               scoped.cache.files.values.allSatisfy({ usage in
                   usage.codexScanComplete == true && usage.codexCostCacheComplete == true
-                      && usage.hasCurrentCodexParser && !usage.hasBufferedCodexForkRetryLines
-                      && !CostUsageScanner.isUnresolvedMissingParentFork(usage)
+                      && usage.hasCurrentCodexParser && !usage.hasPendingCodexForkRetry
               })
         else { return false }
 
@@ -95,10 +100,10 @@ struct CostUsageStoreReadView: Sendable {
 
         var filesByResolvedPath: [String: CostUsageFileUsage] = [:]
         for (path, usage) in scoped.cache.files {
-            filesByResolvedPath[Self.resolvedCodexPath(URL(fileURLWithPath: path))] = usage
+            filesByResolvedPath[Self.resolvedCodexPath(URL(fileURLWithPath: path, isDirectory: false))] = usage
         }
         for path in lookback.pendingFilePaths {
-            let resolvedPath = Self.resolvedCodexPath(URL(fileURLWithPath: path))
+            let resolvedPath = Self.resolvedCodexPath(URL(fileURLWithPath: path, isDirectory: false))
             guard let usage = filesByResolvedPath[resolvedPath] else { return false }
             if lookback.cacheWideMigrationQueueActive == true,
                usage.touchesCodexScanWindow(
@@ -108,7 +113,7 @@ struct CostUsageStoreReadView: Sendable {
             {
                 return false
             }
-            let fileURL = URL(fileURLWithPath: resolvedPath)
+            let fileURL = URL(fileURLWithPath: resolvedPath, isDirectory: false)
             guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
             let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
             if CostUsageScanner.codexLogicalTargetHasUnconsumedTail(metadata: metadata, cached: usage)
@@ -148,6 +153,22 @@ struct CostUsageStoreReadView: Sendable {
     func projects(range: CostUsageScanner.CostUsageDayRange, cacheRoot: URL?) -> [CostUsageProjectBreakdown] {
         CostUsageScanner.buildCodexProjectBreakdownsFromCache(
             cache: self.cache, range: range, modelsDevCacheRoot: cacheRoot)
+    }
+
+    func projectSessionIDs(range: CostUsageScanner.CostUsageDayRange) -> [String: Set<String>] {
+        // Session rows deduplicate to the latest file. Ownership must include older files too,
+        // even after a thread moves directories. This conservative superset is refresh-only.
+        var sessionIDsByPath: [String: Set<String>] = [:]
+        for (filePath, usage) in self.cache.files {
+            guard let path = usage.projectPath,
+                  usage.touchesCodexScanWindow(
+                      sinceKey: range.scanSinceKey,
+                      untilKey: range.scanUntilKey,
+                      calendar: range.calendar) else { continue }
+            let id = usage.sessionId ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+            sessionIDsByPath[path, default: []].insert(id)
+        }
+        return sessionIDsByPath
     }
 
     func sessions(

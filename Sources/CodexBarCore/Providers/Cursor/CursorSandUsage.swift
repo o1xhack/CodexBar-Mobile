@@ -42,14 +42,14 @@ public struct CursorSandUsageStatus: Decodable, Sendable, Equatable {
         guard hasLimit == true || hasTrial, let usagePercent = self.usagePercent else {
             return nil
         }
-        let start = ISO8601DateParser.parse(self.currentPeriodStart)
+        // Paid Grok Bot grants reset weekly; currentPeriodStart can fall mid-week.
         let resetsAt = hasTrial ? nil : ISO8601DateParser.parse(self.nextResetTimestampUtc)
         return NamedRateWindow(
             id: Self.extraWindowID,
             title: Self.extraWindowTitle,
             window: RateWindow(
                 usedPercent: UsagePercent(raw: usagePercent).displayClamped,
-                windowMinutes: Self.windowMinutes(start: start, end: resetsAt),
+                windowMinutes: resetsAt == nil ? nil : 10080,
                 resetsAt: resetsAt,
                 resetDescription: resetsAt.map(resetDescription)))
     }

@@ -47,6 +47,9 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let nextRegenPercent: Double?
     public let isSyntheticPlaceholder: Bool
     public let blockingQuota: SyncBlockingQuota?
+    /// Mac 0.72+: the reset description states a balance ("X / Y credits left") that the Mac
+    /// card shows next to the reset time. Nil from older Macs and for real reset text.
+    public let balanceDescription: String?
 
     public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
@@ -63,7 +66,8 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         resetDescription: String?,
         nextRegenPercent: Double? = nil,
         isSyntheticPlaceholder: Bool = false,
-        blockingQuota: SyncBlockingQuota? = nil)
+        blockingQuota: SyncBlockingQuota? = nil,
+        balanceDescription: String? = nil)
     {
         self.id = id
         self.label = label
@@ -76,6 +80,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.nextRegenPercent = nextRegenPercent
         self.isSyntheticPlaceholder = isSyntheticPlaceholder
         self.blockingQuota = blockingQuota
+        self.balanceDescription = balanceDescription
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,6 +98,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.isSyntheticPlaceholder =
             try container.decodeIfPresent(Bool.self, forKey: .isSyntheticPlaceholder) ?? false
         self.blockingQuota = try container.decodeIfPresent(SyncBlockingQuota.self, forKey: .blockingQuota)
+        self.balanceDescription = try? container.decodeIfPresent(String.self, forKey: .balanceDescription)
     }
 }
 
@@ -904,20 +910,66 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
     public static let maximumStringLength = 120
 
     public struct Row: Codable, Sendable, Equatable {
+        /// Numeric ratio behind a row (Mac 0.72+). Invalid values are dropped on decode so
+        /// an otherwise valid row still reaches older and newer readers.
+        public struct Progress: Codable, Sendable, Equatable {
+            public let used: Double
+            public let total: Double
+
+            public init?(used: Double, total: Double) {
+                guard used.isFinite, total.isFinite, total > 0 else { return nil }
+                self.used = used
+                self.total = total
+            }
+
+            private enum CodingKeys: String, CodingKey {
+                case used
+                case total
+            }
+
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                let used = try container.decode(Double.self, forKey: .used)
+                let total = try container.decode(Double.self, forKey: .total)
+                guard let progress = Self(used: used, total: total) else {
+                    throw SyncProviderDetailValidationError("row.progress must be finite with a positive total")
+                }
+                self = progress
+            }
+        }
+
+        /// Optional stable identifier for rows a reader must find again (Mac 0.72+).
+        public let id: String?
         public let label: String
         public let value: String
         public let secondaryValue: String?
+        public let progress: Progress?
+        /// Numeric usage behind the row when known (Mac 0.72+), independent of `progress`.
+        public let usageValue: Double?
 
-        public init(label: String, value: String, secondaryValue: String? = nil) {
+        public init(
+            id: String? = nil,
+            label: String,
+            value: String,
+            secondaryValue: String? = nil,
+            progress: Progress? = nil,
+            usageValue: Double? = nil)
+        {
+            self.id = id
             self.label = label
             self.value = value
             self.secondaryValue = secondaryValue
+            self.progress = progress
+            self.usageValue = usageValue.flatMap { $0.isFinite ? $0 : nil }
         }
 
         private enum CodingKeys: String, CodingKey {
+            case id
             case label
             case value
             case secondaryValue
+            case progress
+            case usageValue
         }
 
         public init(from decoder: Decoder) throws {
@@ -931,6 +983,13 @@ public struct SyncProviderDetailSection: Codable, Sendable, Equatable {
             self.secondaryValue = try SyncProviderDetailSection.optionalString(
                 container.decodeIfPresent(String.self, forKey: .secondaryValue),
                 path: "row.secondaryValue")
+            // Additive metadata must never make a readable row undecodable.
+            self.id = (try? container.decodeIfPresent(String.self, forKey: .id)).flatMap {
+                try? SyncProviderDetailSection.optionalString($0, path: "row.id")
+            }
+            self.progress = try? container.decodeIfPresent(Progress.self, forKey: .progress)
+            self.usageValue = (try? container.decodeIfPresent(Double.self, forKey: .usageValue))
+                .flatMap { $0.isFinite ? $0 : nil }
         }
     }
 

@@ -54,7 +54,7 @@ struct AntigravityLocalWALTests {
         let beforeWAL = try Data(contentsOf: wal)
         let beforeSHM = try Data(contentsOf: shm)
 
-        #expect(try fixture.report().report.summary?.totalTokens == 198)
+        #expect(try fixture.report().report.summary?.totalTokens == 187)
 
         #expect(try Data(contentsOf: url) == beforeDB)
         #expect(try Data(contentsOf: wal) == beforeWAL)
@@ -93,7 +93,7 @@ struct AntigravityLocalWALTests {
         #expect(source.isComplete)
         #expect(source.events.count == 1)
         #expect(try Data(contentsOf: wal) != before) // Attributed to the coordinated writer, not the reader.
-        #expect(try fixture.report().report.summary?.totalTokens == 396)
+        #expect(try fixture.report().report.summary?.totalTokens == 374)
 
         var cancelBudget: AntigravityLocalReader.Budget?
         cancelBudget = AntigravityLocalReader.Budget(limits: .init(), cancellation: {
@@ -264,7 +264,7 @@ struct AntigravityLocalWALTests {
         let report = try fixture.report()
 
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         #expect(report.statistics.foreignDatabases == 1)
         #expect(report.statistics.immutableFallbacks == (control == SQLITE_CANTOPEN ? 1 : 0))
         #expect(report.statistics.sqliteHandlesOpened == report.statistics.sqliteHandlesClosed)
@@ -352,7 +352,7 @@ struct AntigravityLocalWALTests {
             // The writer has closed, so the next scan sees one stable file with both rows.
             let next = try fixture.report()
             #expect(next.coverage == .complete)
-            #expect(next.report.summary?.totalTokens == 396)
+            #expect(next.report.summary?.totalTokens == 374)
         } else {
             // The ordinary read-only snapshot excludes the coordinated later write, as on any WAL database.
             #expect(statistics.immutableFallbacks == 0)

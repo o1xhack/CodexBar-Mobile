@@ -585,6 +585,7 @@ struct BrowserDetectionTests {
         let detection = BrowserDetection(
             homeDirectory: temp.path,
             cacheTTL: 600,
+            now: Date.init,
             fileExists: { path in
                 if path == "/Applications/Google Chrome.app" {
                     return installed.withLock { $0 }
@@ -593,15 +594,18 @@ struct BrowserDetectionTests {
             },
             directoryContents: { path in
                 try? FileManager.default.contentsOfDirectory(atPath: path)
-            })
+            },
+            // Another host Chrome registration must not survive this test's simulated uninstall.
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
 
         #expect(detection.isCookieSourceAvailable(.chrome))
         installed.withLock { $0 = false }
         #expect(!detection.isCookieSourceAvailable(.chrome))
     }
 
-    @Test
-    func `registered browser outside Applications is a candidate`() throws {
+    @Test(arguments: [true, false])
+    func `registered browser outside Applications requires a live registration`(registered: Bool) throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let cookies = temp
             .appendingPathComponent("Library/Application Support/Google/Chrome/Default/Network/Cookies")
@@ -617,17 +621,18 @@ struct BrowserDetectionTests {
             cacheTTL: 0,
             now: Date.init,
             fileExists: { path in
-                path == appURL.path || FileManager.default.fileExists(atPath: path)
+                if path.hasSuffix(".app") { return path == appURL.path }
+                return FileManager.default.fileExists(atPath: path)
             },
             directoryContents: { path in
                 try? FileManager.default.contentsOfDirectory(atPath: path)
             },
             applicationURLs: { appName in
-                appName == Browser.chrome.appBundleName ? [appURL] : []
+                registered && appName == Browser.chrome.appBundleName ? [appURL] : []
             },
             profileAccessIssue: { _ in nil })
 
-        #expect(detection.isCookieSourceAvailable(.chrome))
+        #expect(detection.isCookieSourceAvailable(.chrome) == registered)
     }
 
     @Test

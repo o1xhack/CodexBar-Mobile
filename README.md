@@ -26,7 +26,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
 [![Site](https://img.shields.io/badge/site-codexbar.app-16d3b4?style=flat-square)](https://codexbar.app)
 
-<a href="https://codexbar.app"><img src="docs/social.png?v=6c28517cfe05c9db" alt="CodexBar — every AI coding limit in your menu bar. 87 providers." width="100%" /></a>
+<a href="https://codexbar.app"><img src="docs/social.png?v=2b93911652c1d0e3" alt="CodexBar — every AI coding limit in your menu bar. 90 providers." width="100%" /></a>
 
 Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and shows when each window resets. See the [supported providers](#providers) below. One status item per provider, or Merge Icons mode with a provider switcher. No Dock icon, minimal UI, dynamic bar icons.
 
@@ -169,6 +169,7 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Notion AI](docs/notion.md) — Workspace rolling and monthly allowances.
 - [Nous Portal](docs/nous.md) — Hermes OAuth login for monthly credits and purchased top-ups.
 - [Muse Code](docs/muse.md) — Muse CLI login for subscription quotas and local token history.
+- [Muse (muse.ai)](docs/museai.md) — Browser or manual muse.ai session for the Free, Power, or Maximum weekly allowance.
 - [CodeRabbit](docs/coderabbit.md) — Local CLI review counts, billing state, and period resets.
 - [Replicate](docs/replicate.md) — Monthly spend and optional prepaid credits.
 - [Hugging Face](docs/huggingface.md) — Inference Providers charges and optional ZeroGPU quota.
@@ -180,6 +181,11 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Atlas Cloud](docs/atlascloud.md) — Available USD balance from an API key.
 - [Vercel AI Gateway](docs/vercel.md) — Team balance and lifetime spend.
 - Open to new providers: [provider authoring guide](docs/provider.md).
+
+<!-- Generated provider additions: Scripts/regenerate-provider-docs.mjs -->
+- [LithosAI](docs/lithosai.md) — Chrome or manual console cookies for prepaid USD balance and optional UTC spend.
+- [WorkBuddy](docs/workbuddy.md) — Chrome or manual www.workbuddy.cn cookies for the monthly credits allowance, plan name, and cycle reset.
+<!-- End generated provider additions -->
 
 ## Icon & Screenshot
 The menu bar icon is a tiny usage meter. Bar meaning is provider-specific, and errors/stale data can dim the icon or
@@ -285,6 +291,7 @@ CLI install:
 - [KodexBar](https://github.com/tylxr59/KodexBar) — KDE Plasma widget that shows CodexBar usage in the Plasma panel, built on top of the bundled Linux CLI.
 - [codexbar-plasmoid](https://github.com/psimaker/codexbar-plasmoid) — KDE Plasma 6 widget for CodexBar's meter icon, provider switcher, quota windows, pace, credits, local cost, and status, powered by the bundled Linux CLI.
 - [CodexBar Plasma](https://github.com/Lucenx9/codexbar-plasma) — KDE Plasma 6 widget with multi-provider views, account selection, cost history, notifications, configurable providers, and installable `.plasmoid` releases, powered by the bundled Linux CLI.
+- [codexbar-kde](https://github.com/materemias/codexbar-kde) — KDE Plasma 6 widget with usage meters, agent-session search, terminal focus, and kitty session restoration, powered by the bundled Linux CLI.
 - [CodexBar Meter](https://github.com/noctalia-dev/community-plugins/tree/main/codexbar-meter) — Noctalia v5 bar widget and panel showing every enabled provider's quota windows, credits, and pace, installable from Noctalia's plugin store, built on the bundled Linux CLI.
 
 ## Status bar & terminal integration

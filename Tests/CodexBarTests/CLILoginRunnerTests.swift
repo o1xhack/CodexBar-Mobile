@@ -5,30 +5,28 @@ import Testing
 
 @Suite(.serialized)
 struct CLILoginRunnerTests {
-    @Test(arguments: [false, true])
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func `cancelling a provider login stops its process`(kiro: Bool) async throws {
         let fixture = try Fixture(script: """
         #!/bin/sh
         printf '%s' "$$" > "$LOGIN_PID_FILE"
         printf 'login-started\\n'
-        exec /bin/sleep 20
+        while :; do /bin/sleep 1; done
         """, binaryName: kiro ? "kiro-cli" : "codex")
         defer { fixture.remove() }
         let task = Task {
             if kiro {
                 return await KiroLoginRunner.run(
-                    timeout: 10, environment: fixture.environment, loginPATH: nil)
+                    timeout: 120, environment: fixture.environment, loginPATH: nil)
             }
             return await CodexLoginRunner.run(
-                homePath: fixture.root.path, timeout: 10, environment: fixture.environment, loginPATH: nil)
+                homePath: fixture.root.path, timeout: 120, environment: fixture.environment, loginPATH: nil)
         }
         defer { task.cancel() }
         let pid = try await fixture.waitForPID()
-        let start = Date()
         task.cancel()
         let result = await task.value
         #expect(result.outcome == .cancelled)
-        #expect(Date().timeIntervalSince(start) < 2)
         #expect(kill(pid, 0) == -1 && errno == ESRCH)
         #expect(CodexLoginAlertPresentation.alertInfo(for: result) == nil)
         #expect(KiroLoginAlertPresentation.alertInfo(for: result) == nil)
@@ -98,7 +96,7 @@ struct CLILoginRunnerTests {
         #expect(result.outcome == .timedOut)
         #expect(result.output.contains("login-started"))
         // A reparented child can briefly remain a zombie until launchd reaps it.
-        let deadline = Date().addingTimeInterval(2)
+        let deadline = Date().addingTimeInterval(30)
         while kill(childPID, 0) == 0, Date() < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
@@ -133,7 +131,7 @@ struct CLILoginRunnerTests {
         }
 
         func waitForPID() async throws -> pid_t {
-            let deadline = Date().addingTimeInterval(10)
+            let deadline = Date().addingTimeInterval(30)
             while Date() < deadline {
                 if let text = try? String(contentsOf: self.pidFile, encoding: .utf8), let pid = pid_t(text) {
                     return pid

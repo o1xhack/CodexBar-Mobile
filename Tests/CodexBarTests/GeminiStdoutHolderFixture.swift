@@ -183,6 +183,15 @@ final class GeminiStdoutHolderFixture {
             timeout: 2)
     }
 
+    func installProducer(at executable: URL, blockAfterAcknowledgment: Bool = false) throws {
+        let mode = blockAfterAcknowledgment ? "produce-timeout" : "produce"
+        let arguments = ["/usr/bin/python3", "-I", self.helper.path, mode, self.socketPath, self.pidFile.path]
+        let command = arguments.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+            .joined(separator: " ")
+        try "#!/bin/sh\nexec \(command)\n".write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+    }
+
     var producerDiagnostics: String {
         (try? String(contentsOfFile: self.socketPath + ".error", encoding: .utf8)) ?? ""
     }
@@ -297,7 +306,7 @@ final class GeminiStdoutHolderFixture {
             with open(sys.argv[3], "w") as handle:
                 handle.write(holder_pid)
             if mode == "produce-timeout":
-                select.select([], [], [], 30)
+                select.select([], [], [])
             print("/tmp/gemini-package", flush=True)
             print("ignored trailing output", flush=True)
     """#

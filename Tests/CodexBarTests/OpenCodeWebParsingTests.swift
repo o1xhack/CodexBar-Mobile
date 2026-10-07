@@ -20,7 +20,7 @@ struct OpenCodeWebParsingTests {
     }
 
     @Test
-    func `dates preserve epoch thresholds and fractional ISO parsing`() {
+    func `dates preserve epoch thresholds and both ISO timestamp forms`() {
         let expected = Date(timeIntervalSince1970: 1_800_000_000)
         #expect(OpenCodeWebParsing.dateValue(from: 1_800_000_000) == expected)
         #expect(OpenCodeWebParsing.dateValue(from: " 1800000000000 ") == expected)
@@ -28,6 +28,7 @@ struct OpenCodeWebParsingTests {
         #expect(OpenCodeWebParsing.dateValue(from: 1_000_000_000_000) ==
             Date(timeIntervalSince1970: 1_000_000_000_000))
         #expect(OpenCodeWebParsing.dateValue(from: "2027-01-15T08:00:00.000Z") == expected)
+        #expect(OpenCodeWebParsing.dateValue(from: "2027-01-15T08:00:00Z") == expected)
         #expect(OpenCodeWebParsing.dateValue(from: "invalid") == nil)
         #expect(OpenCodeWebParsing.dateValue(from: Double.infinity) == nil)
     }

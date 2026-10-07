@@ -40,7 +40,7 @@ public struct AntigravityOAuthCredentials: Codable, Sendable, Equatable {
     /// back to the stored `email` field. Used to verify that an ambient local/CLI
     /// Antigravity snapshot belongs to the account the user explicitly selected.
     public var resolvedAccountEmail: String? {
-        Self.email(fromIDToken: self.idToken) ?? self.email?.trimmedNonEmptyEmail
+        Self.email(fromIDToken: self.idToken) ?? self.email?.trimmedNonEmpty
     }
 
     static func email(fromIDToken idToken: String?) -> String? {
@@ -59,7 +59,7 @@ public struct AntigravityOAuthCredentials: Codable, Sendable, Equatable {
         else {
             return nil
         }
-        return (json["email"] as? String)?.trimmedNonEmptyEmail
+        return (json["email"] as? String)?.trimmedNonEmpty
     }
 
     public init(from decoder: Decoder) throws {
@@ -140,13 +140,11 @@ public struct AntigravityOAuthClient: Sendable, Equatable {
 
 public enum AntigravityOAuthConfig {
     public static var configuredClientID: String? {
-        let value = ProcessInfo.processInfo.environment["ANTIGRAVITY_OAUTH_CLIENT_ID"]
-        return value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        ProcessInfo.processInfo.environment["ANTIGRAVITY_OAUTH_CLIENT_ID"]?.trimmedNonEmpty
     }
 
     public static var configuredClientSecret: String? {
-        let value = ProcessInfo.processInfo.environment["ANTIGRAVITY_OAUTH_CLIENT_SECRET"]
-        return value?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        ProcessInfo.processInfo.environment["ANTIGRAVITY_OAUTH_CLIENT_SECRET"]?.trimmedNonEmpty
     }
 
     public static let authURL = URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!
@@ -159,24 +157,15 @@ public enum AntigravityOAuthConfig {
 
     public static let missingCredentialsMessage =
         """
-        Antigravity OAuth client is not configured. Install Antigravity.app or set \
+        Could not discover a matching Antigravity OAuth client. Update or install Antigravity.app, or set \
         ANTIGRAVITY_OAUTH_CLIENT_ID and ANTIGRAVITY_OAUTH_CLIENT_SECRET before logging in.
         """
 
     public static func resolvedClient() -> AntigravityOAuthClient? {
-        if let client = environmentClient() {
-            return client
+        if let clientID = configuredClientID, let clientSecret = configuredClientSecret {
+            return AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
         }
-        return Self.discoverClientFromInstalledApp()
-    }
-
-    private static func environmentClient() -> AntigravityOAuthClient? {
-        guard let clientID = configuredClientID,
-              let clientSecret = configuredClientSecret
-        else {
-            return nil
-        }
-        return AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
+        return self.discoverClientFromInstalledApp()
     }
 
     static func discoverClientFromInstalledApp(
@@ -269,117 +258,54 @@ public enum AntigravityOAuthConfig {
         }
     }
 
-    static func parseClient(fromInstalledArtifactData data: Data) -> AntigravityOAuthClient? {
+    static func parseClient(fromInstalledArtifactData artifact: Data) -> AntigravityOAuthClient? {
+        let data = artifact.startIndex == 0 ? artifact : Data(artifact)
         if let content = String(data: data, encoding: .utf8),
-           let client = parseClient(fromInstalledArtifactText: content)
+           let client = self.parseClient(fromInstalledArtifactText: content)
         {
             return client
         }
-
-        let clientIDs = Self.clientIDs(in: data)
-        let clientSecrets = Self.clientSecrets(in: data)
-        guard let client = Self.preferredBinaryClient(
-            clientIDs: clientIDs,
-            clientSecrets: clientSecrets)
-        else {
-            return nil
-        }
-
-        return client
+        return self.binaryClient(in: data) ?? self.unambiguousClient(in: data)
     }
 
     static func parseClient(fromInstalledArtifactText content: String) -> AntigravityOAuthClient? {
         let marker = "vs/platform/cloudCode/common/oauthClient.js"
-        let searchStart = content.range(of: marker)?.lowerBound ?? content.startIndex
-        let searchEnd = content.index(searchStart, offsetBy: 4000, limitedBy: content.endIndex) ?? content.endIndex
-        let haystack = String(content[searchStart..<searchEnd])
-
-        guard let clientID = Self.firstMatch(
-            pattern: #"[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com"#,
-            in: haystack),
-            let clientSecret = Self.firstMatch(
-                pattern: #"GOCSPX-[A-Za-z0-9_-]{28}"#,
-                in: haystack)
-        else {
-            return nil
-        }
-
-        return AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
+        let start = content.range(of: marker)?.lowerBound ?? content.startIndex
+        let end = content.index(start, offsetBy: 4000, limitedBy: content.endIndex) ?? content.endIndex
+        return self.unambiguousClient(in: Data(content[start..<end].utf8))
     }
 
-    private static func clientIDs(in data: Data) -> [String] {
-        let suffix = Data(".apps.googleusercontent.com".utf8)
-        var searchRange = data.startIndex..<data.endIndex
-        var values: [String] = []
-
-        while let range = data.range(of: suffix, options: [], in: searchRange) {
-            var start = range.lowerBound
-            while start > data.startIndex {
-                let previous = data.index(before: start)
-                guard Self.isOAuthClientIDPrefixByte(data[previous]) else { break }
-                start = previous
-            }
-
-            let candidateData = Data(data[start..<range.upperBound])
-            if let candidate = String(data: candidateData, encoding: .ascii),
-               let clientID = Self.firstMatch(
-                   pattern: #"[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com"#,
-                   in: candidate)
-            {
-                values.append(clientID)
-            }
-
-            searchRange = range.upperBound..<data.endIndex
-        }
-
-        return self.unique(values)
-    }
-
-    private static func clientSecrets(in data: Data) -> [String] {
-        let prefix = Data("GOCSPX-".utf8)
-        let secretLength = 35
-        var searchRange = data.startIndex..<data.endIndex
-        var values: [String] = []
-
-        while let range = data.range(of: prefix, options: [], in: searchRange) {
-            let end = range.lowerBound + secretLength
-            if end <= data.endIndex {
-                let candidateData = Data(data[range.lowerBound..<end])
-                if candidateData.dropFirst(prefix.count).allSatisfy(Self.isOAuthClientSecretByte),
-                   let candidate = String(data: candidateData, encoding: .ascii)
-                {
-                    values.append(candidate)
+    /// Older artifacts with exactly one identity need no instruction decoding. Multiple identities require a record.
+    private static func unambiguousClient(in data: Data) -> AntigravityOAuthClient? {
+        func value(marker: String, pattern: String, trailing: Int) -> String? {
+            var search = data.startIndex..<data.endIndex
+            var values = Set<String>()
+            while let match = data.range(of: Data(marker.utf8), in: search) {
+                search = match.upperBound..<data.endIndex
+                var start = match.lowerBound
+                let end = match.upperBound + trailing
+                guard end <= data.endIndex else { continue }
+                if trailing == 0 {
+                    while start > max(data.startIndex, match.lowerBound - 256),
+                          Self.isOAuthClientIDPrefixByte(data[start - 1])
+                    {
+                        start -= 1
+                    }
                 }
+                guard let text = String(data: data[start..<end], encoding: .ascii),
+                      let range = text.range(of: pattern, options: .regularExpression) else { continue }
+                values.insert(String(text[range]))
+                if values.count > 1 { return nil }
             }
-
-            searchRange = range.upperBound..<data.endIndex
+            return values.first
         }
-
-        return self.unique(values)
-    }
-
-    private static func preferredBinaryClient(
-        clientIDs: [String],
-        clientSecrets: [String]) -> AntigravityOAuthClient?
-    {
-        guard !clientIDs.isEmpty,
-              !clientSecrets.isEmpty
-        else {
-            return nil
-        }
-
-        if clientSecrets.count == 1, clientIDs.count > 1 {
-            return AntigravityOAuthClient(clientID: clientIDs[clientIDs.count - 1], clientSecret: clientSecrets[0])
-        }
-
-        let clientSecret: String = if clientSecrets.count == clientIDs.count, clientSecrets.count > 1 {
-            // Antigravity 2's language_server binary stores the secret table before the client id table.
-            clientSecrets[clientSecrets.count - 1]
-        } else {
-            clientSecrets[0]
-        }
-
-        return AntigravityOAuthClient(clientID: clientIDs[0], clientSecret: clientSecret)
+        guard let id = value(
+            marker: ".apps.googleusercontent.com",
+            pattern: #"[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$"#,
+            trailing: 0),
+            let secret = value(marker: "GOCSPX-", pattern: #"^GOCSPX-[A-Za-z0-9_-]{28}$"#, trailing: 28)
+        else { return nil }
+        return AntigravityOAuthClient(clientID: id, clientSecret: secret)
     }
 
     private static func isOAuthClientIDPrefixByte(_ byte: UInt8) -> Bool {
@@ -390,28 +316,93 @@ public enum AntigravityOAuthConfig {
             || byte == 95
     }
 
-    private static func isOAuthClientSecretByte(_ byte: UInt8) -> Bool {
-        self.isOAuthClientIDPrefixByte(byte)
-    }
-
-    private static func firstMatch(pattern: String, in text: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, range: range),
-              let swiftRange = Range(match.range, in: text)
-        else {
-            return nil
+    /// Reads adjacent ClientID/ClientSecret Go string fields, never string-pool ordering.
+    private static func binaryClient(in data: Data) -> AntigravityOAuthClient? {
+        func word(_ offset: Int) -> UInt32 {
+            data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: UInt32.self).littleEndian }
         }
-        return String(text[swiftRange])
-    }
-
-    private static func unique(_ values: [String]) -> [String] {
-        var seen = Set<String>()
-        return values.filter { value in
-            guard !seen.contains(value) else { return false }
-            seen.insert(value)
-            return true
+        guard data.count >= 32, word(0) == 0xFEED_FACF,
+              [0x0100_000C, 0x0100_0007].contains(word(4)),
+              Int(word(20)) <= data.count - 32 else { return nil }
+        let commandsEnd = 32 + Int(word(20))
+        var command = 32
+        for _ in 0..<min(word(16), 4096) {
+            guard command <= commandsEnd - 8 else { return nil }
+            let size = Int(word(command + 4))
+            guard size >= 8, size <= commandsEnd - command else { return nil }
+            defer { command += size }
+            guard word(command) == 0x19, size >= 72,
+                  data[command + 8..<command + 24].starts(with: Data("__TEXT\0".utf8)),
+                  word(command + 24) & 4095 == 0,
+                  word(command + 40) == 0, word(command + 44) == 0,
+                  word(command + 52) == 0,
+                  Int(word(command + 48)) <= data.count else { continue }
+            let textEnd = Int(word(command + 48))
+            let sections = Int(word(command + 64))
+            guard sections <= (size - 72) / 80 else { return nil }
+            for index in 0..<sections {
+                let section = command + 72 + index * 80
+                guard data[section..<section + 16].starts(with: Data("__text\0".utf8)),
+                      word(section + 44) == 0 else { continue }
+                let start = Int(word(section + 48))
+                let length = Int(word(section + 40))
+                guard start >= commandsEnd, start <= textEnd, length <= textEnd - start else { return nil }
+                let intel = word(4) == 0x0100_0007
+                let marker = Data(intel ? [0x48, 0xC7, 0x40, 0x08] : [0x01, 0x08, 0x00, 0xA9])
+                var range = start..<(start + length)
+                while let match = data.range(of: marker, in: range) {
+                    range = match.upperBound..<range.upperBound
+                    let record = match.lowerBound - (intel ? 0 : 12)
+                    guard record >= start, record <= start + length - (intel ? 37 : 32) else { continue }
+                    /// __TEXT has an aligned VM base and file offset 0,
+                    /// so PC-relative addresses map to file offsets.
+                    func reference(_ offset: Int) -> (Int, Int)? {
+                        if intel {
+                            guard word(offset) & 0x00FF_FFFF == 0x000D_8D48 else { return nil }
+                            return (offset + 7 + Int(Int32(bitPattern: word(offset + 3))), 0)
+                        }
+                        let page = word(offset)
+                        let add = word(offset + 4)
+                        let count = word(offset + 8)
+                        guard offset % 4 == 0, page & 0x9F00_001F == 0x9000_0001,
+                              add & 0xFFC0_03FF == 0x9100_0021,
+                              count & 0xFFE0_001F == 0xD280_0002 else { return nil }
+                        let immediate = ((page >> 5) & 0x7FFFF) << 2 | ((page >> 29) & 3)
+                        let pages = Int(Int32(bitPattern: immediate << 11) >> 11)
+                        return (
+                            (offset & ~4095) + pages * 4096 + Int((add >> 10) & 4095),
+                            Int((count >> 5) & 0xFFFF))
+                    }
+                    let id: (Int, Int)
+                    let secret: (Int, Int)
+                    if intel {
+                        guard let idRef = reference(record + 8), let secretRef = reference(record + 26),
+                              data[record + 15..<record + 22] == Data([0x48, 0x89, 0x08, 0x48, 0xC7, 0x40, 0x18]),
+                              word(record + 33) == 0x1048_8948 else { continue }
+                        id = (idRef.0, Int(word(record + 4)))
+                        secret = (secretRef.0, Int(word(record + 22)))
+                    } else {
+                        guard let idRef = reference(record), let secretRef = reference(record + 16),
+                              word(record + 28) == 0xA901_0801 else { continue }
+                        id = idRef
+                        secret = secretRef
+                    }
+                    guard (30...256).contains(id.1), secret.1 == 35,
+                          id.0 >= commandsEnd, id.0 <= textEnd - id.1,
+                          secret.0 >= commandsEnd, secret.0 <= textEnd - secret.1,
+                          let clientID = String(data: data[id.0..<id.0 + id.1], encoding: .ascii),
+                          let clientSecret = String(data: data[secret.0..<secret.0 + secret.1], encoding: .ascii),
+                          clientID.range(
+                              of: #"^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$"#,
+                              options: .regularExpression) != nil,
+                          clientSecret.range(
+                              of: #"^GOCSPX-[A-Za-z0-9_-]{28}$"#,
+                              options: .regularExpression) != nil else { continue }
+                    return AntigravityOAuthClient(clientID: clientID, clientSecret: clientSecret)
+                }
+            }
         }
+        return nil
     }
 }
 
@@ -501,11 +492,7 @@ extension JSONEncoder {
 }
 
 extension String {
-    fileprivate var nilIfEmpty: String? {
-        self.isEmpty ? nil : self
-    }
-
-    fileprivate var trimmedNonEmptyEmail: String? {
+    fileprivate var trimmedNonEmpty: String? {
         let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }

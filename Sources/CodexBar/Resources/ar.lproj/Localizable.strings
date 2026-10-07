@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "المتوسط (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "تجنب Keychain الأسئلة";
 "Balance" = "التوازن";
+"Cloud credits" = "رصيد السحابة";
+"Expired" = "منتهية الصلاحية";
 "Battery Saver" = "منقذ البطارية";
 "Bordered" = "الحدود";
 "Build" = "البناء";
@@ -525,6 +527,11 @@
 "session_depleted_notification_body" = "المتبقي 0%. سنبلغك عندما تصبح الحصة متاحة مجددًا.";
 "session_restored_notification_title" = "%@ الجلسة التي استعادت";
 "session_restored_notification_body" = "حصة الجلسة متاحة مرة أخرى.";
+"limit_reset_notifications_title" = "إشعارات إعادة التعيين";
+"limit_reset_notifications_subtitle" = "يُعلمك بالمزوّد والنافذة عند إعادة تعيين حد الجلسة أو الحد الأسبوعي.";
+"limit_reset_notification_title" = "تمت إعادة تعيين حد %2$@ لدى %1$@";
+"limit_reset_notification_body" = "تتوفر حصة جديدة.";
+"limit_reset_notification_body_with_account" = "الحساب %@. تتوفر حصة جديدة.";
 "quota_warning_warn_at" = "التحذير في";
 "quota_warning_global_threshold_subtitle" = "النسب المتبقية للجلسات والفترات الأسبوعية ما لم يتجاوزها مقدم الخدمة.";
 "quota_warning_sound" = "تشغيل صوت الإشعار";
@@ -851,7 +858,6 @@
 "No local data found" = "لم يتم العثور على بيانات محلية";
 "Credits unavailable; keep Codex running to refresh." = "الاعتمادات غير متوفرة؛ استمر في Codex لتجديد النشاط.";
 "No available fetch strategy for minimax." = "لا توجد استراتيجية جلب متاحة للمينيماكس.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "لم يتم العثور على جلسة Cursor. يرجى تسجيل الدخول إلى cursor.com في Safari، Chrome، مايكروسوفت إيدج، بريف، آرك، دييا، شات جي بي تي أطلس، كروميوم، هيليوم، فيفالدي، متصفح ياندكس، فايرفوكس، زين، كوليبري، سايدكيك، أوبرا، أوبرا GX، أو إيدج كاناري. إذا كنت تستخدم Safari، امنح CodexBar الوصول الكامل للقرص في إعدادات النظام ▸ الخصوصية والأمان. يمكنك أيضا تسجيل الدخول إلى Cursor من قائمة CodexBar (إضافة / تغيير الحساب).";
 "No OpenCode session cookies found in browsers." = "لا توجد ملفات تعريف الارتباط للجلسة OpenCode في المتصفحات.";
 "No available fetch strategy for %@." = "لا توجد استراتيجية جلب متاحة %@.";
 "Today" = "اليوم";
@@ -1535,7 +1541,7 @@
 "mobile_sync_status_syncing" = "جار المزامنة…";
 "mobile_sync_status_syncing_elapsed_format" = "جارٍ المزامنة — %@ · %d ث";
 "mobile_sync_status_syncing_phase_format" = "جارٍ المزامنة — %@…";
-"mobile_toggle_mock_subtitle" = "يدفع 77 لقطة وهمية ثابتة تغطي 67 معرّف مزوّد عند كل مزامنة، بما في ذلك حالات الحسابات المتعددة وsub2api وWayfinder والرجوع الاحتياطي للمزوّدات غير المعروفة. تستخدم رسائل البريد الوهمية نطاق المستوى الأعلى `.test`، لذلك يعرض iPhone شارة MOCK. يتيح إيقاف هذا الخيار لـ CloudKit إزالة السجلات الوهمية خلال دورة مزامنة واحدة تقريبًا. متوقف افتراضيًا.";
+"mobile_toggle_mock_subtitle" = "يدفع 105 لقطة وهمية ثابتة تغطي 95 معرّف مزوّد عند كل مزامنة، بما في ذلك حالات الحسابات المتعددة وsub2api وWayfinder والرجوع الاحتياطي للمزوّدات غير المعروفة. تستخدم رسائل البريد الوهمية نطاق المستوى الأعلى `.test`، لذلك يعرض iPhone شارة MOCK. يتيح إيقاف هذا الخيار لـ CloudKit إزالة السجلات الوهمية خلال دورة مزامنة واحدة تقريبًا. متوقف افتراضيًا.";
 "mobile_toggle_mock_title" = "حقن بيانات مزود وهمية";
 "mobile_toggle_push_subtitle" = "عند نفاد حصة الجلسة أو استعادتها، أرسل تنبيه دفع مرئيا إلى تطبيق iOS المرافق عبر iCloud. هذا مستقل عن إشعارات Mac المحلية — يمكنك إبقاء Mac صامتا مع الاستمرار في تلقي التنبيهات على iPhone.";
 "mobile_toggle_push_title" = "إشعارات الدفع إلى iOS";
@@ -1625,6 +1631,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "محادثة مستقلة";
+"Independent chats" = "محادثات مستقلة";
+"Chat %d" = "محادثة %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1721,3 +1731,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "مزامنة إعدادات Mac منفصلة عن مزامنة استخدام iPhone. فعّلها على كل Mac ليظهر هنا. يبقى سجل التكلفة محليًا.";
 
 "Cached data from" = "بيانات مخزنة مؤقتًا من";
+"Supported browsers: %@. Use Manual for other browsers." = "المتصفحات المدعومة: %@. استخدم الوضع اليدوي للمتصفحات الأخرى.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "الصق ترويسة Cookie من طلب Chrome إلى www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "محجوز";

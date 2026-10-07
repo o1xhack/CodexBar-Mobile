@@ -189,6 +189,54 @@ struct CursorSandUsageTests {
         #expect(snapshot.rawJSON?.contains("get-sand-usage-status") == true)
     }
 
+    @Test
+    func `mid-week period start keeps the weekly grok bot window`() throws {
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: "2026-10-02T18:03:04Z",
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 44.935,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let now = try #require(ISO8601DateParser.parse("2026-10-03T00:02:00Z"))
+        let window = try #require(status.extraRateWindow(now: now, resetDescription: { _ in "Resets" }))
+        let start = try #require(ISO8601DateParser.parse(status.currentPeriodStart))
+        let reset = try #require(ISO8601DateParser.parse(status.nextResetTimestampUtc))
+        #expect(CursorSandUsageStatus.windowMinutes(start: start, end: reset) == 3917)
+        #expect(window.window.usedPercent == 44.935)
+        #expect(window.window.resetsAt == reset)
+        #expect(window.window.windowMinutes == 10080)
+        let pace = try #require(UsagePace.weekly(window: window.window, now: now))
+        #expect(abs(pace.expectedUsedPercent - 64.702) < 0.001)
+        #expect(abs(pace.deltaPercent + 19.767) < 0.001)
+        #expect(pace.willLastToReset)
+    }
+
+    @Test(arguments: [nil, "not-a-date", "2026-09-27T11:20:04Z", "2026-10-05T11:20:04Z", "2026-10-06T11:20:04Z"])
+    func `paid weekly cadence does not depend on the reported start`(start: String?) {
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: start,
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 10,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let window = status.extraRateWindow(now: Self.now, resetDescription: { _ in "Resets" })
+        #expect(window?.window.windowMinutes == 10080)
+    }
+
+    @Test(arguments: [nil, "not-a-date"])
+    func `paid allowance without a reset has no pace window`(reset: String?) throws {
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: "2026-10-02T18:03:04Z",
+            nextResetTimestampUtc: reset,
+            usagePercent: 44.935,
+            hasAvailableUsage: true,
+            includedLimitZero: false)
+        let window = try #require(status.extraRateWindow(resetDescription: { _ in "Resets" }))
+        #expect(window.window.windowMinutes == nil)
+        #expect(window.window.resetsAt == nil)
+        #expect(window.window.resetDescription == nil)
+    }
+
     private static let now = Date(timeIntervalSince1970: 1_789_344_000)
 
     private static func status(

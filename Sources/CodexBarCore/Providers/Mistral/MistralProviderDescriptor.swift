@@ -53,8 +53,7 @@ public enum MistralProviderDescriptor {
                     ProviderColor(hex: 0xFF5229),
                     ProviderColor(hex: 0xFFAF01),
                     ProviderColor(hex: 0xFFE000),
-                ],
-                widgetColor: ProviderColor(hex: 0xFF500F)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
                 noDataMessage: { "Mistral cost history needs a billing web session." },

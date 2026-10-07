@@ -58,8 +58,7 @@ public enum DevinProviderDescriptor {
                     ProviderColor(hex: 0x317CFF),
                     ProviderColor(hex: 0x000000),
                     ProviderColor(hex: 0xFFFFFF),
-                ],
-                widgetColor: ProviderColor(hex: 0x46B482)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Devin cost summary is not supported." }),

@@ -4,21 +4,24 @@ import Testing
 @testable import CodexBar
 
 private actor NeuralWattAccountRefreshRecorder {
-    private(set) var dates: [Date] = []
-    private var waiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+    private(set) var events: [String] = []
+    let sleeping = AsyncStream.makeStream(of: Void.self)
+    private var release: CheckedContinuation<Void, Never>?
 
-    func record() {
-        self.dates.append(Date())
-        let ready = self.waiters.filter { self.dates.count >= $0.count }
-        self.waiters.removeAll { self.dates.count >= $0.count }
-        ready.forEach { $0.continuation.resume() }
+    func record() { self.events.append("fetch") }
+
+    func sleep(for duration: Duration) async {
+        #expect(duration == .seconds(1))
+        self.events.append("sleep")
+        await withCheckedContinuation { continuation in
+            self.release = continuation
+            self.sleeping.continuation.yield(())
+        }
     }
 
-    func waitForCount(_ count: Int) async {
-        if self.dates.count >= count { return }
-        await withCheckedContinuation { continuation in
-            self.waiters.append((count, continuation))
-        }
+    func resume() {
+        self.release?.resume()
+        self.release = nil
     }
 }
 
@@ -53,17 +56,26 @@ private struct NeuralWattAccountRefreshStrategy: ProviderFetchStrategy {
 @MainActor
 @Suite(.serialized)
 struct UsageStoreNeuralWattAccountRefreshTests {
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `multi-account refresh respects Neuralwatt quota rate limit`() async throws {
         let recorder = NeuralWattAccountRefreshRecorder()
         let store = try Self.makeStore(recorder: recorder)
         let accounts = Self.addAccounts(to: store, count: 2)
 
-        await store.refreshTokenAccounts(provider: .neuralwatt, accounts: accounts)
-
-        let dates = await recorder.dates
-        #expect(dates.count == 2)
-        #expect(dates[1].timeIntervalSince(dates[0]) >= 0.95)
+        let task = Task {
+            defer { recorder.sleeping.continuation.finish() }
+            await store.refreshTokenAccounts(
+                provider: .neuralwatt,
+                accounts: accounts,
+                sleep: { await recorder.sleep(for: $0) })
+        }
+        for await _ in recorder.sleeping.stream {
+            break
+        }
+        #expect(await recorder.events == ["fetch", "sleep"])
+        await recorder.resume()
+        await task.value
+        #expect(await recorder.events == ["fetch", "sleep", "fetch"])
     }
 
     private static func makeStore(recorder: NeuralWattAccountRefreshRecorder) throws -> UsageStore {
@@ -106,16 +118,5 @@ struct UsageStoreNeuralWattAccountRefreshTests {
                 token: "sk-\(index)")
         }
         return store.settings.tokenAccounts(for: .neuralwatt)
-    }
-
-    private static func snapshot() -> UsageSnapshot {
-        UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 25,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: nil),
-            secondary: nil,
-            updatedAt: Date())
     }
 }

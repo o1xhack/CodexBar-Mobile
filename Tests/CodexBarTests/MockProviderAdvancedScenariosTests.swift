@@ -236,9 +236,10 @@ struct MockProviderAdvancedScenariosTests {
             realCatalog.contains($0.providerID)
         }
         // v0.59-v0.68 adds 19 current provider fixtures and retires Crof
-        // from the current catalog: 79 → 97 current-ID snapshots. Multiple
-        // accounts deliberately give some provider IDs more than one snapshot.
-        #expect(realBorrowedMocks.count == 97)
+        // from the current catalog: 79 → 97 current-ID snapshots; v0.72 adds
+        // muse.ai, LithosAI, and WorkBuddy → 100. Multiple accounts deliberately
+        // give some provider IDs more than one snapshot.
+        #expect(realBorrowedMocks.count == 100)
         #expect(Set(realBorrowedMocks.map(\.providerID)) ==
             MockProviderInjector.realProviderIDsBorrowedByMocks.intersection(realCatalog))
         for snap in realBorrowedMocks {

@@ -324,6 +324,11 @@ public struct ProviderPluginManifest: Sendable {
         } else {
             self.cookiePolicy = nil
         }
+        if let echo = self.cookiePolicy?.headerEcho, let auth = self.auth,
+           echo.header.caseInsensitiveCompare(auth.header) == .orderedSame
+        {
+            throw ProviderPluginError.invalidManifest("cookie headerEcho may not replace manifest auth")
+        }
     }
 
     private static func requiredString(_ object: any ProviderPluginValue, property: String) throws -> String {

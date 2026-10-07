@@ -168,7 +168,8 @@ extension SpendDashboardModel {
                 let entry = windowEntry.entry
                 return entry.hasOnlyIncompleteRequests || Self.hasRetainableUnpricedModelRows(entry) ||
                     Self.hasCompleteModelCostCoverage(entry) ||
-                    Self.hasProvenZeroCost(entry)
+                    Self.hasProvenZeroCost(entry) ||
+                    (entry.costUSD == nil && entry.modelBreakdowns?.isEmpty == true && Self.hasProvenZeroTokens(entry))
             }
     }
 

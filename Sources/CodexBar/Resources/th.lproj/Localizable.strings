@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "เฉลี่ย (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "หลีกเลี่ยงข้อความแจ้ง Keychain";
 "Balance" = "สมดุล";
+"Cloud credits" = "เครดิตคลาวด์";
+"Expired" = "หมดอายุแล้ว";
 "Battery Saver" = "ประหยัดแบตเตอรี่";
 "Bordered" = "มีพรมแดน";
 "Build" = "สร้าง";
@@ -525,6 +527,11 @@
 "session_depleted_notification_body" = "เหลือ 0% จะแจ้งเตือนเมื่อกลับมาใช้งานได้อีกครั้ง";
 "session_restored_notification_title" = "%@ เซสชันที่กู้คืน";
 "session_restored_notification_body" = "โควต้าเซสชันพร้อมใช้งานอีกครั้ง";
+"limit_reset_notifications_title" = "การแจ้งเตือนการรีเซ็ต";
+"limit_reset_notifications_subtitle" = "แจ้งว่าผู้ให้บริการใดและช่วงใดถูกรีเซ็ตเมื่อขีดจำกัดเซสชันหรือรายสัปดาห์รีเซ็ต";
+"limit_reset_notification_title" = "ขีดจำกัด%2$@ของ %1$@ รีเซ็ตแล้ว";
+"limit_reset_notification_body" = "มีโควตาใหม่พร้อมใช้งาน";
+"limit_reset_notification_body_with_account" = "บัญชี %@ มีโควตาใหม่พร้อมใช้งาน";
 "quota_warning_warn_at" = "เตือนที่";
 "quota_warning_global_threshold_subtitle" = "เปอร์เซ็นต์ที่เหลืออยู่สําหรับกรอบเวลาเซสชันและรายสัปดาห์ เว้นแต่ผู้ให้บริการจะแทนที่";
 "quota_warning_sound" = "เล่นเสียงแจ้งเตือน";
@@ -851,7 +858,6 @@
 "No local data found" = "ไม่พบข้อมูลในเครื่อง";
 "Credits unavailable; keep Codex running to refresh." = "ไม่มีเครดิต Codex ทํางานต่อไปเพื่อรีเฟรช";
 "No available fetch strategy for minimax." = "ไม่มีกลยุทธ์การดึงข้อมูลสําหรับ minimax";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "ไม่พบเซสชัน Cursor โปรดเข้าสู่ระบบ cursor.com ใน Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX หรือ Edge Canary หากคุณใช้ Safari ให้สิทธิ์การเข้าถึงดิสก์แบบเต็ม CodexBar ใน การตั้งค่าระบบ ▸ ความเป็นส่วนตัวและความปลอดภัย คุณยังสามารถลงชื่อเข้าใช้ Cursor ได้จากเมนู CodexBar (เพิ่ม / สลับบัญชี)";
 "No OpenCode session cookies found in browsers." = "ไม่พบคุกกี้เซสชัน OpenCode ในเบราว์เซอร์";
 "No available fetch strategy for %@." = "ไม่มีกลยุทธ์การดึงข้อมูลสําหรับ %@";
 "Today" = "วันนี้";
@@ -1535,7 +1541,7 @@
 "mobile_sync_status_syncing" = "กำลังซิงค์…";
 "mobile_sync_status_syncing_elapsed_format" = "กำลังซิงค์ — %@ · %d วินาที";
 "mobile_sync_status_syncing_phase_format" = "กำลังซิงค์ — %@…";
-"mobile_toggle_mock_subtitle" = "ส่งสแนปช็อตจำลองที่คงที่ 77 รายการ ครอบคลุม ID ผู้ให้บริการ 67 รายการทุกครั้งที่ซิงค์ รวมถึงกรณีหลายบัญชี, sub2api, Wayfinder และการสำรองสำหรับผู้ให้บริการที่ไม่รู้จัก อีเมลจำลองใช้ TLD `.test` ดังนั้น iPhone จะแสดงป้าย MOCK เมื่อปิดตัวเลือกนี้ CloudKit จะลบระเบียนจำลองภายในประมาณหนึ่งรอบการซิงค์ ปิดอยู่โดยค่าเริ่มต้น";
+"mobile_toggle_mock_subtitle" = "ส่งสแนปช็อตจำลองที่คงที่ 105 รายการ ครอบคลุม ID ผู้ให้บริการ 95 รายการทุกครั้งที่ซิงค์ รวมถึงกรณีหลายบัญชี, sub2api, Wayfinder และการสำรองสำหรับผู้ให้บริการที่ไม่รู้จัก อีเมลจำลองใช้ TLD `.test` ดังนั้น iPhone จะแสดงป้าย MOCK เมื่อปิดตัวเลือกนี้ CloudKit จะลบระเบียนจำลองภายในประมาณหนึ่งรอบการซิงค์ ปิดอยู่โดยค่าเริ่มต้น";
 "mobile_toggle_mock_title" = "ฉีดข้อมูลผู้ให้บริการจำลอง";
 "mobile_toggle_push_subtitle" = "เมื่อโควตาเซสชันหมดหรือกลับมาใช้งานได้ ให้ส่งการแจ้งเตือนแบบ push ที่มองเห็นได้ไปยังแอป iOS ผ่าน iCloud สิ่งนี้แยกจากการแจ้งเตือนในเครื่องของ Mac — คุณสามารถปิดเสียง Mac แต่ยังรับการแจ้งเตือนบน iPhone ได้";
 "mobile_toggle_push_title" = "การแจ้งเตือน Push ไปยัง iOS";
@@ -1625,6 +1631,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "แชทอิสระ";
+"Independent chats" = "แชทอิสระ";
+"Chat %d" = "แชท %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1721,3 +1731,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "การซิงค์การตั้งค่า Mac แยกจากการซิงค์การใช้งาน iPhone เปิดใช้งานบน Mac แต่ละเครื่องเพื่อแสดงที่นี่ ประวัติค่าใช้จ่ายยังคงอยู่ในเครื่อง";
 
 "Cached data from" = "ข้อมูลแคชจาก";
+"Supported browsers: %@. Use Manual for other browsers." = "เบราว์เซอร์ที่รองรับ: %@ ใช้โหมดกำหนดเองสำหรับเบราว์เซอร์อื่น";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "วางส่วนหัว Cookie จากคำขอของ Chrome ไปยัง www.workbuddy.cn/profile/plans-usage";
+"Reserved" = "สำรองไว้";

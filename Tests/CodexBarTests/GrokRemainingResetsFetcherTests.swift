@@ -252,7 +252,7 @@ struct GrokRemainingResetsFetcherTests {
         #expect(second.tokens == [token])
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `deferred lookup publishes a display snapshot after returning cached usage`() async throws {
         GrokRemainingResetsFetcher.resetCacheForTesting()
         defer { GrokRemainingResetsFetcher.resetCacheForTesting() }
@@ -263,19 +263,19 @@ struct GrokRemainingResetsFetcherTests {
             grantedAt: nil,
             expiresAt: expiresAt)
 
-        let startedAt = ContinuousClock.now
+        let release = AsyncStream<Void>.makeStream()
+        defer { release.continuation.finish() }
         let lookup = GrokRemainingResetsFetcher.cachedLookupAndRefresh(
             credentials: Self.credentials,
             cookieHeader: nil,
             now: now,
             refresh: { _, _, _ in
-                try? await Task.sleep(for: .milliseconds(100))
+                for await _ in release.stream {}
                 return [token]
             })
-        let elapsed = ContinuousClock.now - startedAt
 
         #expect(lookup.tokens.isEmpty)
-        #expect(elapsed < .milliseconds(50))
+        release.continuation.finish()
 
         let task = try #require(lookup.snapshotTask)
         let snapshot = try #require(await task.value)

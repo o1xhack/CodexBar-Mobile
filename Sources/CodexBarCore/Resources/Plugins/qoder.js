@@ -124,7 +124,7 @@ defineProvider({
     if (rejected)
       throw ctx.fail.authenticationExpired("Qoder session is invalid or expired. Please sign in to Qoder again.");
     throw ctx.fail.missingCredential(
-      "Qoder session cookie not found. Sign in to qoder.com or qoder.com.cn in Chrome, or paste a Cookie header.",
+      `Qoder session cookie not found. Sign in to qoder.com or qoder.com.cn. Supported browsers: ${ctx.browser.supportedBrowsers}. Or paste a Cookie header.`,
     );
   },
 });

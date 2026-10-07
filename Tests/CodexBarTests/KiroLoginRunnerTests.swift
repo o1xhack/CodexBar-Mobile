@@ -1,127 +1,129 @@
+import CodexBarCore
 import Darwin
 import Foundation
 import Testing
 @testable import CodexBar
 
 struct KiroLoginRunnerTests {
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `login runner returns timeout before hung kiro-cli exits`() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codexbar-kiro-login-runner-\(UUID().uuidString)", isDirectory: true)
-        let binDir = root.appendingPathComponent("bin", isDirectory: true)
-        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        let root = try Self.makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-
-        let kiroCLI = binDir.appendingPathComponent("kiro-cli")
-        let script = """
-        #!/usr/bin/python3
-        import time
-
+        let pidFile = root.appendingPathComponent("root.pid")
+        defer { Self.killFixture(in: pidFile) }
+        try Self.installCLI(in: root, script: """
+        import os, signal
         print("login-started", flush=True)
-        time.sleep(5)
+        with open(os.environ["FIXTURE_PID"], "w") as handle:
+            handle.write(str(os.getpid()))
+        signal.pause()
         print("login-finished", flush=True)
-        """
-        try script.write(to: kiroCLI, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: kiroCLI.path)
-
-        let start = Date()
-        let result = await KiroLoginRunner.run(
-            timeout: 0.2,
-            environment: ["PATH": binDir.path],
-            loginPATH: nil)
-        let elapsed = Date().timeIntervalSince(start)
-
-        #expect(result.outcome == .timedOut)
-        #expect(result.output.contains("login-finished") == false)
-        #expect(elapsed < 2.0, "Timeout should return promptly, took \(elapsed)s")
-    }
-
-    @Test
-    func `login runner bounds output drain when detached child keeps pipes open`() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codexbar-kiro-login-drain-\(UUID().uuidString)", isDirectory: true)
-        let binDir = root.appendingPathComponent("bin", isDirectory: true)
-        let childPIDFile = root.appendingPathComponent("child.pid")
-        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        defer {
-            if let text = try? String(contentsOf: childPIDFile, encoding: .utf8),
-               let childPID = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines))
-            {
-                _ = kill(childPID, SIGKILL)
+        """)
+        let fired = LockIsolated(false)
+        let defaultSleep = BoundedTaskJoinTiming.sleep
+        let fireLoginDeadline: @Sendable (Duration) async throws -> Void = { duration in
+            if fired.value {
+                return try await defaultSleep(duration)
             }
+            fired.setValue(true)
+            #expect(duration == .milliseconds(200))
+            _ = try await KiroProcessTestSupport.waitForPID(in: pidFile)
+        }
+        let result = await BoundedTaskJoinTiming.$sleep.withValue(fireLoginDeadline) {
+            await KiroLoginRunner.run(
+                timeout: 0.2,
+                environment: ["PATH": root.path, "FIXTURE_PID": pidFile.path],
+                loginPATH: nil)
         }
 
-        let kiroCLI = binDir.appendingPathComponent("kiro-cli")
-        let script = """
-        #!/bin/sh
-        /bin/sh -c 'trap "" TERM; /bin/sleep 20' &
-        child_pid=$!
-        printf '%s\\n' "$child_pid" > "$CODEXBAR_TEST_CHILD_PID_FILE"
-        printf 'login-started\\n'
-        /bin/sleep 20
-        """
-        try script.write(to: kiroCLI, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: kiroCLI.path)
+        #expect(fired.value)
+        #expect(result.outcome == .timedOut)
+        #expect(result.output.contains("login-started"))
+        #expect(!result.output.contains("login-finished"))
+        let pid = try #require(KiroProcessTestSupport.readPID(from: pidFile))
+        #expect(kill(pid, 0) == -1)
+    }
 
-        let start = Date()
+    @Test(.timeLimit(.minutes(1)))
+    func `login runner bounds output drain when detached child keeps pipes open`() async throws {
+        let root = try Self.makeRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let childPIDFile = root.appendingPathComponent("child.pid")
+        defer { Self.killFixture(in: childPIDFile) }
+        try Self.installCLI(in: root, script: """
+        import os, signal
+        ready_read, ready_write = os.pipe()
+        intermediate = os.fork()
+        if intermediate == 0:
+            if os.fork() != 0:
+                os._exit(0)
+            os.setsid()
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            with open(os.environ["FIXTURE_PID"], "w") as handle:
+                handle.write(str(os.getpid()))
+            os.write(ready_write, b"R")
+            signal.pause()
+            os._exit(0)
+        os.waitpid(intermediate, 0)
+        os.read(ready_read, 1)
+        print("login-started", flush=True)
+        signal.pause()
+        """)
         let result = await KiroLoginRunner.run(
             timeout: 5,
-            outputDrainTimeout: 0.5,
-            environment: [
-                "CODEXBAR_TEST_CHILD_PID_FILE": childPIDFile.path,
-                "PATH": binDir.path,
-            ],
+            outputDrainTimeout: 0.05,
+            environment: ["PATH": root.path, "FIXTURE_PID": childPIDFile.path],
             loginPATH: nil)
-        let elapsed = Date().timeIntervalSince(start)
 
         #expect(result.outcome == .timedOut)
         #expect(result.output.contains("login-started"))
-        #expect(elapsed < 8.0, "Output drain should stay bounded, took \(elapsed)s")
+        let childPID = try #require(KiroProcessTestSupport.readPID(from: childPIDFile))
+        // The acknowledged writer is still held: returning cannot depend on pipe EOF.
+        #expect(kill(childPID, 0) == 0)
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `login runner reports progress once a device-flow URL appears`() async throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codexbar-kiro-login-progress-\(UUID().uuidString)", isDirectory: true)
-        let binDir = root.appendingPathComponent("bin", isDirectory: true)
-        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        let root = try Self.makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
-
-        let kiroCLI = binDir.appendingPathComponent("kiro-cli")
-        let script = """
-        #!/bin/sh
-        printf 'Open https://example.com/device?code=ABCD to continue\\n'
-        /bin/sleep 1.2
-        """
-        try script.write(to: kiroCLI, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: kiroCLI.path)
-
-        let progress = ProgressBox()
+        let releasePath = root.appendingPathComponent("release").path
+        try #require(mkfifo(releasePath, 0o600) == 0)
+        let descriptor = open(releasePath, O_RDWR | O_CLOEXEC)
+        try #require(descriptor >= 0)
+        let release = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        defer { try? release.close() }
+        try Self.installCLI(in: root, script: """
+        import os
+        print("Open https://example.com/device?code=ABCD to continue", flush=True)
+        with open(os.environ["FIXTURE_RELEASE"], "rb") as handle:
+            handle.read(1)
+        """)
         let result = await KiroLoginRunner.run(
-            timeout: 5,
-            environment: ["PATH": binDir.path],
+            timeout: 30,
+            environment: ["PATH": root.path, "FIXTURE_RELEASE": releasePath],
             loginPATH: nil,
-            onProgress: { text in progress.record(text) })
+            onProgress: { text in
+                #expect(text.contains("https://example.com/device?code=ABCD"))
+                try? release.write(contentsOf: Data([1]))
+            })
 
         #expect(result.outcome == .success)
-        #expect(progress.value?.contains("https://example.com/device?code=ABCD") == true)
     }
 
-    private final class ProgressBox: @unchecked Sendable {
-        private let lock = NSLock()
-        private var text: String?
+    private static func makeRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-kiro-login-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
 
-        var value: String? {
-            self.lock.lock()
-            defer { self.lock.unlock() }
-            return self.text
-        }
+    private static func installCLI(in root: URL, script: String) throws {
+        let cli = root.appendingPathComponent("kiro-cli")
+        try ("#!/usr/bin/python3\n" + script).write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cli.path)
+    }
 
-        func record(_ text: String) {
-            self.lock.lock()
-            self.text = text
-            self.lock.unlock()
-        }
+    private static func killFixture(in file: URL) {
+        if let pid = KiroProcessTestSupport.readPID(from: file) { _ = kill(pid, SIGKILL) }
     }
 }

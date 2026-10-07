@@ -424,21 +424,18 @@ struct GeminiStatusProbeAPITests {
         """.write(to: helper, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
 
-        let clock = ContinuousClock()
-        let start = clock.now
         let result = GeminiStatusProbe.runProcess(
             executable: helper.path,
             arguments: [pidFile.path],
             environment: [:],
             timeout: 5)
-        let elapsed = start.duration(to: clock.now)
         let text = try String(contentsOf: pidFile, encoding: .utf8)
         let processID = try #require(pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)))
         defer { _ = kill(processID, SIGKILL) }
 
         #expect(result == nil)
         #expect(kill(processID, 0) == -1)
-        #expect(elapsed < .seconds(7.5), "Ignored SIGTERM should escalate to SIGKILL, took \(elapsed)")
+        #expect(errno == ESRCH)
     }
 
     @Test
@@ -452,16 +449,20 @@ struct GeminiStatusProbeAPITests {
         """.write(to: helper, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
 
-        let clock = ContinuousClock()
-        let start = clock.now
-        let result = GeminiStatusProbe.runProcess(
-            executable: helper.path,
-            arguments: [],
-            environment: [:],
-            timeout: 10)
+        let completed = DispatchSemaphore(value: 0)
+        let result = LockIsolated<String?>("not completed")
+        DispatchQueue.global().async {
+            result.setValue(GeminiStatusProbe.runProcess(
+                executable: helper.path,
+                arguments: [],
+                environment: [:],
+                timeout: 120))
+            completed.signal()
+        }
 
-        #expect(result == nil)
-        #expect(start.duration(to: clock.now) < .seconds(5))
+        // The operation deadline lies beyond this hang guard, so only process exit can complete it.
+        #expect(completed.wait(timeout: .now() + 60) == .success)
+        #expect(result.value == nil)
     }
 
     @Test

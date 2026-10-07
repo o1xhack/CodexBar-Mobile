@@ -35,7 +35,7 @@ struct ProviderPaletteRenderingTests {
             let view = VStack(alignment: .leading, spacing: 12) {
                 Text("Provider palette · synthetic production views · \(page + 1)/4").font(.title2.bold())
                 Text(
-                    "Menu-card rows: old / proposed / final. Status icon remains a template. Widget rows: old / final.")
+                    "Menu rows: old / proposed / final. Template status icon. Widget rows: expected / current.")
                     .font(.caption)
                 Text(
                     "Fixed white and #222222 surfaces; 62% usage. " +
@@ -95,7 +95,7 @@ struct ProviderPaletteRenderingTests {
                 percent: 62,
                 color: Self.color(ProviderDescriptorRegistry.descriptor(for: palette.provider).branding.widgetColor))
                 .frame(height: 6)
-            Text("RGB preserved").font(.caption2)
+            Text("Expected / current").font(.caption2)
         }
         .padding(12).frame(width: 165)
         .background(dark ? Self.color(ProviderColor(hex: 0x222222)) : .white)

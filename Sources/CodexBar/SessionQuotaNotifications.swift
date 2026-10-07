@@ -13,7 +13,7 @@ struct SessionQuotaTransitionState: Equatable {
     let remaining: Double
     let source: UsageStore.SessionQuotaWindowSource
     let observedAt: Date
-    let codexOwnerKey: CodexSessionQuotaOwnerKey?
+    let accountDiscriminator: String?
     let trustedResetBoundary: Date?
     let pendingCodexRestoreObservationAt: Date?
 
@@ -23,7 +23,7 @@ struct SessionQuotaTransitionState: Equatable {
             remaining: self.remaining,
             source: self.source,
             observedAt: observedAt,
-            codexOwnerKey: self.codexOwnerKey,
+            accountDiscriminator: self.accountDiscriminator,
             trustedResetBoundary: self.trustedResetBoundary,
             pendingCodexRestoreObservationAt: self.pendingCodexRestoreObservationAt)
     }
@@ -75,7 +75,7 @@ struct SessionQuotaTransitionObservation: Equatable {
     let resetBoundary: Date?
     let observedAt: Date
     let evaluationTime: Date
-    let codexOwnerKey: CodexSessionQuotaOwnerKey?
+    let accountDiscriminator: String?
 }
 
 struct QuotaWarningEvent: Equatable {
@@ -201,15 +201,14 @@ enum SessionQuotaTransitionReducer {
                 state: self.baselineState(observation: observation))
         }
 
-        // Provider-specific by design: Codex restore detection is owner- and reset-boundary-scoped to reject stale
-        // account observations after a switch.
-        let ownerChanged = observation.provider == .codex && previous.codexOwnerKey != observation.codexOwnerKey
+        let ownerChanged = previous.accountDiscriminator != observation.accountDiscriminator
         guard previous.source == observation.source, !ownerChanged else {
             return SessionQuotaTransitionEvaluation(
                 outcome: .baselineChanged,
                 state: Self.baselineState(observation: observation))
         }
 
+        // Provider-specific by design: Codex rejects stale samples and validates the depleted reset boundary.
         if observation.provider == .codex, observation.observedAt <= previous.observedAt {
             return SessionQuotaTransitionEvaluation(outcome: .staleCodexObservation, state: previous)
         }
@@ -300,7 +299,7 @@ enum SessionQuotaTransitionReducer {
             remaining: observation.remaining,
             source: observation.source,
             observedAt: observation.observedAt,
-            codexOwnerKey: observation.provider == .codex ? observation.codexOwnerKey : nil,
+            accountDiscriminator: observation.accountDiscriminator,
             trustedResetBoundary: observation.provider == .codex
                 ? self.validResetBoundary(
                     observation.resetBoundary,
@@ -331,7 +330,7 @@ enum SessionQuotaTransitionReducer {
             remaining: observation.remaining,
             source: observation.source,
             observedAt: observation.observedAt,
-            codexOwnerKey: observation.provider == .codex ? observation.codexOwnerKey : nil,
+            accountDiscriminator: observation.accountDiscriminator,
             trustedResetBoundary: trustedResetBoundary,
             pendingCodexRestoreObservationAt: nil)
     }
@@ -345,7 +344,7 @@ enum SessionQuotaTransitionReducer {
             remaining: previous.remaining,
             source: observation.source,
             observedAt: observation.observedAt,
-            codexOwnerKey: observation.codexOwnerKey,
+            accountDiscriminator: observation.accountDiscriminator,
             trustedResetBoundary: previous.trustedResetBoundary,
             pendingCodexRestoreObservationAt: pendingRestoreObservationAt)
     }
@@ -541,6 +540,11 @@ protocol SessionQuotaNotifying: AnyObject {
         soundEnabled: Bool,
         onScreenAlertEnabled: Bool,
         now: Date)
+    func postLimitReset(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        accountDisplayName: String?,
+        isCurrent: @escaping @MainActor () -> Bool)
 }
 
 @MainActor
@@ -551,6 +555,13 @@ extension SessionQuotaNotifying {
         soundEnabled _: Bool,
         onScreenAlertEnabled _: Bool,
         now _: Date)
+    {}
+
+    func postLimitReset(
+        provider _: UsageProvider,
+        window _: QuotaWarningWindow,
+        accountDisplayName _: String?,
+        isCurrent _: @escaping @MainActor () -> Bool)
     {}
 }
 
@@ -631,6 +642,22 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
             self.alertOverlay.show(title: copy.title, message: copy.body)
         }
         AppNotifications.shared.post(idPrefix: idPrefix, title: copy.title, body: copy.body, soundEnabled: false)
+    }
+
+    func postLimitReset(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        accountDisplayName: String?,
+        isCurrent: @escaping @MainActor () -> Bool)
+    {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let copy = LimitResetNotificationLogic.notificationCopy(
+            providerName: providerName,
+            window: window,
+            accountDisplayName: accountDisplayName)
+        let idPrefix = "limit-reset-\(provider.rawValue)-\(window.rawValue)"
+        self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
+        AppNotifications.shared.post(idPrefix: idPrefix, title: copy.title, body: copy.body, isCurrent: isCurrent)
     }
 }
 

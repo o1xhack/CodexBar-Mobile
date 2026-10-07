@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "میانگین (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "از درخواست های Keychain اجتناب کنید";
 "Balance" = "تعادل";
+"Cloud credits" = "اعتبار ابری";
+"Expired" = "منقضی شده";
 "Battery Saver" = "باتری سیور";
 "Bordered" = "مرز";
 "Build" = "ساخت";
@@ -525,6 +527,11 @@
 "session_depleted_notification_body" = "0% باقی مانده است. وقتی دوباره در دسترس قرار گیرد اطلاع می‌دهیم.";
 "session_restored_notification_title" = "جلسه %@ بازیابی شد";
 "session_restored_notification_body" = "سهمیه جلسه دوباره در دسترس است.";
+"limit_reset_notifications_title" = "اعلان‌های بازنشانی";
+"limit_reset_notifications_subtitle" = "هنگام بازنشانی محدودیت جلسه یا هفتگی، ارائه‌دهنده و بازه را اعلام می‌کند.";
+"limit_reset_notification_title" = "محدودیت %2$@ در %1$@ بازنشانی شد";
+"limit_reset_notification_body" = "سهمیه جدید در دسترس است.";
+"limit_reset_notification_body_with_account" = "حساب %@. سهمیه جدید در دسترس است.";
 "quota_warning_warn_at" = "هشدار در";
 "quota_warning_global_threshold_subtitle" = "درصدهای باقی مانده برای جلسات و بازه های هفتگی مگر اینکه ارائه دهنده آن ها را لغو کند.";
 "quota_warning_sound" = "صدای اعلان پخش کن";
@@ -851,7 +858,6 @@
 "No local data found" = "داده محلی یافت نشد";
 "Credits unavailable; keep Codex running to refresh." = "اعتبارها در دسترس نیست؛ Codex را روشن نگه دارید تا تازه شوید.";
 "No available fetch strategy for minimax." = "هیچ استراتژی جمع آوری برای مینیمکس در دسترس نیست.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "جلسه Cursor پیدا نشد. لطفا در Safari، Chrome، مایکروسافت اج، بریو، آرک، دیا، چت جی پی تی اطلس، کرومیوم، هلیوم، ویوالدی، مرورگر یاندکس، فایرفاکس، زن، کولیبری، سایدکیک، اپرا، اپرا جی ایکس یا اج کنری وارد cursor.com شوید. اگر از Safari استفاده می کنید، به CodexBar دسترسی کامل دیسک در تنظیمات سیستم ▸ حریم خصوصی و امنیت اعطا کنید. همچنین می توانید از منوی CodexBar (افزودن / تغییر حساب) وارد Cursor شوید.";
 "No OpenCode session cookies found in browsers." = "هیچ کوکی نشست OpenCode در مرورگرها یافت نمی شود.";
 "No available fetch strategy for %@." = "استراتژی جمع آوری برای %@ موجود نیست.";
 "Today" = "امروز";
@@ -1535,7 +1541,7 @@
 "mobile_sync_status_syncing" = "در حال همگام‌سازی…";
 "mobile_sync_status_syncing_elapsed_format" = "در حال همگام‌سازی — %@ · %d ثانیه";
 "mobile_sync_status_syncing_phase_format" = "در حال همگام‌سازی — %@…";
-"mobile_toggle_mock_subtitle" = "در هر همگام‌سازی، ۷۷ اسنپ‌شات آزمایشی پایدار را برای ۶۷ شناسهٔ ارائه‌دهنده ارسال می‌کند؛ از جمله حالت‌های چندحسابی، sub2api، Wayfinder و بازگشت برای ارائه‌دهندهٔ ناشناخته. ایمیل‌های آزمایشی از دامنهٔ سطح‌بالای `.test` استفاده می‌کنند تا iPhone نشان MOCK را نمایش دهد. با خاموش کردن این گزینه، CloudKit رکوردهای آزمایشی را تقریباً در یک چرخهٔ همگام‌سازی حذف می‌کند. به‌طور پیش‌فرض خاموش است.";
+"mobile_toggle_mock_subtitle" = "در هر همگام‌سازی، ۱۰۵ اسنپ‌شات آزمایشی پایدار را برای ۹۵ شناسهٔ ارائه‌دهنده ارسال می‌کند؛ از جمله حالت‌های چندحسابی، sub2api، Wayfinder و بازگشت برای ارائه‌دهندهٔ ناشناخته. ایمیل‌های آزمایشی از دامنهٔ سطح‌بالای `.test` استفاده می‌کنند تا iPhone نشان MOCK را نمایش دهد. با خاموش کردن این گزینه، CloudKit رکوردهای آزمایشی را تقریباً در یک چرخهٔ همگام‌سازی حذف می‌کند. به‌طور پیش‌فرض خاموش است.";
 "mobile_toggle_mock_title" = "تزریق داده مزود شبیه‌سازی‌شده";
 "mobile_toggle_push_subtitle" = "وقتی سهمیه جلسه تمام یا بازیابی می‌شود، یک هشدار push قابل مشاهده از طریق iCloud به برنامه همراه iOS ارسال کن. این مستقل از اعلان‌های محلی Mac است — می‌توانید Mac را بی‌صدا نگه دارید و همچنان روی iPhone هشدار بگیرید.";
 "mobile_toggle_push_title" = "اعلان‌های Push به iOS";
@@ -1625,6 +1631,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "گفتگوی مستقل";
+"Independent chats" = "گفتگوهای مستقل";
+"Chat %d" = "گفتگو %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1721,3 +1731,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "همگام‌سازی تنظیمات Mac از همگام‌سازی مصرف iPhone جداست. آن را در هر Mac فعال کنید تا اینجا نمایش داده شود. سابقه هزینه محلی می‌ماند.";
 
 "Cached data from" = "داده‌های ذخیره‌شده از";
+"Supported browsers: %@. Use Manual for other browsers." = "مرورگرهای پشتیبانی‌شده: %@. برای مرورگرهای دیگر از حالت دستی استفاده کنید.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "هدر Cookie را از یک درخواست Chrome به www.workbuddy.cn/profile/plans-usage جای‌گذاری کنید.";
+"Reserved" = "رزروشده";

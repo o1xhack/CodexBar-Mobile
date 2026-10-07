@@ -505,8 +505,8 @@ struct OpenCodeGoUsageFetcherErrorTests {
         #expect(rootTimeout == 12)
     }
 
-    @Test
-    func `zen only fallback promptly cancels when balance task ignores cancellation`() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `zen only fallback cancels while balance task ignores cancellation`() async throws {
         let balanceStarted = AsyncStream<Void>.makeStream(of: Void.self)
         let balanceContinuation = OpenCodeGoContinuationBox<Double?>()
         let balanceTask = Task<Double?, Error> {
@@ -528,7 +528,6 @@ struct OpenCodeGoUsageFetcherErrorTests {
 
         var iterator = balanceStarted.stream.makeAsyncIterator()
         _ = await iterator.next()
-        let start = ContinuousClock.now
         fallbackTask.cancel()
 
         do {
@@ -540,7 +539,6 @@ struct OpenCodeGoUsageFetcherErrorTests {
             Issue.record("Expected CancellationError, got: \(error)")
         }
 
-        #expect(start.duration(to: .now) < .milliseconds(500))
         #expect(balanceTask.isCancelled)
         balanceContinuation.resume(returning: 42.5)
         #expect(try await balanceTask.value == 42.5)
@@ -739,22 +737,16 @@ struct OpenCodeGoUsageFetcherErrorTests {
         #expect(rootTimeout == 60)
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `optional zen balance does not stall subscription usage`() async throws {
         defer {
             OpenCodeGoStubURLProtocol.handler = nil
+            OpenCodeGoStubURLProtocol.heldPaths = []
         }
 
+        OpenCodeGoStubURLProtocol.heldPaths = ["/workspace/wrk_TEST123"]
         OpenCodeGoStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
-            if url.path == "/workspace/wrk_TEST123" {
-                Thread.sleep(forTimeInterval: 1)
-                return makeOpenCodeGoResponse(
-                    url: url,
-                    body: #"<html><body><h2>現在の残高 $98.76</h2></body></html>"#,
-                    statusCode: 200,
-                    contentType: "text/html")
-            }
             return makeOpenCodeGoResponse(
                 url: url,
                 body: Self.goUsagePageHTML(
@@ -766,17 +758,14 @@ struct OpenCodeGoUsageFetcherErrorTests {
                 contentType: "text/html")
         }
 
-        let start = ContinuousClock.now
         let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
             cookieHeader: "auth=test",
             timeout: 60,
             workspaceIDOverride: "wrk_TEST123",
             session: self.makeSession())
-        let elapsed = start.duration(to: ContinuousClock.now)
 
         #expect(snapshot.rollingUsagePercent == 17)
         #expect(snapshot.zenBalanceUSD == nil)
-        #expect(elapsed < .milliseconds(700))
     }
 
     @Test
@@ -967,6 +956,12 @@ private func openCodeGoConsoleNotMigratedResponse(for url: URL) -> (HTTPURLRespo
 }
 
 final class OpenCodeGoStubURLProtocol: URLProtocol {
+    private static let heldPathsBox = LockIsolated<Set<String>>([])
+    static var heldPaths: Set<String> {
+        get { heldPathsBox.value }
+        set { heldPathsBox.setValue(newValue) }
+    }
+
     private static let _handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
     static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
         get { Self._handlerBox.value }
@@ -982,6 +977,7 @@ final class OpenCodeGoStubURLProtocol: URLProtocol {
     }
 
     override func startLoading() {
+        if let path = self.request.url?.path, Self.heldPaths.contains(path) { return }
         guard let handler = Self.handler else {
             self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return

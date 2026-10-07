@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite(.serialized)
+@Suite(.serialized, CostUsageClaudeCacheFixtures())
 struct CostUsageScannerClaudeMemoTests {
     @Test(arguments: [false, true])
     func `atomic transcript replacement discards prior rows in warm and cold processes`(cold: Bool) throws {
@@ -290,6 +290,7 @@ struct CostUsageScannerClaudeMemoTests {
         #expect(metrics.cacheDecodes == 0)
         #expect(metrics.transcriptParses == 1)
         #expect(metrics.incrementalTranscriptParses == 1)
+        #expect(metrics.reconciliations == 1)
         #expect(metrics.cacheEncodes == 1)
     }
 

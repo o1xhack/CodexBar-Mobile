@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Promedio (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Evitar solicitudes del Llavero";
 "Balance" = "Saldo";
+"Cloud credits" = "Créditos en la nube";
+"Expired" = "Caducado";
 "Battery Saver" = "Ahorro de batería";
 "Bordered" = "Con borde";
 "Build" = "Compilación";
@@ -1278,7 +1280,6 @@
 "No %@ utilization data yet." = "Aún no hay datos de utilización de %@.";
 "No available fetch strategy for %@." = "No hay ninguna estrategia de obtención disponible para %@.";
 "No available fetch strategy for minimax." = "No hay ninguna estrategia de obtención disponible para MiniMax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "No se encontró ninguna sesión de Cursor. Inicia sesión en cursor.com desde Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX o Edge Canary. Si usas Safari, concede a CodexBar acceso total al disco en Ajustes del Sistema ▸ Privacidad y seguridad. También puedes iniciar sesión en Cursor desde el menú de CodexBar (Añadir/cambiar cuenta).";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "No se detectó ningún IDE de JetBrains con AI Assistant. Instala un IDE de JetBrains y activa AI Assistant.";
 "No local data found" = "No se encontraron datos locales";
 "No OpenCode session cookies found in browsers." = "No se encontraron cookies de sesión de OpenCode en los navegadores.";
@@ -1310,6 +1311,11 @@
 "session_depleted_notification_body" = "Queda un 0%. Se te avisará cuando vuelva a estar disponible.";
 "session_depleted_notification_title" = "Cuota de sesión de %@ agotada";
 "session_restored_notification_body" = "La cuota de sesión vuelve a estar disponible.";
+"limit_reset_notifications_title" = "Avisos de reinicio";
+"limit_reset_notifications_subtitle" = "Indica el proveedor y la ventana cuando se reinicia un límite de sesión o semanal.";
+"limit_reset_notification_title" = "%1$@: límite de %2$@ reiniciado";
+"limit_reset_notification_body" = "Hay cuota nueva disponible.";
+"limit_reset_notification_body_with_account" = "Cuenta %@. Hay cuota nueva disponible.";
 "session_restored_notification_title" = "Cuota de sesión de %@ restablecida";
 "Settings..." = "Ajustes...";
 "Sign in with Claude Code..." = "Iniciar sesión con Claude Code...";
@@ -1552,7 +1558,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Envía 77 instantáneas simuladas estables de 67 ID de proveedor en cada sincronización, incluidos casos de varias cuentas, sub2api, Wayfinder y respaldo para proveedores desconocidos. Los correos simulados usan el TLD `.test`, por lo que el iPhone muestra una insignia MOCK. Al desactivarlo, CloudKit elimina los registros simulados en aproximadamente un ciclo de sincronización. Desactivado de forma predeterminada.";
+"mobile_toggle_mock_subtitle" = "Envía 105 instantáneas simuladas estables de 95 ID de proveedor en cada sincronización, incluidos casos de varias cuentas, sub2api, Wayfinder y respaldo para proveedores desconocidos. Los correos simulados usan el TLD `.test`, por lo que el iPhone muestra una insignia MOCK. Al desactivarlo, CloudKit elimina los registros simulados en aproximadamente un ciclo de sincronización. Desactivado de forma predeterminada.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1620,6 +1626,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Chat independiente";
+"Independent chats" = "Chats independientes";
+"Chat %d" = "Chat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1715,3 +1725,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "La sincronización de ajustes del Mac es independiente de la del uso del iPhone. Actívala en cada Mac para que aparezca aquí. El historial de costes permanece local.";
 
 "Cached data from" = "Datos en caché del";
+"Supported browsers: %@. Use Manual for other browsers." = "Navegadores compatibles: %@. Usa Manual para otros navegadores.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Pega la cabecera Cookie de una solicitud de Chrome a www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reservado";

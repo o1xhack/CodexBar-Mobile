@@ -1,13 +1,19 @@
 import Foundation
 
-enum OpenCodeGoLegacyFallback {
+enum OpenCodeLegacyFallback {
     static func fetch<Value: Sendable>(
         cookieHeader: String,
+        requiresConsoleCookie: Bool = false,
         isUsableLegacyValue: @Sendable (Value) -> Bool = { _ in true },
         console: @Sendable () async throws -> Value,
         legacy: @Sendable () async throws -> Value) async throws -> Value
     {
         try Task.checkCancellation()
+        if requiresConsoleCookie,
+           !self.hasCookie(in: cookieHeader, names: OpenCodeWebCookieSupport.consoleSessionCookieNames)
+        {
+            return try await legacy()
+        }
         do {
             let value = try await console()
             try Task.checkCancellation()
@@ -28,7 +34,7 @@ enum OpenCodeGoLegacyFallback {
             } catch {
                 try self.checkCancellation(error)
                 // Failed legacy reads cannot turn a Console access failure into invalid auth or absent Go usage.
-                if error is OpenCodeGoUsageError,
+                if error is OpenCodeGoUsageError || error is OpenCodeUsageError,
                    !self.isInvalidCredentials(consoleError),
                    self.hasCookie(in: cookieHeader, names: OpenCodeWebCookieSupport.consoleSessionCookieNames)
                 {
@@ -43,7 +49,7 @@ enum OpenCodeGoLegacyFallback {
         try self.checkCancellation(error)
         if case .noSubscription? = error as? OpenCodeGoUsageError { return false }
         guard self.hasCookie(in: cookieHeader, names: OpenCodeWebCookieSupport.sessionCookieNames) else { return false }
-        if error is OpenCodeGoUsageError { return true }
+        if error is OpenCodeGoUsageError || error is OpenCodeUsageError { return true }
         guard let error = error as? URLError else { return false }
         switch error.code {
         case .timedOut, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
@@ -63,6 +69,7 @@ enum OpenCodeGoLegacyFallback {
 
     private static func isInvalidCredentials(_ error: Error) -> Bool {
         if case .invalidCredentials? = error as? OpenCodeGoUsageError { return true }
+        if case .invalidCredentials? = error as? OpenCodeUsageError { return true }
         return false
     }
 

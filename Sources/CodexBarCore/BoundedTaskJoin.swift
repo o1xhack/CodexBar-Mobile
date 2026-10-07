@@ -1,5 +1,9 @@
 import Foundation
 
+package enum BoundedTaskJoinTiming {
+    @TaskLocal package static var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+}
+
 package enum BoundedTaskJoinOutcome<Value: Sendable> {
     case value(Value)
     case failure(any Error)
@@ -12,13 +16,13 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
     private var outcome: BoundedTaskJoinOutcome<Value>?
     private var continuation: CheckedContinuation<BoundedTaskJoinOutcome<Value>, Never>?
     private var observerTask: Task<Void, Never>?
-    private var timeoutTimer: TimeoutTimer?
+    private var timeoutTask: Task<Void, Never>?
 
     package init(sourceTask: Task<Value, Error>) {
         self.sourceTask = sourceTask
     }
 
-    package func value(joinGrace: Duration) async -> BoundedTaskJoinOutcome<Value> {
+    package func value(joinGrace: Duration?) async -> BoundedTaskJoinOutcome<Value> {
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 self.lock.lock()
@@ -38,34 +42,22 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
                         self?.resolve(.failure(error), cancelSource: false)
                     }
                 }
-                let timeoutTimer = TimeoutTimer(joinGrace: joinGrace) { [weak self] in
-                    self?.resolve(.timedOut, cancelSource: true)
+                if let joinGrace {
+                    self.timeoutTask = Task { [weak self] in
+                        do {
+                            if joinGrace > .zero {
+                                try await BoundedTaskJoinTiming.sleep(joinGrace)
+                            }
+                            self?.resolve(.timedOut, cancelSource: true)
+                        } catch {
+                            // The source completed or the caller canceled the race.
+                        }
+                    }
                 }
-                self.timeoutTimer = timeoutTimer
-                timeoutTimer.resume()
                 self.lock.unlock()
             }
         } onCancel: {
             self.resolve(.failure(CancellationError()), cancelSource: true)
-        }
-    }
-
-    private final class TimeoutTimer: @unchecked Sendable {
-        private let timer: WallClockTimeout
-
-        init(joinGrace: Duration, handler: @escaping @Sendable () -> Void) {
-            self.timer = WallClockTimeout(
-                duration: joinGrace,
-                threadName: "CodexBar bounded task timeout",
-                handler: handler)
-        }
-
-        func resume() {
-            self.timer.start()
-        }
-
-        func cancel() {
-            self.timer.cancel()
         }
     }
 
@@ -80,16 +72,16 @@ package final class BoundedTaskJoin<Value: Sendable>: @unchecked Sendable {
         let continuation = self.continuation
         self.continuation = nil
         let observerTask = self.observerTask
-        let timeoutTimer = self.timeoutTimer
+        let timeoutTask = self.timeoutTask
         self.observerTask = nil
-        self.timeoutTimer = nil
+        self.timeoutTask = nil
         self.lock.unlock()
 
         if cancelSource {
             self.sourceTask.cancel()
         }
         observerTask?.cancel()
-        timeoutTimer?.cancel()
+        timeoutTask?.cancel()
         continuation?.resume(returning: outcome)
     }
 }

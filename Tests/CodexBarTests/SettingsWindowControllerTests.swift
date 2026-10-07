@@ -7,7 +7,7 @@ struct SettingsWindowControllerTests {
     @Test
     func `creates registers and presents an identified Settings window`() {
         _ = NSApplication.shared
-        let selection = self.makeSelection(suffix: "create")
+        let selection = self.makeSelection()
         let window = self.makeWindow()
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenPrimary]
         var events: [String] = []
@@ -44,7 +44,7 @@ struct SettingsWindowControllerTests {
     @Test
     func `reuses the window and switches panes while it remains open`() {
         _ = NSApplication.shared
-        let selection = self.makeSelection(suffix: "reuse")
+        let selection = self.makeSelection()
         let window = self.makeWindow()
         var makeCount = 0
         var registeredWindows: [NSWindow] = []
@@ -75,7 +75,7 @@ struct SettingsWindowControllerTests {
 
     @Test
     func `window creation failure resolves the presentation attempt`() {
-        let selection = self.makeSelection(suffix: "failure")
+        let selection = self.makeSelection()
         var events: [String] = []
         let controller = SettingsWindowController(
             selection: selection,
@@ -95,11 +95,8 @@ struct SettingsWindowControllerTests {
         #expect(events == ["prepare", "make", "failed"])
     }
 
-    private func makeSelection(suffix: String) -> PreferencesSelection {
-        let suiteName = "SettingsWindowControllerTests-\(suffix)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        return PreferencesSelection(userDefaults: defaults)
+    private func makeSelection() -> PreferencesSelection {
+        PreferencesSelection(userDefaults: InMemoryUserDefaults())
     }
 
     private func makeWindow() -> NSWindow {

@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBarCore
 
@@ -18,6 +19,35 @@ struct CookieProviderCutoverTests {
     }
     """
     private static let qoderBody = #"{"totalQuota":{"quotaSummary":{"usedValue":25,"limitValue":100}}}"#
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `Perplexity permission denial does not preempt a valid environment session`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        BrowserCookieAccessGate.resetForTesting()
+        defer { BrowserCookieAccessGate.resetForTesting() }
+        let service = "cookie-permission-fallback-\(UUID().uuidString)"
+        let broker = ProviderPluginCookieBroker(
+            provider: .perplexity,
+            domains: ["www.perplexity.ai"],
+            settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+            batches: { _, batch in
+                guard batch == 0 else { return nil }
+                throw BrowserCookieError.accessDenied(browser: .chrome, details: "Synthetic permission denial")
+            })
+        let runtime = try BundledPluginTestSupport.runtime(
+            "perplexity", engine: engine, transport: ProviderHTTPTransportHandler { request in
+                #expect(request.value(forHTTPHeaderField: "Cookie")?.contains("environment-fixture") == true)
+                return try CookiePluginFixtures.response(request, body: Self.perplexityBody)
+            })
+        let usage = try await runtime.fetchUsage(
+            secrets: ["SESSION_COOKIE": "environment-fixture"],
+            cookieSessionResolver: { domain, cachedOnly in
+                try Self.isolated(service) { try broker.nextSession(domain: domain, cachedOnly: cachedOnly) }
+            })
+        #expect(usage.primary != nil)
+        Self.isolated(service) { #expect(CookieHeaderCache.load(provider: .perplexity) == nil) }
+    }
 
     @Test(arguments: BundledPluginTestSupport.engines)
     func `bare manual Perplexity token retries supported names without environment fallback`(

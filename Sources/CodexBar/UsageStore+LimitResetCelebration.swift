@@ -27,6 +27,8 @@ extension UsageStore {
         var pendingLowConfirmation: Bool
         var pendingLowObservedAt: Date?
         var lastPostedResetBoundary: Date?
+        var notificationReceipt: LimitResetNotificationReceipt?
+        var lastNotifiedResetBoundary: Date?
         var planRawValue: String?
         /// Distinguishes states that carry the Codex plan/dedup evidence added with delayed reset confirmation.
         var codexWeeklyEvidenceVersion: Int?
@@ -41,6 +43,8 @@ extension UsageStore {
             pendingLowConfirmation: Bool = false,
             pendingLowObservedAt: Date? = nil,
             lastPostedResetBoundary: Date? = nil,
+            notificationReceipt: LimitResetNotificationReceipt? = nil,
+            lastNotifiedResetBoundary: Date? = nil,
             planRawValue: String? = nil,
             codexWeeklyEvidenceVersion: Int? = Self.currentCodexWeeklyEvidenceVersion)
         {
@@ -53,6 +57,8 @@ extension UsageStore {
             self.pendingLowConfirmation = pendingLowConfirmation
             self.pendingLowObservedAt = pendingLowObservedAt
             self.lastPostedResetBoundary = lastPostedResetBoundary
+            self.notificationReceipt = notificationReceipt
+            self.lastNotifiedResetBoundary = lastNotifiedResetBoundary
             self.planRawValue = planRawValue
             self.codexWeeklyEvidenceVersion = codexWeeklyEvidenceVersion
         }
@@ -67,6 +73,8 @@ extension UsageStore {
             case pendingLowConfirmation
             case pendingLowObservedAt
             case lastPostedResetBoundary
+            case notificationReceipt
+            case lastNotifiedResetBoundary
             case planRawValue
             case codexWeeklyEvidenceVersion
         }
@@ -90,6 +98,11 @@ extension UsageStore {
             self.lastPostedResetBoundary = try container.decodeIfPresent(
                 Date.self,
                 forKey: .lastPostedResetBoundary)
+            self.notificationReceipt = try container.decodeIfPresent(
+                LimitResetNotificationReceipt.self, forKey: .notificationReceipt)
+            self.lastNotifiedResetBoundary = try container.decodeIfPresent(
+                Date.self,
+                forKey: .lastNotifiedResetBoundary)
             self.planRawValue = try container.decodeIfPresent(String.self, forKey: .planRawValue)
             self.codexWeeklyEvidenceVersion = try container.decodeIfPresent(
                 Int.self,
@@ -104,6 +117,7 @@ extension UsageStore {
         let accountKey: String?
         let capturedAt: Date
         let codexLimitResetOwnerKey: CodexLimitResetOwnerKey?
+        let sessionRestoredNotificationPending: Bool
     }
 
     struct LimitResetObservation {
@@ -163,7 +177,11 @@ extension UsageStore {
         descriptor: LimitResetDetectionDescriptor,
         observation: LimitResetObservation?)
     {
-        guard let observation else { return }
+        let restored = descriptor.seriesName == .session && context.sessionRestoredNotificationPending
+        guard let observation else {
+            if restored { self.postSessionQuotaTransitionIfEnabled(.restored, provider: context.provider) }
+            return
+        }
 
         guard let accountIdentifier = self.limitResetAccountIdentifier(
             provider: context.provider,
@@ -172,6 +190,7 @@ extension UsageStore {
             accountKey: context.accountKey,
             codexLimitResetOwnerKey: context.codexLimitResetOwnerKey)
         else {
+            if restored { self.postSessionQuotaTransitionIfEnabled(.restored, provider: context.provider) }
             return
         }
         let detectorKey = Self.limitResetDetectorStateKey(
@@ -196,11 +215,30 @@ extension UsageStore {
                 observation: observation,
                 previousState: previousState,
                 requiresLowConfirmation: requiresLowConfirmation))
-        states[detectorKey] = transition.state
+        var state = transition.state
+        let notice = self.prepareLimitResetNotification(
+            state: &state,
+            previousState: previousState,
+            observation: observation,
+            resetConfirmed: transition.shouldPost,
+            restored: restored)
+        states[detectorKey] = state
         self.persistLimitResetDetectorStates(
             states,
             defaultsKey: descriptor.defaultsKey,
             logName: descriptor.resetKind)
+        if let notice {
+            switch notice {
+            case .restored:
+                self.postSessionQuotaTransitionIfEnabled(.restored, provider: context.provider)
+            case .reset:
+                self.postLimitResetNotificationIfNeeded(
+                    provider: context.provider,
+                    window: descriptor.seriesName == .session ? .session : .weekly,
+                    accountLabel: self.limitResetAccountLabel(
+                        provider: context.provider, account: context.account, snapshot: context.snapshot))
+            }
+        }
 
         if transition.claudeWeeklyRecoveryPending, currentUsed > Self.limitResetThreshold {
             CodexBarLog.logger(LogCategories.confetti).debug(
@@ -387,6 +425,8 @@ extension UsageStore {
             pendingLowConfirmation: pendingLowConfirmation,
             pendingLowObservedAt: pendingLowObservedAt,
             lastPostedResetBoundary: lastPostedResetBoundary,
+            notificationReceipt: previousState?.notificationReceipt,
+            lastNotifiedResetBoundary: previousState?.lastNotifiedResetBoundary,
             planRawValue: planRawValue)
         return LimitResetDetectorTransition(
             state: state,

@@ -53,18 +53,51 @@ public struct OpenCodeUsageFetcher: Sendable {
         guard let requestCookieHeader = OpenCodeWebCookieSupport.requestCookieHeader(from: cookieHeader) else {
             throw OpenCodeUsageError.invalidCredentials
         }
-        let workspaceID: String = if let override = OpenCodeWebParsing.normalizeWorkspaceID(workspaceIDOverride) {
+        let normalizedOverride = OpenCodeGoUsageFetcher.normalizeWorkspaceID(workspaceIDOverride)
+        if let rawOverride = workspaceIDOverride?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawOverride.isEmpty, normalizedOverride == nil
+        {
+            throw OpenCodeUsageError.apiError("Invalid workspace override.")
+        }
+        let workspaceID: String = if let override = normalizedOverride {
             override
         } else {
-            try await self.fetchWorkspaceID(
+            try await OpenCodeLegacyFallback.fetch(cookieHeader: requestCookieHeader, requiresConsoleCookie: true) {
+                try await OpenCodeConsoleUsageFetcher.fetchWorkspaceID(
+                    cookieHeader: requestCookieHeader, timeout: timeout, transport: transport)
+            } legacy: {
+                try await self.fetchWorkspaceID(
+                    cookieHeader: requestCookieHeader, timeout: timeout, transport: transport)
+            }
+        }
+        return try await OpenCodeLegacyFallback.fetch(cookieHeader: requestCookieHeader, requiresConsoleCookie: true) {
+            try await OpenCodeConsoleUsageFetcher.fetchUsage(
+                workspaceID: workspaceID,
                 cookieHeader: requestCookieHeader,
                 timeout: timeout,
+                now: now,
+                transport: transport)
+        } legacy: {
+            try await self.fetchLegacyUsage(
+                workspaceID: workspaceID,
+                cookieHeader: requestCookieHeader,
+                timeout: timeout,
+                now: now,
                 transport: transport)
         }
+    }
+
+    private static func fetchLegacyUsage(
+        workspaceID: String,
+        cookieHeader: String,
+        timeout: TimeInterval,
+        now: Date,
+        transport: any ProviderHTTPTransport) async throws -> OpenCodeUsageSnapshot
+    {
         do {
             let subscriptionText = try await self.fetchSubscriptionInfo(
                 workspaceID: workspaceID,
-                cookieHeader: requestCookieHeader,
+                cookieHeader: cookieHeader,
                 timeout: timeout,
                 transport: transport)
             return try self.parseSubscription(text: subscriptionText, now: now)
@@ -76,7 +109,7 @@ public struct OpenCodeUsageFetcher: Sendable {
             do {
                 if let snapshot = try await self.fetchPayAsYouGoUsage(
                     workspaceID: workspaceID,
-                    cookieHeader: requestCookieHeader,
+                    cookieHeader: cookieHeader,
                     timeout: timeout,
                     now: now,
                     transport: transport)
@@ -85,6 +118,10 @@ public struct OpenCodeUsageFetcher: Sendable {
                 }
             } catch OpenCodeUsageError.invalidCredentials {
                 throw OpenCodeUsageError.invalidCredentials
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as URLError where error.code == .cancelled {
+                throw CancellationError()
             } catch {
                 Self.log.error("OpenCode billing fallback failed: \(error.localizedDescription)")
             }
@@ -256,12 +293,7 @@ extension OpenCodeUsageFetcher {
         {
             return true
         }
-        guard let data = trimmed.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [])
-        else {
-            return false
-        }
-        return object is NSNull
+        return false
     }
 
     private static func missingSubscriptionDataError(workspaceID: String) -> OpenCodeUsageError {
@@ -363,22 +395,10 @@ extension OpenCodeUsageFetcher {
     }
 
     private static func parseSubscriptionJSON(text: String, now: Date) -> OpenCodeUsageSnapshot? {
-        guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [])
-        else {
-            return nil
-        }
-
-        if let snapshot = self.parseUsageJSON(object: object, now: now) {
-            return snapshot
-        }
-
-        if let snapshot = self.parseUsageFromCandidates(object: object, now: now) {
-            return snapshot
-        }
-
-        self.logParseSummary(object: object)
-        return nil
+        guard let quota = OpenCodeSubscriptionParser(requiresWeeklyUsage: true)
+            .parseSubscriptionJSON(text: text, now: now)
+        else { return nil }
+        return OpenCodeUsageSnapshot(quota: quota)
     }
 
     private static func serverRequestURL(serverID: String, args: [Any]?, method: String) -> URL {
@@ -398,202 +418,6 @@ extension OpenCodeUsageFetcher {
         return components?.url ?? self.serverURL
     }
 
-    private static func parseUsageJSON(object: Any, now: Date) -> OpenCodeUsageSnapshot? {
-        guard let dict = object as? [String: Any] else { return nil }
-        let renewsAt = OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
-            from: dict,
-            keys: OpenCodeWebParsing.renewAtKeys))
-        if let snapshot = self.parseUsageDictionary(dict, now: now, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-
-        for key in ["data", "result", "usage", "billing", "payload"] {
-            if let nested = dict[key] as? [String: Any],
-               let snapshot = self.parseUsageDictionary(nested, now: now, inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-
-        if let snapshot = self.parseUsageNested(dict, now: now, depth: 0, inheritedRenewsAt: renewsAt) {
-            return snapshot
-        }
-        return self.parseUsageFromCandidates(object: object, now: now, inheritedRenewsAt: renewsAt)
-    }
-
-    private static func parseUsageDictionary(
-        _ dict: [String: Any],
-        now: Date,
-        inheritedRenewsAt: Date?) -> OpenCodeUsageSnapshot?
-    {
-        let renewsAt = OpenCodeWebParsing
-            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: OpenCodeWebParsing.renewAtKeys)) ??
-            inheritedRenewsAt
-        if let usage = dict["usage"] as? [String: Any],
-           let snapshot = self.parseUsageDictionary(usage, now: now, inheritedRenewsAt: renewsAt)
-        {
-            return snapshot
-        }
-
-        let rollingKeys = ["rollingUsage", "rolling", "rolling_usage", "rollingWindow", "rolling_window"]
-        let weeklyKeys = ["weeklyUsage", "weekly", "weekly_usage", "weeklyWindow", "weekly_window"]
-
-        let rolling = rollingKeys.compactMap { dict[$0] as? [String: Any] }.first
-        let weekly = weeklyKeys.compactMap { dict[$0] as? [String: Any] }.first
-
-        if let rolling, let weekly {
-            return self.buildSnapshot(rolling: rolling, weekly: weekly, now: now, renewsAt: renewsAt)
-        }
-
-        return nil
-    }
-
-    private static func parseUsageNested(
-        _ dict: [String: Any],
-        now: Date,
-        depth: Int,
-        inheritedRenewsAt: Date?) -> OpenCodeUsageSnapshot?
-    {
-        if depth > 3 { return nil }
-        let renewsAt = OpenCodeWebParsing
-            .dateValue(from: OpenCodeWebParsing.value(from: dict, keys: OpenCodeWebParsing.renewAtKeys)) ??
-            inheritedRenewsAt
-        var rolling: [String: Any]?
-        var weekly: [String: Any]?
-
-        for (key, value) in dict {
-            guard let sub = value as? [String: Any] else { continue }
-            let lower = key.lowercased()
-            if lower.contains("rolling") {
-                rolling = sub
-            } else if lower.contains("weekly") || lower.contains("week") {
-                weekly = sub
-            }
-        }
-
-        if let rolling, let weekly {
-            let snapshot = self.buildSnapshot(rolling: rolling, weekly: weekly, now: now, renewsAt: renewsAt)
-            if let snapshot { return snapshot }
-        }
-
-        for value in dict.values {
-            if let sub = value as? [String: Any],
-               let snapshot = self.parseUsageNested(
-                   sub,
-                   now: now,
-                   depth: depth + 1,
-                   inheritedRenewsAt: renewsAt)
-            {
-                return snapshot
-            }
-        }
-
-        return nil
-    }
-
-    private static func parseUsageFromCandidates(
-        object: Any,
-        now: Date,
-        inheritedRenewsAt: Date? = nil) -> OpenCodeUsageSnapshot?
-    {
-        let candidates = OpenCodeWebParsing.collectWindowCandidates(object: object) { self.parseWindow($0, now: now) }
-        guard !candidates.isEmpty else { return nil }
-
-        let rollingCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("rolling") ||
-                candidate.pathLower.contains("hour") ||
-                candidate.pathLower.contains("5h") ||
-                candidate.pathLower.contains("5-hour")
-        }
-        let weeklyCandidates = candidates.filter { candidate in
-            candidate.pathLower.contains("weekly") ||
-                candidate.pathLower.contains("week")
-        }
-
-        let rolling = OpenCodeWebParsing.pickCandidate(
-            preferred: rollingCandidates,
-            fallback: candidates,
-            pickShorter: true)
-        let weekly = OpenCodeWebParsing.pickCandidate(
-            preferred: weeklyCandidates,
-            fallback: candidates,
-            pickShorter: false,
-            excluding: rolling?.id)
-
-        guard let rolling, let weekly else { return nil }
-
-        let renewsAt = OpenCodeWebParsing.dateValue(from: OpenCodeWebParsing.value(
-            from: object as? [String: Any] ?? [:],
-            keys: OpenCodeWebParsing.renewAtKeys))
-            ?? inheritedRenewsAt
-        return OpenCodeUsageSnapshot(
-            rollingUsagePercent: rolling.percent,
-            weeklyUsagePercent: weekly.percent,
-            rollingResetInSec: rolling.resetInSec,
-            weeklyResetInSec: weekly.resetInSec,
-            renewsAt: renewsAt,
-            updatedAt: now)
-    }
-
-    private static func buildSnapshot(
-        rolling: [String: Any],
-        weekly: [String: Any],
-        now: Date,
-        renewsAt: Date? = nil) -> OpenCodeUsageSnapshot?
-    {
-        guard let rollingWindow = self.parseWindow(rolling, now: now),
-              let weeklyWindow = self.parseWindow(weekly, now: now)
-        else {
-            return nil
-        }
-
-        return OpenCodeUsageSnapshot(
-            rollingUsagePercent: rollingWindow.percent,
-            weeklyUsagePercent: weeklyWindow.percent,
-            rollingResetInSec: rollingWindow.resetInSec,
-            weeklyResetInSec: weeklyWindow.resetInSec,
-            renewsAt: renewsAt,
-            updatedAt: now)
-    }
-
-    private static func parseWindow(_ dict: [String: Any], now: Date) -> (percent: Double, resetInSec: Int)? {
-        var percent = OpenCodeWebParsing.doubleValue(from: dict, keys: OpenCodeWebParsing.percentKeys)
-        // A direct percent field may arrive as a fraction (0...1) or a percent (0...100), so it goes
-        // through the `<= 1` heuristic below. A computed used/limit percent is already 0...100 and must not.
-        let percentIsDirect = percent != nil
-
-        if percent == nil {
-            let used = OpenCodeWebParsing.doubleValue(
-                from: dict,
-                keys: ["used", "usage", "consumed", "count", "usedTokens"])
-            let limit = OpenCodeWebParsing.doubleValue(
-                from: dict,
-                keys: ["limit", "total", "quota", "max", "cap", "tokenLimit"])
-            if let used, let limit, limit > 0 {
-                percent = (used / limit) * 100
-            }
-        }
-
-        guard var resolvedPercent = percent else { return nil }
-        if percentIsDirect, resolvedPercent <= 1.0, resolvedPercent >= 0 {
-            resolvedPercent *= 100
-        }
-        resolvedPercent = max(0, min(100, resolvedPercent))
-
-        var resetInSec = OpenCodeWebParsing.intValue(from: dict, keys: OpenCodeWebParsing.resetInKeys)
-        if resetInSec == nil {
-            let resetAtValue = OpenCodeWebParsing.value(from: dict, keys: OpenCodeWebParsing.resetAtKeys)
-            if let resetAt = OpenCodeWebParsing.dateValue(from: resetAtValue),
-               let interval = OpenCodeWebParsing.resetInterval(from: resetAt, now: now)
-            {
-                resetInSec = interval
-            }
-        }
-
-        let resolvedReset = max(0, resetInSec ?? 0)
-        return (resolvedPercent, resolvedReset)
-    }
-
     private static func logParseSummary(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = text.data(using: .utf8),
@@ -611,52 +435,29 @@ extension OpenCodeUsageFetcher {
             Self.log.error("OpenCode response non-JSON: hint=\(hint) length=\(text.count)")
             return
         }
-        self.logParseSummary(object: object)
-    }
-
-    private static func logParseSummary(object: Any) {
         let summary = self.summarizeJSON(object: object, depth: 0)
         guard !summary.isEmpty else { return }
         Self.log.error("OpenCode response summary: \(summary)")
     }
 
     private static func summarizeJSON(object: Any, depth: Int) -> String {
-        if depth > 3 { return "" }
         if let dict = object as? [String: Any] {
-            let keys = dict.keys.sorted()
-            var parts: [String] = []
-            for key in keys {
-                let value = dict[key]
-                let type = self.valueTypeDescription(value, depth: depth + 1)
-                parts.append("\(key):\(type)")
+            guard depth <= 3 else { return "" }
+            let parts = dict.sorted { $0.key < $1.key }.map { key, value in
+                "\(key):\(self.summarizeJSON(object: value, depth: depth + 1))"
             }
             return "{\(parts.joined(separator: ", "))}"
         }
         if let array = object as? [Any] {
+            guard depth <= 3 else { return "" }
             guard let first = array.first else { return "[]" }
-            let type = self.valueTypeDescription(first, depth: depth + 1)
-            return "[\(type)]"
+            return "[\(self.summarizeJSON(object: first, depth: depth + 1))]"
         }
-        return self.scalarTypeDescription(object)
-    }
-
-    private static func valueTypeDescription(_ value: Any?, depth: Int) -> String {
-        guard let value else { return "null" }
-        if let dict = value as? [String: Any] {
-            return self.summarizeJSON(object: dict, depth: depth)
-        }
-        if let array = value as? [Any] {
-            return self.summarizeJSON(object: array, depth: depth)
-        }
-        return self.scalarTypeDescription(value)
-    }
-
-    private static func scalarTypeDescription(_ value: Any) -> String {
-        switch value {
-        case is String: "string"
-        case is Bool: "bool"
-        case is Int, is Double, is NSNumber: "number"
-        default: "value"
+        switch object {
+        case is String: return "string"
+        case is Bool: return "bool"
+        case is Int, is Double, is NSNumber: return "number"
+        default: return "value"
         }
     }
 }

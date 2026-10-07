@@ -9,14 +9,21 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
     enum CacheScenario: CaseIterable {
         case available, writeRejected, writeRejectedWithoutExpiry, temporarilyUnavailable, memoryOlderThanThirtyMinutes
         case expiredFile, expiredMemory, invalidated, neverPrompt, pendingInvalidation, profileChanged
+        case writeRejectedOlderThanThirtyMinutes, writeRejectedExpiredMemory, writeRejectedAgain, lostRecoveryGeneration
+        case invalidatedByAnotherProcess, revokedForAnotherProfile, rejectedWriteInvalidatedByAnotherProcess
 
         var rejectsWrite: Bool {
-            self == .writeRejected || self == .writeRejectedWithoutExpiry
+            self == .writeRejected || self == .writeRejectedWithoutExpiry || self == .writeRejectedAgain
+                || self == .lostRecoveryGeneration
+                || self == .writeRejectedOlderThanThirtyMinutes || self == .writeRejectedExpiredMemory
+                || self == .revokedForAnotherProfile
+                || self == .rejectedWriteInvalidatedByAnotherProcess
         }
 
         var expectsRecovery: Bool {
             switch self {
-            case .available, .writeRejected, .temporarilyUnavailable,
+            case .available, .writeRejected, .writeRejectedOlderThanThirtyMinutes, .writeRejectedAgain,
+                 .temporarilyUnavailable,
                  .memoryOlderThanThirtyMinutes, .expiredFile: true
             default: false
             }
@@ -29,7 +36,9 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
     {
         let memory = ClaudeOAuthCredentialsStore.MemoryCacheStore()
         let denied = ClaudeOAuthKeychainAccessGate.DeniedUntilStore()
-        let pending = ClaudeOAuthCredentialsStore.PendingCacheClearMemoryStore()
+        let pending = GenerationRaceStore()
+        let revocationContext = ClaudeOAuthCredentialsStore
+            .$taskDirectKeychainReadConsentRevocationMarkerStoreOverride
         let service = "com.steipete.codexbar.cache.background-tests.\(UUID().uuidString)"
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -57,12 +66,14 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
                                                             try await ClaudeOAuthCredentialsStore
                                                                 .$taskMemoryCacheStoreOverride
                                                                 .withValue(memory) {
-                                                                    try await self.verifyRecovery(
-                                                                        scenario: scenario,
-                                                                        environment: environment,
-                                                                        data: data,
-                                                                        memory: memory,
-                                                                        pending: pending)
+                                                                    try await revocationContext.withValue(.init()) {
+                                                                        try await self.verifyRecovery(
+                                                                            scenario: scenario,
+                                                                            environment: environment,
+                                                                            data: data,
+                                                                            memory: memory,
+                                                                            pending: pending)
+                                                                    }
                                                                 }
                                                         }
                                                 }
@@ -80,14 +91,16 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
         environment: [String: String],
         data: Data,
         memory: ClaudeOAuthCredentialsStore.MemoryCacheStore,
-        pending: ClaudeOAuthCredentialsStore.PendingCacheClearMemoryStore) async throws
+        pending: GenerationRaceStore) async throws
     {
         if scenario == .expiredFile {
             try self.credentialsData(expiresIn: -3600)
                 .write(to: ClaudeOAuthCredentialsStore.resolvedCredentialsURLForTesting)
-            #expect(ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged(environment: environment))
+            #expect(ClaudeOAuthCredentialsStore
+                .invalidateCacheIfCredentialsFileChanged(environment: environment))
         }
         let loadFailure: OSStatus? = scenario == .available || scenario.rejectsWrite
+            || scenario == .invalidatedByAnotherProcess
             ? nil : errSecInteractionNotAllowed
         let interactiveRead: @Sendable () throws -> Data = { data }
         try await KeychainCacheStore.withLoadFailureStatusOverrideForTesting(loadFailure) {
@@ -109,10 +122,15 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
                     #expect(memory.record?.credentials.accessToken == "synthetic-manual-token")
                 }
             }
-            if scenario != .available, scenario != .temporarilyUnavailable, !scenario.rejectsWrite {
+            if scenario == .writeRejectedOlderThanThirtyMinutes || scenario == .writeRejectedExpiredMemory
+                || scenario == .writeRejectedAgain || scenario == .lostRecoveryGeneration
+                || scenario == .revokedForAnotherProfile
+                || scenario == .rejectedWriteInvalidatedByAnotherProcess
+                || (scenario != .available && scenario != .temporarilyUnavailable && !scenario.rejectsWrite)
+            {
                 memory.timestamp = Date(timeIntervalSinceNow: -1860)
             }
-            if scenario == .expiredMemory {
+            if scenario == .expiredMemory || scenario == .writeRejectedExpiredMemory {
                 memory.record = try ClaudeOAuthCredentialRecord(
                     credentials: ClaudeOAuthCredentials.parse(data: self.credentialsData(expiresIn: -60)),
                     owner: .claudeCLI,
@@ -121,11 +139,35 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
             if scenario == .invalidated {
                 ClaudeOAuthCredentialsStore.invalidateCache(environment: environment)
             }
+            if scenario == .invalidatedByAnotherProcess || scenario == .revokedForAnotherProfile
+                || scenario == .rejectedWriteInvalidatedByAnotherProcess
+            {
+                KeychainCacheStore.withClearFailureStatusOverrideForTesting(errSecInteractionNotAllowed) {
+                    ClaudeOAuthCredentialsStore.$taskMemoryCacheStoreOverride.withValue(.init()) {
+                        if scenario == .revokedForAnotherProfile {
+                            ClaudeOAuthCredentialsStore.withCredentialsProfileIdentifierOverrideForTesting(
+                                "another-synthetic-profile")
+                            {
+                                ClaudeOAuthCredentialsStore
+                                    .revokeDirectKeychainReadConsent(environment: environment)
+                            }
+                        } else {
+                            ClaudeOAuthCredentialsStore.invalidateCache(environment: environment)
+                        }
+                    }
+                }
+                #expect(memory.record != nil)
+                if scenario == .revokedForAnotherProfile {
+                    #expect(ClaudeOAuthCredentialsStore
+                        .taskDirectKeychainReadConsentRevocationMarkerStoreOverride?.marker != nil)
+                    #expect(pending.isPending(profileIdentifier: "another-synthetic-profile"))
+                }
+            }
             if scenario == .profileChanged {
                 memory.profileIdentifier = "different-synthetic-profile"
             }
             if scenario == .pendingInvalidation {
-                pending.markPending()
+                try pending.markPending(profileIdentifier: #require(memory.profileIdentifier))
             }
             try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in
                 Issue.record("Recovery must not probe the foreign Keychain item")
@@ -145,17 +187,28 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
                                     respectKeychainPromptCooldown: true,
                                     allowClaudeKeychainRepairWithoutPrompt: false)
                             }
+                            if scenario == .lostRecoveryGeneration { pending.invalidateAfterOperation = true }
                             if scenario.expectsRecovery {
+                                if scenario == .writeRejectedAgain {
+                                    let timestamp = memory.timestamp
+                                    let first = try KeychainCacheStore.withStoreFailureStatusOverrideForTesting(
+                                        errSecInteractionNotAllowed, operation: load)
+                                    #expect(first.credentials.accessToken == "synthetic-manual-token")
+                                    #expect(memory.timestamp == timestamp)
+                                }
                                 let automatic = try load()
                                 #expect(automatic.credentials.accessToken == "synthetic-manual-token")
                                 #expect(automatic.source == .memoryCache)
                                 if scenario.rejectsWrite {
                                     let profile = try #require(memory.profileIdentifier)
-                                    let key = ClaudeOAuthCredentialsStore.cacheKeyForTesting(profileIdentifier: profile)
+                                    let key = ClaudeOAuthCredentialsStore
+                                        .cacheKeyForTesting(profileIdentifier: profile)
                                     guard case let .found(entry) = KeychainCacheStore.load(
                                         key: key, as: ClaudeOAuthCredentialsStore.CacheEntry.self)
                                     else {
-                                        Issue.record("Recovered credentials must be persisted for subsequent refreshes")
+                                        Issue
+                                            .record(
+                                                "Recovered credentials must be persisted for subsequent refreshes")
                                         return
                                     }
                                     let persisted = try ClaudeOAuthCredentials.parse(data: entry.data)
@@ -164,13 +217,46 @@ struct ClaudeOAuthBackgroundCacheRecoveryTests {
                                     #expect(entry.owner == .claudeCLI)
                                 }
                             } else {
-                                // Pending invalidation must be cleared before a retained credential can be reused.
+                                // Pending invalidation must be cleared before a retained credential can be
+                                // reused.
                                 #expect(throws: ClaudeOAuthCredentialsError.self, performing: load)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    private final class GenerationRaceStore: ClaudeOAuthPendingCacheClearStore, @unchecked Sendable {
+        let base = ClaudeOAuthCredentialsStore.PendingCacheClearMemoryStore()
+        var invalidateAfterOperation = false
+
+        var isPending: Bool {
+            self.base.isPending
+        }
+
+        func isPending(profileIdentifier: String) -> Bool { self.base.isPending(profileIdentifier: profileIdentifier) }
+        func markPending(profileIdentifier: String) { self.base.markPending(profileIdentifier: profileIdentifier) }
+
+        @discardableResult
+        func withCacheTransaction(
+            profileIdentifier: String,
+            includingGeneration operation: (inout Bool, inout Bool, inout Bool, inout String?) -> Void) -> Bool
+        {
+            var rejected = false
+            let committed = self.base.withCacheTransaction(
+                profileIdentifier: profileIdentifier,
+                includingGeneration: { pending, cleanup, recheck, generation in
+                    operation(&pending, &cleanup, &recheck, &generation)
+                    if self.invalidateAfterOperation {
+                        self.invalidateAfterOperation = false
+                        rejected = true
+                        pending = true
+                        generation = UUID().uuidString
+                    }
+                })
+            return committed && !rejected
         }
     }
 

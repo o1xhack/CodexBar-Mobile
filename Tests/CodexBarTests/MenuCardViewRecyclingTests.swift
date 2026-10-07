@@ -101,6 +101,40 @@ extension StatusMenuTests {
     }
 
     @Test
+    func `usage submenu selection clears when deselected without selecting credits`() throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        let controller = self.makeRecyclingController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+        let menu = NSMenu()
+        let usage = controller.makeMenuCardItem(
+            Text("Usage"),
+            id: "menuCardUsage",
+            width: 300,
+            submenu: NSMenu(),
+            containsInteractiveControls: true)
+        let credits = controller.makeMenuCardItem(Text("Credits"), id: "menuCardCredits", width: 300)
+        menu.addItem(usage)
+        menu.addItem(credits)
+        let usageView = try #require(usage.view as? ErasedMenuCardHostingView)
+        let creditsView = try #require(credits.view as? ErasedMenuCardHostingView)
+
+        controller.menu(menu, willHighlight: usage)
+        #expect(usageView.highlightState.isHighlighted)
+        #expect(!creditsView.highlightState.isHighlighted)
+        #expect(!usage.isHighlighted)
+
+        controller.menu(menu, willHighlight: nil)
+        #expect(!usageView.highlightState.isHighlighted)
+        #expect(!creditsView.highlightState.isHighlighted)
+        #expect(controller.highlightedMenuItems[ObjectIdentifier(menu)] == nil)
+    }
+
+    @Test
     func `embedded controls stay enabled without highlighting the card`() {
         StatusItemController.setMenuRefreshEnabledForTesting(false)
         let previousRendering = StatusItemController.menuCardRenderingEnabled

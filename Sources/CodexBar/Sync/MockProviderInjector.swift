@@ -16,8 +16,8 @@ import Foundation
 ///
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
-/// snapshots. The full catalog now has 102 snapshots: 97 using current
-/// provider IDs (87 distinct), three legacy-ID compatibility fixtures,
+/// snapshots. The full catalog now has 105 snapshots: 100 using current
+/// provider IDs (90 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
 /// the iOS app does not yet know about. All values and accounts remain
@@ -238,7 +238,7 @@ enum MockProviderInjector {
         "replicate", "huggingface", "pi", "v0", "typesafe",
         "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
         // Upstream v0.67.0 provider additions; keep in sync with simple profiles.
-        "xkiro", "raycast", "aixy",
+        "xkiro", "raycast", "aixy", "museai", "lithosai", "workbuddy",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1798,6 +1798,34 @@ enum MockProviderInjector {
                 resetsInSeconds: 14 * 86400,
                 resetDescription: "$18 / $100"),
             thirtyDayCostUSD: 24, sessionCostUSD: 2.4, costIsEstimated: true),
+        // Provider-specific by design: iOS 2.6.0 mock samples for the upstream v0.71-v0.72 providers.
+        .init(
+            providerID: "museai", providerName: "Muse (muse.ai)",
+            accountLocal: "power", loginMethod: "Power",
+            primaryUsage: 31, primaryLabel: "Weekly",
+            primaryWindowMinutes: 10080,
+            primaryResetsInSeconds: 3 * 86400,
+            primaryResetDescription: "2.8B tokens left",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "lithosai", providerName: "LithosAI",
+            accountLocal: "console", loginMethod: "Browser session",
+            primaryUsage: nil, primaryLabel: "Usage",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "workbuddy", providerName: "WorkBuddy",
+            accountLocal: "team", loginMethod: "Pro",
+            primaryUsage: 24, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 18 * 86400,
+            primaryResetDescription: "3,800 / 5,000 credits left",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -2112,6 +2140,22 @@ enum MockProviderInjector {
             return V026MockExtras(details: [SyncProviderDetailSection(
                 title: "Daemon",
                 rows: [.init(label: "Loaded models", value: "3")])])
+        // Provider-specific by design: LithosAI is balance-only, so its mock carries the prepaid amount.
+        case "lithosai":
+            var extras = V026MockExtras(details: [SyncProviderDetailSection(
+                title: "Billing",
+                rows: [
+                    .init(label: "Balance", value: "$42.50", usageValue: 42.5),
+                    .init(label: "Payment card", value: "Added"),
+                ])])
+            extras.providerAmount = SyncProviderAmount(
+                kind: "balance",
+                amount: 42.5,
+                currencyCode: "USD",
+                period: "Prepaid credits",
+                isEstimated: false,
+                observedAt: now)
+            return extras
         default:
             return nil
         }

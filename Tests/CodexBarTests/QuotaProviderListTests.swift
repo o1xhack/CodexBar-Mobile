@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (81 after v0.67 catch-up)`() {
+    func `Provider list has expected count (83 after v0.72 catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -29,11 +29,11 @@ struct QuotaProviderListTests {
         // from upstream v0.42.0-v0.45.2) → 69 in iOS 1.20.0 (Qwen,
         // ZoomMate, xAI, and Notion from upstream v0.46.0-v0.47.0) → 70
         // in iOS 1.21.0 (IBM Bob; Fireworks has no quota window) → 78 in
-        // iOS 2.1.0 (providers through Mac v0.66) → 81 in iOS 2.3.0
+        // iOS 2.1.0 (providers through Mac v0.66) → 81 in iOS 2.3.0 → 83 in iOS 2.6.0
         // (xKiro, Raycast, and Aixy from Mac v0.67).
         // Must stay synced with
         // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 81)
+        #expect(QuotaProviderList.providers.count == 83)
     }
 
     @Test
@@ -97,7 +97,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 81 × 3 = 243 (depleted + restored + warning)`() {
+    func `iOS subscription count is 83 × 3 = 249 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -114,14 +114,15 @@ struct QuotaProviderListTests {
         // 207 in iOS 1.20.0 (69 × 3 after the v0.46-v0.47 catch-up) →
         // 210 in iOS 1.21.0 (70 × 3 after adding IBM Bob) → 234 in
         // iOS 2.1.0 (78 × 3 through Mac v0.66) → 243 in iOS 2.3.0
-        // (81 × 3 after adding xKiro, Raycast, and Aixy).
+        // (81 × 3 after adding xKiro, Raycast, and Aixy) → 249 in iOS 2.6.0
+        // (83 × 3 after adding Muse (muse.ai) and WorkBuddy).
         // If this fails,
         // someone either dropped a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 243)
+        #expect(subscriptionCount == 249)
     }
 
     @Test

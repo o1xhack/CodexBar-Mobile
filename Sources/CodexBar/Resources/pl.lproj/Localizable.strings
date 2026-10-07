@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Średnia (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Unikaj monitów pęku kluczy";
 "Balance" = "Saldo";
+"Cloud credits" = "Kredyty w chmurze";
+"Expired" = "Wygasło";
 "Battery Saver" = "Oszczędzanie baterii";
 "Bordered" = "Z obramowaniem";
 "Build" = "Wersja kompilacji";
@@ -527,6 +529,11 @@
 "session_depleted_notification_body" = "Pozostało 0%. Powiadomimy, gdy limit będzie ponownie dostępny.";
 "session_restored_notification_title" = "Przywrócono limit sesji (%@)";
 "session_restored_notification_body" = "Limit sesji jest ponownie dostępny.";
+"limit_reset_notifications_title" = "Powiadomienia o resecie";
+"limit_reset_notifications_subtitle" = "Informuje, u którego dostawcy i w jakim oknie zresetował się limit sesji lub tygodniowy.";
+"limit_reset_notification_title" = "Zresetowano limit %1$@ (%2$@)";
+"limit_reset_notification_body" = "Nowy limit jest dostępny.";
+"limit_reset_notification_body_with_account" = "Konto %@. Nowy limit jest dostępny.";
 "quota_warning_warn_at" = "Ostrzegaj przy";
 "quota_warning_global_threshold_subtitle" = "Procent pozostałego limitu dla okien sesji i tygodnia, chyba że dostawca ma nadpisanie.";
 "quota_warning_sound" = "Odtwarzaj dźwięk powiadomienia";
@@ -853,7 +860,6 @@
 "No local data found" = "Nie znaleziono danych lokalnych";
 "Credits unavailable; keep Codex running to refresh." = "Kredyty są niedostępne; pozostaw Codex uruchomiony, aby je odświeżyć.";
 "No available fetch strategy for minimax." = "Brak dostępnej strategii pobierania dla minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Nie znaleziono sesji Cursor. Zaloguj się do cursor.com w Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX lub Edge Canary. Jeśli używasz Safari, przyznaj CodexBar pełny dostęp do dysku w Ustawieniach systemowych ▸ Prywatność i bezpieczeństwo. Możesz też zalogować się do Cursor z menu CodexBar (Dodaj / przełącz konto).";
 "No OpenCode session cookies found in browsers." = "Nie znaleziono w przeglądarkach plików cookie sesji OpenCode.";
 "No available fetch strategy for %@." = "Brak dostępnej strategii pobierania dla %@.";
 "Today" = "Dziś";
@@ -1535,7 +1541,7 @@
 "mobile_sync_status_syncing" = "Synchronizowanie…";
 "mobile_sync_status_syncing_elapsed_format" = "Synchronizacja — %@ · %d s";
 "mobile_sync_status_syncing_phase_format" = "Synchronizacja — %@";
-"mobile_toggle_mock_subtitle" = "Przy każdej synchronizacji wysyła 77 stabilnych migawek testowych obejmujących 67 identyfikatorów dostawców, w tym wiele kont, sub2api, Wayfinder i scenariusze zastępcze dla nieznanych dostawców. Testowe adresy e-mail używają domeny TLD `.test`, dzięki czemu iPhone wyświetla oznaczenie MOCK. Wyłączenie pozwala CloudKit usunąć testowe rekordy w ciągu około jednego cyklu synchronizacji. Domyślnie wyłączone.";
+"mobile_toggle_mock_subtitle" = "Przy każdej synchronizacji wysyła 105 stabilnych migawek testowych obejmujących 95 identyfikatorów dostawców, w tym wiele kont, sub2api, Wayfinder i scenariusze zastępcze dla nieznanych dostawców. Testowe adresy e-mail używają domeny TLD `.test`, dzięki czemu iPhone wyświetla oznaczenie MOCK. Wyłączenie pozwala CloudKit usunąć testowe rekordy w ciągu około jednego cyklu synchronizacji. Domyślnie wyłączone.";
 "mobile_toggle_mock_title" = "Wstrzyknij dane testowe dostawców";
 "mobile_toggle_push_subtitle" = "Gdy limit sesji zostanie wyczerpany lub przywrócony, wyślij widoczny alert push do aplikacji iOS companion przez iCloud. To niezależne od lokalnych powiadomień Maca — możesz wyciszyć Maca i nadal odbierać alerty na iPhonie.";
 "mobile_toggle_push_title" = "Powiadomienia push do iOS";
@@ -1625,6 +1631,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Niezależny czat";
+"Independent chats" = "Niezależne czaty";
+"Chat %d" = "Czat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1720,3 +1730,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Synchronizacja ustawień Maca jest oddzielna od synchronizacji użycia na iPhonie. Włącz ją na każdym Macu, aby go tu wyświetlić. Historia kosztów pozostaje lokalna.";
 
 "Cached data from" = "Dane w pamięci podręcznej z";
+"Supported browsers: %@. Use Manual for other browsers." = "Obsługiwane przeglądarki: %@. W przypadku innych przeglądarek użyj trybu ręcznego.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Wklej nagłówek Cookie z żądania Chrome do www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Zarezerwowane";

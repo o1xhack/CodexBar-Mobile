@@ -48,8 +48,7 @@ public enum LongCatProviderDescriptor {
                     ProviderColor(hex: 0x29E154),
                     ProviderColor(hex: 0x111111),
                     ProviderColor(hex: 0xFFFFFF),
-                ],
-                widgetColor: ProviderColor(hex: 0xFFD100)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "LongCat cost summary is not supported." }),

@@ -126,7 +126,7 @@ defineProvider({
     }
     if (lastError) throw lastError;
     throw ctx.fail.missingCredential(
-      "No Abacus AI session found. Please log in to apps.abacus.ai in your browser or paste a Cookie header in manual mode.",
+      `No Abacus AI session found. Sign in to apps.abacus.ai. Supported browsers: ${ctx.browser.supportedBrowsers}. Or paste a Cookie header in manual mode.`,
     );
   },
 });

@@ -430,7 +430,7 @@ extension CostUsageStore {
 // MARK: - Singleton write helper
 
 extension CostUsageStore {
-    private static func writeSingleton(
+    static func writeSingleton(
         _ value: some Encodable,
         database: OpaquePointer,
         table: String) throws

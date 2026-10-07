@@ -236,6 +236,7 @@ interface CodexBarPluginContext {
     getSecret(key: string): string | null;
   };
   readonly browser: {
+    readonly supportedBrowsers: string;
     availability(domain: string): "available" | "off" | "manual";
     acceptCookie(domain: string, session: CodexBarCookieSession): void;
     rejectCookie(domain: string, session?: CodexBarCookieSession): void;
@@ -306,6 +307,8 @@ interface CodexBarProviderDefinition {
     missingCookies?: "reject" | "omit";
     imports?: "app-interactive" | "access-gated";
     sessionFile?: { tokenField: string; cookieName: string };
+    /** Host-only echo of a required cookie into a custom X- header on one declared HTTPS origin. */
+    headerEcho?: { origin: string; cookie: string; header: string };
   };
   fetchUsage(
     ctx: CodexBarPluginContext,

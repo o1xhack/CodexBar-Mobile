@@ -5,10 +5,8 @@ import FoundationNetworking
 
 /// A resolved CommandCode session cookie ready to be sent on `Cookie:` headers.
 ///
-/// CommandCode's API (api.commandcode.ai) authenticates with the better-auth session
-/// cookie set by commandcode.ai. better-auth emits either `better-auth.session_token`
-/// or `__Secure-better-auth.session_token` depending on whether `useSecureCookies` is
-/// enabled (the `__Secure-` variant is required by browsers for HTTPS production).
+/// Production uses `__Secure-commandcode_prod_.session_token`; explicitly named
+/// legacy better-auth cookies remain supported.
 public struct CommandCodeCookieOverride: Sendable, Equatable {
     public let name: String
     public let token: String
@@ -48,20 +46,15 @@ public enum CommandCodeCookieHeader {
             return nil
         }
 
-        // Bare token — assume the established production cookie name. Keep the
-        // legacy better-auth default until a renamed production cookie is proven live.
+        // Bare tokens use the current production cookie name.
         if !raw.contains("="), !raw.contains(";") {
             return CommandCodeCookieOverride(
-                name: "__Secure-better-auth.session_token",
+                name: "__Secure-commandcode_prod_.session_token",
                 token: raw)
         }
 
-        return self.extractSessionCookie(fromHeader: raw)
-    }
-
-    private static func extractSessionCookie(fromHeader header: String) -> CommandCodeCookieOverride? {
         var pairs: [(name: String, value: String)] = []
-        for chunk in header.split(separator: ";") {
+        for chunk in raw.split(separator: ";") {
             let trimmed = chunk.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let separator = trimmed.firstIndex(of: "=") else { continue }
             let key = String(trimmed[..<separator]).trimmingCharacters(in: .whitespacesAndNewlines)

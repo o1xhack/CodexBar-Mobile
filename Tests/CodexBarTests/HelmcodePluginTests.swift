@@ -6,6 +6,14 @@ struct HelmcodePluginTests {
     static let now = Date(timeIntervalSince1970: 1_789_000_000)
 
     @Test(arguments: BundledPluginTestSupport.engines)
+    func `a denied Cloud import still permits a usable NaN session`(engine: ProviderPluginEngineKind) async throws {
+        let result = try await Self.fetch(engine: engine, denied: ["helmcode.com"])
+        #expect(result.usage.identity?.accountOrganization == "NaN Builders")
+        #expect(result.domains == ["helmcode.com", "nan.builders"])
+        #expect(result.requests.allSatisfy { $0.url?.host == "cloud-api.nan.builders" })
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
     func `Cloud golden preserves model resets and prepaid balance`(engine: ProviderPluginEngineKind) async throws {
         let result = try await Self.fetch(engine: engine)
         let usage = result.usage
@@ -159,6 +167,7 @@ struct HelmcodePluginTests {
         source: ProviderCookieSource = .auto,
         tenant: String = "helmcode",
         available: Set<String> = ["helmcode.com", "nan.builders"],
+        denied: Set<String> = [],
         cloudStatus: Int = 200,
         quota: String? = nil,
         billing: String? = nil,
@@ -202,6 +211,8 @@ struct HelmcodePluginTests {
             cookieResolver: { provider, domain in
                 #expect(provider == .helmcode)
                 domains.append(domain)
+                if denied
+                    .contains(domain) { throw ProviderPluginError.secretAccess("Synthetic cookie permission denial") }
                 guard available.contains(domain) else { throw ProviderPluginError.secretAccess("missing fixture") }
                 return "session=\(domain)"
             })

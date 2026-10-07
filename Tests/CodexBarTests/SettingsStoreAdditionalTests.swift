@@ -6,6 +6,23 @@ import Testing
 @MainActor
 struct SettingsStoreAdditionalTests {
     @Test
+    func `settings fixtures with the same label keep independent persisted values`() {
+        let first = Self.makeSettingsStore(suite: #function)
+        first.refreshFrequency = .fifteenMinutes
+
+        // A second invocation used to erase the first fixture's persisted domain.
+        let second = Self.makeSettingsStore(suite: #function)
+        second.refreshFrequency = .thirtyMinutes
+
+        #expect(first.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.fifteenMinutes.rawValue)
+        #expect(second.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.thirtyMinutes.rawValue)
+        #expect(first.configStore.fileURL != second.configStore.fileURL)
+
+        second.userDefaults.removeObject(forKey: "refreshFrequency")
+        #expect(first.userDefaults.string(forKey: "refreshFrequency") == RefreshFrequency.fifteenMinutes.rawValue)
+    }
+
+    @Test
     func `Qoder settings preserve captured origin and migrate plain headers to global`() {
         let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-qoder-origin")
         settings.qoderCookieSource = .manual
@@ -52,48 +69,44 @@ struct SettingsStoreAdditionalTests {
     @Test
     @MainActor
     func `antigravity two pool migration preserves released metric meaning`() {
-        let primaryDefaults = UserDefaults(suiteName: #function + ".primary")!
-        primaryDefaults.removePersistentDomain(forName: #function + ".primary")
+        let primaryDefaults = InMemoryUserDefaults()
         primaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.primary.rawValue],
             forKey: "menuBarMetricPreferences")
 
-        let primarySettings = SettingsStore(userDefaults: primaryDefaults)
+        let primarySettings = testSettingsStore(suiteName: #function, userDefaults: primaryDefaults)
 
         #expect(primarySettings.menuBarMetricPreference(for: .antigravity) == .secondary)
         #expect(primaryDefaults.bool(forKey: "antigravityTwoPoolMetricPreferenceMigrated"))
 
-        let secondaryDefaults = UserDefaults(suiteName: #function + ".secondary")!
-        secondaryDefaults.removePersistentDomain(forName: #function + ".secondary")
+        let secondaryDefaults = InMemoryUserDefaults()
         secondaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.secondary.rawValue],
             forKey: "menuBarMetricPreferences")
 
-        let secondarySettings = SettingsStore(userDefaults: secondaryDefaults)
+        let secondarySettings = testSettingsStore(suiteName: #function, userDefaults: secondaryDefaults)
 
         #expect(secondarySettings.menuBarMetricPreference(for: .antigravity) == .primary)
 
-        let reloadedSettings = SettingsStore(userDefaults: secondaryDefaults)
+        let reloadedSettings = testSettingsStore(suiteName: #function, userDefaults: secondaryDefaults)
         #expect(reloadedSettings.menuBarMetricPreference(for: .antigravity) == .primary)
 
-        let tertiaryDefaults = UserDefaults(suiteName: #function + ".tertiary")!
-        tertiaryDefaults.removePersistentDomain(forName: #function + ".tertiary")
+        let tertiaryDefaults = InMemoryUserDefaults()
         tertiaryDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.tertiary.rawValue],
             forKey: "menuBarMetricPreferences")
 
-        let tertiarySettings = SettingsStore(userDefaults: tertiaryDefaults)
+        let tertiarySettings = testSettingsStore(suiteName: #function, userDefaults: tertiaryDefaults)
 
         #expect(tertiarySettings.menuBarMetricPreference(for: .antigravity) == .primary)
 
-        let migratedDefaults = UserDefaults(suiteName: #function + ".migrated")!
-        migratedDefaults.removePersistentDomain(forName: #function + ".migrated")
+        let migratedDefaults = InMemoryUserDefaults()
         migratedDefaults.set(
             [UsageProvider.antigravity.rawValue: MenuBarMetricPreference.primary.rawValue],
             forKey: "menuBarMetricPreferences")
         migratedDefaults.set(true, forKey: "antigravityTwoPoolMetricPreferenceMigrated")
 
-        let migratedSettings = SettingsStore(userDefaults: migratedDefaults)
+        let migratedSettings = testSettingsStore(suiteName: #function, userDefaults: migratedDefaults)
 
         #expect(migratedSettings.menuBarMetricPreference(for: .antigravity) == .primary)
     }
@@ -226,8 +239,11 @@ struct SettingsStoreAdditionalTests {
             .nous: [.automatic, .primary],
             .xkiro: [.automatic, .primary],
             .raycast: [.automatic, .primary],
+            .museai: [.automatic, .primary],
             .coderabbit: [.automatic],
             .replicate: [.automatic],
+            .lithosai: [.automatic],
+            .workbuddy: [.automatic, .primary],
             .aixy: [.automatic],
             .typesafe: [.automatic],
             .hyper: [.automatic],
@@ -300,27 +316,7 @@ struct SettingsStoreAdditionalTests {
     }
 
     private static func makeSettingsStore(suite: String) -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-
-        return SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+        testSettingsStore(suiteName: suite, userDefaults: InMemoryUserDefaults())
     }
 }
 

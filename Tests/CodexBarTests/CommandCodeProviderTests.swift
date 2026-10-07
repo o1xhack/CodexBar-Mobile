@@ -44,6 +44,35 @@ struct CommandCodeProviderTests {
         #expect(await CommandCodeWebFetchStrategy().isAvailable(context))
     }
 
+    @Test(arguments: [
+        ("bare-value", "__Secure-commandcode_prod_.session_token=bare-value"),
+        (" \"bare-value\" ", "__Secure-commandcode_prod_.session_token=bare-value"),
+        (
+            "Cookie: __Secure-commandcode_prod_.session_token=token; extra=keep",
+            "__Secure-commandcode_prod_.session_token=token; extra=keep"),
+        ("__Secure-better-auth.session_token=legacy", "__Secure-better-auth.session_token=legacy"),
+        ("session=explicit", "session=explicit"),
+    ])
+    func `manual fetch normalizes bare tokens and preserves explicit cookie headers`(
+        input: String,
+        expected: String) async throws
+    {
+        let recorder = CookieAttemptRecorder()
+        let strategy = CommandCodeWebFetchStrategy(
+            usageLoader: { cookieHeader in
+                recorder.append(cookieHeader)
+                return Self.snapshot()
+            },
+            sessionLoader: {
+                Issue.record("Manual input must not import browser sessions")
+                return []
+            })
+
+        _ = try await strategy.fetch(self.makeContext(cookieSource: .manual, manualCookieHeader: input))
+
+        #expect(recorder.snapshot() == [expected])
+    }
+
     @Test
     func `automatic cookie fetch retries Vivaldi after stale earlier browser session`() async throws {
         let service = "com.steipete.codexbar.tests.commandcode-retry.\(UUID().uuidString)"

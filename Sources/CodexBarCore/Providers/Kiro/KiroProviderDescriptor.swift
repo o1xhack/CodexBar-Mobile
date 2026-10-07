@@ -33,8 +33,7 @@ public enum KiroProviderDescriptor {
                     ProviderColor(hex: 0x9046FF),
                     ProviderColor(hex: 0xCAA9FF),
                     ProviderColor(hex: 0x2B2B2B),
-                ],
-                widgetColor: ProviderColor(hex: 0xFF9900)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kiro cost summary is not supported." }),

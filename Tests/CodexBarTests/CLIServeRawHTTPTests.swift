@@ -201,29 +201,37 @@ struct CLIServeRawHTTPTests {
     }
 
     @Test
-    func `snapshot shell returns minimal provider rows without waiting for fetches`() async throws {
+    func `snapshot shell returns minimal provider rows without invoking fetches`() async throws {
+        let providerWorkRequested = LockIsolated(false)
+        let operations = CLIServeOperationCoordinator<UsageCommandOutput>(now: {
+            providerWorkRequested.setValue(true)
+            // Reject an accidental request before its provider source can start.
+            return ContinuousClock.now + .seconds(120)
+        })
         let config = CodexBarConfig(providers: [
             ProviderConfig(id: .claude, enabled: true),
             ProviderConfig(id: .codex, enabled: false),
         ])
-        try await Self.withServeRuntime(token: "secret", config: config, body: { port in
-            let startedAt = ContinuousClock().now
-            let response = try await Self.rawExchange(
-                port: port,
-                request: "GET /dashboard/v1/snapshot?detail=shell HTTP/1.1\r\nHost: 127.0.0.1\r\n"
-                    + "Authorization: Bearer secret\r\n\r\n")
-            let elapsed = startedAt.duration(to: ContinuousClock().now)
+        try await Self.withServeRuntime(
+            token: "secret",
+            config: config,
+            providerOperations: operations,
+            body: { port in
+                let response = try await Self.rawExchange(
+                    port: port,
+                    request: "GET /dashboard/v1/snapshot?detail=shell HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                        + "Authorization: Bearer secret\r\n\r\n")
 
-            #expect(response.statusLine == "HTTP/1.1 200 OK")
-            #expect(response.headerValue("Cache-Control") == "no-store")
-            #expect(elapsed < .seconds(1))
-            let object = try #require(
-                JSONSerialization.jsonObject(with: Data(response.body.utf8)) as? [String: Any])
-            let providers = try #require(object["providers"] as? [[String: Any]])
-            #expect(providers.count == 1)
-            #expect(providers[0]["id"] as? String == "claude")
-            #expect(Set(providers[0].keys) == ["id", "name", "enabled", "display"])
-        })
+                #expect(response.statusLine == "HTTP/1.1 200 OK")
+                #expect(response.headerValue("Cache-Control") == "no-store")
+                #expect(providerWorkRequested.value == false)
+                let object = try #require(
+                    JSONSerialization.jsonObject(with: Data(response.body.utf8)) as? [String: Any])
+                let providers = try #require(object["providers"] as? [[String: Any]])
+                #expect(providers.count == 1)
+                #expect(providers[0]["id"] as? String == "claude")
+                #expect(Set(providers[0].keys) == ["id", "name", "enabled", "display"])
+            })
     }
 
     @Test
@@ -451,6 +459,7 @@ struct CLIServeRawHTTPTests {
         bindHost: String = "127.0.0.1",
         config: CodexBarConfig? = nil,
         rawConfigJSON: String? = nil,
+        providerOperations: CLIServeOperationCoordinator<UsageCommandOutput> = CLIServeOperationCoordinator(),
         body: (UInt16) async throws -> Void) async throws
     {
         let store = testConfigStore(suiteName: "CLIServeRawHTTPTests-\(UUID().uuidString)")
@@ -465,7 +474,7 @@ struct CLIServeRawHTTPTests {
         let runtime = ServeRuntime(
             configStore: store,
             cache: CLIServeResponseCache(),
-            providerOperations: CLIServeOperationCoordinator(),
+            providerOperations: providerOperations,
             costOperations: CLIServeOperationCoordinator(),
             refreshInterval: 60,
             requestTimeout: 5,
@@ -489,7 +498,7 @@ struct CLIServeRawHTTPTests {
         handler: @escaping CLILocalHTTPServer.Handler,
         body: (UInt16) async throws -> Void) async throws
     {
-        let listening = RawHTTPListeningSignal()
+        let listening = ServeListeningSignal()
         let server = CLILocalHTTPServer(
             host: "127.0.0.1",
             port: 0,
@@ -557,7 +566,7 @@ struct CLIServeRawHTTPTests {
         guard fd >= 0 else { throw RawHTTPExchangeError.connectFailed }
         defer { close(fd) }
 
-        var timeout = timeval(tv_sec: 5, tv_usec: 0)
+        var timeout = timeval(tv_sec: 60, tv_usec: 0)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
 
@@ -625,7 +634,7 @@ struct CLIServeRawHTTPTests {
     }
 }
 
-private final class RawHTTPListeningSignal: @unchecked Sendable {
+final class ServeListeningSignal: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Void, Never>?
     private var isSignaled = false

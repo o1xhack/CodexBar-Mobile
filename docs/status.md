@@ -15,6 +15,7 @@ read_when:
 - Component groups rotate their disclosure chevron when expanded or collapsed; child rows and the native menu height update immediately.
 - Toggle: Settings → Advanced → “Check provider status”.
 - `UsageStore` polls status and stores `ProviderStatus` for indicator/description.
+- Overlapping requests keep the newest successfully published status for each provider. Older completions cannot replace its status or components, emit recovery hooks, or schedule a redundant retry. A failed newer request still permits an older success to supply status.
 - App and CLI share Core's status-feed decoder and transport-injected fetcher. The app requests component summaries and Workspace
   incidents; CLI `--status` retains its lightweight Statuspage request and existing JSON fields.
 - Menu shows incident summary + freshness; icon overlays indicator.

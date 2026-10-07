@@ -259,7 +259,7 @@ struct AntigravityBotIDValidationTests {
 
         #expect(report.coverage == .complete)
         #expect(report.report.data.count == 1)
-        #expect(report.report.data.first?.totalTokens == 198)
+        #expect(report.report.data.first?.totalTokens == 187)
     }
 
     private static func read(_ url: URL) throws -> AntigravityLocalReader.SourceResult {

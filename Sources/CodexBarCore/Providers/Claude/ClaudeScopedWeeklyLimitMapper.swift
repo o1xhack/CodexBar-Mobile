@@ -70,3 +70,20 @@ enum ClaudeScopedWeeklyLimitMapper {
         return idSlug == "all-models" || idSlug.hasSuffix("-all-models")
     }
 }
+
+extension UsageSnapshot {
+    /// The active model-scoped weekly carve-out (e.g. Claude's `claude-weekly-scoped-fable`
+    /// "Fable only" window), if the snapshot exposes one. Kept generic across models: keys off
+    /// the `claude-weekly-scoped-` id prefix rather than a specific model name, so it keeps
+    /// working when the promotional window rotates to a different model.
+    ///
+    /// When more than one scoped weekly window is active, the most constrained one (highest
+    /// used percentage) wins: that is the limit the user is closest to hitting and the one
+    /// worth showing in the always-visible menu bar. The full `NamedRateWindow` is returned so
+    /// callers can label the token with the active model instead of assuming Fable.
+    public var claudeScopedWeeklyWindow: NamedRateWindow? {
+        (self.extraRateWindows ?? [])
+            .filter { $0.id.hasPrefix("claude-weekly-scoped-") && $0.usageKnown && !$0.window.isSyntheticPlaceholder }
+            .max { $0.window.usedPercent < $1.window.usedPercent }
+    }
+}

@@ -369,24 +369,50 @@ struct CLIServeRouterTests {
         #expect(oversizedTimeout < 86400)
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `serve usage collection bounds a hung provider without blocking others`() async {
         let providers: [UsageProvider] = [.codex, .claude, .gemini]
-        let start = Date()
-        let output = await CodexBarCLI.serveCollectUsageOutputs(
-            providers: providers,
-            providerTimeout: 0.5)
-        { provider in
-            if provider == .claude {
-                try? await Task.sleep(for: .seconds(30))
-                return UsageCommandOutput(sections: ["late:\(provider.rawValue)"])
+        let releaseProvider = HeldRequestGate()
+        let providerStarted = HeldRequestGate()
+        let providerFinished = HeldRequestGate()
+        let fastProvidersReturned = HeldRequestGate()
+        let fastCount = ServeTestCounter()
+        let deadline = HeldRequestGate()
+        defer { Task { await releaseProvider.open(); await deadline.open() } }
+        let now = ContinuousClock.now
+        let operations = CLIServeOperationCoordinator<UsageCommandOutput>(
+            now: { now },
+            sleepUntil: { _ in await deadline.wait() })
+        let collection = Task {
+            await CodexBarCLI.serveCollectUsageOutputs(
+                providers: providers,
+                configFingerprint: "fixture",
+                deadline: now + .seconds(30),
+                operations: operations)
+            { provider in
+                if provider == .claude {
+                    await providerStarted.open()
+                    await releaseProvider.wait()
+                    await providerFinished.open()
+                    return UsageCommandOutput(sections: ["late:\(provider.rawValue)"])
+                }
+                if await fastCount.increment() == 2 { await fastProvidersReturned.open() }
+                return UsageCommandOutput(sections: ["ok:\(provider.rawValue)"])
             }
-            return UsageCommandOutput(sections: ["ok:\(provider.rawValue)"])
         }
-        let elapsed = Date().timeIntervalSince(start)
-
-        // The hung provider must not serialize or stall the others.
-        #expect(elapsed < 5)
+        await providerStarted.wait()
+        await fastProvidersReturned.wait()
+        // Wait for both fast results to be accepted before expiring only the held operation.
+        while await operations.snapshot().operationCount != 1, !Task.isCancelled {
+            await Task.yield()
+        }
+        #expect(await operations.snapshot().operationCount == 1)
+        await deadline.open()
+        let output = await collection.value
+        // Collection completes while the slow provider still cannot return.
+        #expect(await releaseProvider.isOpen == false)
+        await releaseProvider.open()
+        await providerFinished.wait()
         // Fast providers render in caller order; the hung one yields no section.
         #expect(output.sections == ["ok:codex", "ok:gemini"])
         // The hung provider degrades to a single provider error row.
@@ -1642,33 +1668,5 @@ private actor ServeTestCounter {
 
     func current() -> Int {
         self.value
-    }
-}
-
-private final class ServeListeningSignal: @unchecked Sendable {
-    private let lock = NSLock()
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var isSignaled = false
-
-    func signal() {
-        let continuation = self.lock.withLock {
-            self.isSignaled = true
-            defer { self.continuation = nil }
-            return self.continuation
-        }
-        continuation?.resume()
-    }
-
-    func wait() async {
-        await withCheckedContinuation { continuation in
-            let shouldResume = self.lock.withLock {
-                guard !self.isSignaled else { return true }
-                self.continuation = continuation
-                return false
-            }
-            if shouldResume {
-                continuation.resume()
-            }
-        }
     }
 }

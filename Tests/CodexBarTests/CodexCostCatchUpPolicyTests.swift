@@ -5,8 +5,33 @@ import Testing
 struct CodexCostCatchUpPolicyTests {
     @Test
     func `only accelerated mode uses the longer dashboard scan burst`() {
-        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh == 2)
-        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh == 10)
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh() == 2)
+        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh() == 10)
+    }
+
+    @Test
+    func `automatic discovery shares a bounded burst without initial sleep debt`() {
+        for passes in 0..<8 {
+            let decision = CodexCostCatchUpPolicy().decision(for: .init(
+                mode: .automatic,
+                previousActiveDuration: passes == 0 ? nil : Double(passes) / 10,
+                powerSource: .ac,
+                lowPowerModeEnabled: false,
+                thermalState: .nominal,
+                completedPasses: passes))
+            #expect(decision.action == .runAfter(0))
+        }
+        let capped = CodexCostCatchUpPolicy().decision(for: .init(
+            mode: .automatic,
+            previousActiveDuration: 0.8,
+            powerSource: .ac,
+            lowPowerModeEnabled: false,
+            thermalState: .nominal,
+            completedPasses: 8))
+        #expect(capped.action == .runAfter(0.8 * 999))
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh(after: 1.5) == 0.5)
+        #expect(CodexCostCatchUpMode.automatic.scanDurationPerRefresh(after: 2) > 0)
+        #expect(CodexCostCatchUpMode.accelerated.scanDurationPerRefresh(after: 20) == 10)
     }
 
     @Test

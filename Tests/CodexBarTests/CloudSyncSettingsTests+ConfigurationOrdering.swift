@@ -5,7 +5,7 @@ import Testing
 
 extension CloudSyncSettingsTests {
     @Test
-    func `newer external revision preserves an overtaken local provider edit`() async throws {
+    func `newer external revision preserves an overtaken local provider edit`() throws {
         let fixture = try self.makeFixture("external-overtakes-local")
         let persistence = self.makePersistence("external-overtakes-local")
         let initial = fixture.store.configSnapshot
@@ -26,12 +26,12 @@ extension CloudSyncSettingsTests {
         openAI.workspaceID = "remote-workspace"
         combinedConfig.setProviderConfig(openAI)
 
-        await engine.externalConfigurationDidChange(
+        engine.externalConfigurationDidChange(
             previousConfig: localConfig,
             currentConfig: combinedConfig,
             revision: 2,
             deviceID: fixture.store.macFleetSyncDeviceID)
-        await engine.localUserConfigurationDidChange(
+        engine.localUserConfigurationDidChange(
             localConfig,
             revision: 1,
             deviceID: fixture.store.macFleetSyncDeviceID)

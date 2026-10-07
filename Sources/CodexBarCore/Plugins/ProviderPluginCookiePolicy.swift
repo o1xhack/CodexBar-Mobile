@@ -35,12 +35,14 @@ public struct ProviderPluginCookiePolicy: Sendable {
     let sessionFile: SessionFile?
     let missingCookies: MissingCookies
     let imports: Imports
+    let headerEcho: ProviderPluginCookieHeaderEcho?
 
     init(_ value: any ProviderPluginValue, domains: Set<String>, endpoints: Set<ProviderPluginEndpoint>) throws {
         let invalid = ProviderPluginError.invalidManifest("invalid bundled cookiePolicy")
         guard value.isObject, !value.isArray,
               try Set(value.propertyNames()).isSubset(of: [
                   "selection", "cache", "sourceDomains", "requiredCookies", "sessionFile", "missingCookies", "imports",
+                  "headerEcho",
               ]),
               let selection = value.property("selection"), selection.isString,
               let selection = Selection(rawValue: selection.stringValue()),
@@ -76,6 +78,13 @@ public struct ProviderPluginCookiePolicy: Sendable {
                   .allSatisfy({ $0.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil }),
                   selection == .requestURL ? self.sourceDomains.isEmpty : !self.sourceDomains.isEmpty
         else { throw invalid }
+        if let echo = value.property("headerEcho"), !echo.isUndefined {
+            guard selection == .requestURL else { throw invalid }
+            self.headerEcho = try ProviderPluginCookieHeaderEcho(
+                echo, domains: domains, endpoints: endpoints, requiredCookies: self.requiredCookies)
+        } else {
+            self.headerEcho = nil
+        }
         if let file = value.property("sessionFile"), !file.isUndefined {
             guard cache == .validatedSingleEntry, selection == .rankedSourceDomains,
                   self.requestHosts.count == 1, file.isObject, !file.isArray,

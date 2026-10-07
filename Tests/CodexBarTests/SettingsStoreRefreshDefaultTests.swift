@@ -22,9 +22,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `fresh install defaults to adaptive and persists the choice`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-fresh"
+        let suite = "SettingsStoreRefreshDefaultTests-fresh-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let configStore = testConfigStore(suiteName: suite)
 
         let store = self.makeStore(defaults: defaults, configStore: configStore)
@@ -44,9 +44,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `unrecognized refresh frequency keeps the legacy fallback`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-invalid"
+        let suite = "SettingsStoreRefreshDefaultTests-invalid-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set("legacyValue", forKey: "refreshFrequency")
 
         let store = self.makeStore(
@@ -59,9 +59,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test(arguments: PreviousLaunchMarker.allCases)
     func `legacy unset refresh keeps five minute fallback`(marker: PreviousLaunchMarker) throws {
-        let suite = "SettingsStoreRefreshDefaultTests-legacy-\(marker)"
+        let suite = "SettingsStoreRefreshDefaultTests-legacy-\(marker)-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         marker.seed(defaults)
 
         let store = self.makeStore(
@@ -74,9 +74,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `existing config without launch markers keeps five minute fallback`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-existing-config"
+        let suite = "SettingsStoreRefreshDefaultTests-existing-config-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let configStore = testConfigStore(suiteName: suite)
         try configStore.save(CodexBarConfig.makeDefault())
 
@@ -88,9 +88,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `non string refresh value keeps five minute fallback`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-non-string"
+        let suite = "SettingsStoreRefreshDefaultTests-non-string-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(17, forKey: "refreshFrequency")
 
         let store = self.makeStore(
@@ -106,9 +106,9 @@ struct SettingsStoreRefreshDefaultTests {
         let markers: [PreviousLaunchMarker?] = [nil, .providerDetection, .appGroupMigration]
         for frequency in RefreshFrequency.allCases {
             for marker in markers {
-                let suite = "SettingsStoreRefreshDefaultTests-valid-\(frequency.rawValue)-\(String(describing: marker))"
+                let suite = "SettingsStoreRefreshDefaultTests-valid-\(UUID().uuidString)"
                 let defaults = try #require(UserDefaults(suiteName: suite))
-                defaults.removePersistentDomain(forName: suite)
+                defer { defaults.removePersistentDomain(forName: suite) }
                 defaults.set(frequency.rawValue, forKey: "refreshFrequency")
                 marker?.seed(defaults)
 
@@ -127,9 +127,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `adaptive activity consent is explicit and persists`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-consent"
+        let suite = "SettingsStoreRefreshDefaultTests-consent-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let configStore = testConfigStore(suiteName: suite)
         let store = self.makeStore(defaults: defaults, configStore: configStore)
 
@@ -153,9 +153,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `invalid consent fails closed and requests a decision`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-invalid-consent"
+        let suite = "SettingsStoreRefreshDefaultTests-invalid-consent-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(RefreshFrequency.adaptiveAgentAware.rawValue, forKey: "refreshFrequency")
         defaults.set("legacy", forKey: "adaptiveActivityScanConsent")
 
@@ -171,9 +171,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `plain adaptive never requests consent or scans`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-existing-adaptive-consent"
+        let suite = "SettingsStoreRefreshDefaultTests-existing-adaptive-consent-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set(true, forKey: "providerDetectionCompleted")
         defaults.set(RefreshFrequency.adaptive.rawValue, forKey: "refreshFrequency")
 
@@ -192,9 +192,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `consent prompt is limited to agent aware adaptive`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-consent-prompt"
+        let suite = "SettingsStoreRefreshDefaultTests-consent-prompt-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let store = self.makeStore(
             defaults: defaults,
             configStore: testConfigStore(suiteName: suite))
@@ -216,9 +216,9 @@ struct SettingsStoreRefreshDefaultTests {
 
     @Test
     func `reselecting agent aware adaptive after decline requests consent again`() throws {
-        let suite = "SettingsStoreRefreshDefaultTests-consent-reselect"
+        let suite = "SettingsStoreRefreshDefaultTests-consent-reselect-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
-        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let store = self.makeStore(
             defaults: defaults,
             configStore: testConfigStore(suiteName: suite))

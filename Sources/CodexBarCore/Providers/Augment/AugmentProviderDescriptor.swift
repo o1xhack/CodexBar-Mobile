@@ -70,8 +70,7 @@ public enum AugmentProviderDescriptor {
                     ProviderColor(hex: 0x1AA049),
                     ProviderColor(hex: 0x111111),
                     ProviderColor(hex: 0xFFF7ED),
-                ],
-                widgetColor: ProviderColor(hex: 0x6366F1)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Augment cost summary is not supported." }),

@@ -38,7 +38,7 @@ enum ProviderCookieRefreshAction {
         provider: UsageProvider,
         operation: () async -> Bool) async -> Outcome
     {
-        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+        await ProviderSettingsRefreshInteraction.perform {
             guard let gate = CookieHeaderCache.beginRefreshReadSuppression(provider: provider) else {
                 return .failed
             }
@@ -48,8 +48,7 @@ enum ProviderCookieRefreshAction {
             guard validated, !Task.isCancelled else { return .failed }
 
             let commit = CookieHeaderCache.commitRefreshReadSuppression(gate)
-            guard commit.stagedCount > 0,
-                  commit.committedCount == commit.stagedCount,
+            guard commit.committedCount == commit.stagedCount,
                   commit.failedCount == 0
             else { return .failed }
             return .refreshed

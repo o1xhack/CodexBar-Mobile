@@ -119,14 +119,12 @@ extension UsageStore {
             return
         }
 
-        let wasOutage = self.providerStatusHadIssue[provider.instanceID] ?? false
-        if isOutage, !wasOutage {
-            self.providerStatusHadIssue[provider.instanceID] = true
-            self.emitHook(.providerUnavailable, provider: provider, status: indicator.rawValue)
-        } else if !isOutage, wasOutage {
-            self.providerStatusHadIssue[provider.instanceID] = false
-            self.emitHook(.providerRecovered, provider: provider, status: indicator.rawValue)
-        }
+        guard isOutage != self.providerStatusHadIssue[provider.instanceID, default: false] else { return }
+        self.providerStatusHadIssue[provider.instanceID] = isOutage
+        self.emitHook(
+            isOutage ? .providerUnavailable : .providerRecovered,
+            provider: provider,
+            status: indicator.rawValue)
     }
 
     /// Identifies a quota lane for quota_low hook crossing detection.

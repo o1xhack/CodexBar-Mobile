@@ -377,52 +377,6 @@ extension CostUsageStore {
         self.setSingleton(metadata, table: "scan_metadata")
     }
 
-    /// Atomically advances only persisted scan freshness. Reading and rewriting the whole
-    /// metadata payload inside one `BEGIN IMMEDIATE` preserves every field a concurrent writer
-    /// committed before this transaction acquired the lock. Busy/locked failures return false
-    /// through `withDatabase` and retain the existing database.
-    @discardableResult
-    func advanceLastScanUnixMs(_ incomingUnixMs: Int64) -> Bool {
-        self.withDatabase(default: false) { database in
-            try Self.inTransaction(database) {
-                try Self.writeAdvancedLastScanUnixMs(incomingUnixMs, database: database)
-            }
-        }
-    }
-
-    /// The caller already owns the save transaction's writer lock.
-    @discardableResult
-    func advanceLastScanUnixMsInCurrentTransaction(_ incomingUnixMs: Int64) -> Bool {
-        self.withDatabase(default: false) { database in
-            try Self.writeAdvancedLastScanUnixMs(incomingUnixMs, database: database)
-        }
-    }
-
-    private static func writeAdvancedLastScanUnixMs(
-        _ incomingUnixMs: Int64,
-        database: OpaquePointer) throws -> Bool
-    {
-        var metadata = try self.readSingleton(
-            CostUsageStoreMetadata.self,
-            database: database,
-            table: "scan_metadata") ?? .empty
-        // Retention may have required catch-up after the caller's preflight. Recheck
-        // under this writer lock so stale freshness can never mask that recovery state.
-        guard !metadata.catchUpPending else { return true }
-        let advancedUnixMs = max(metadata.lastScanUnixMs, incomingUnixMs)
-        guard advancedUnixMs != metadata.lastScanUnixMs else { return true }
-        metadata.lastScanUnixMs = advancedUnixMs
-        let payload = try JSONEncoder().encode(metadata)
-        let statement = try self.prepare(database, """
-        INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
-        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
-        """)
-        defer { sqlite3_finalize(statement) }
-        self.bind(payload, to: statement, at: 1)
-        try self.stepDone(statement, database: database)
-        return true
-    }
-
     @discardableResult
     func upsertAccumulator(_ accumulator: CostUsageStoreAccumulator) -> Bool {
         self.withDatabase(default: false) { database in
@@ -474,14 +428,7 @@ extension CostUsageStore {
     private func setSingleton(_ value: (some Encodable)?, table: String) -> Bool {
         self.withDatabase(default: false) { database in
             if let value {
-                let payload = try JSONEncoder().encode(value)
-                let statement = try Self.prepare(database, """
-                INSERT INTO \(table)(id, payload) VALUES (1, ?)
-                ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
-                """)
-                defer { sqlite3_finalize(statement) }
-                Self.bind(payload, to: statement, at: 1)
-                try Self.stepDone(statement, database: database)
+                try Self.writeSingleton(value, database: database, table: table)
             } else {
                 try Self.execute(database, "DELETE FROM \(table) WHERE id = 1")
             }
@@ -491,6 +438,47 @@ extension CostUsageStore {
 }
 
 // MARK: - Write helpers
+
+enum CostUsagePersistenceAction: Equatable {
+    case reuse
+    case append(startingAt: Int)
+    case replace
+
+    func materialize<Source, Persisted>(
+        _ source: [Source],
+        transform: (Int, Source) -> Persisted?) -> [Persisted]
+    {
+        let start: Int
+        switch self {
+        case .reuse:
+            return []
+        case let .append(startingAt):
+            start = startingAt
+        case .replace:
+            start = 0
+        }
+        return source.enumerated().dropFirst(start).compactMap { transform($0.offset, $0.element) }
+    }
+}
+
+enum CostUsagePersistencePlanner {
+    static func action<Element: Equatable>(
+        canReuse: Bool,
+        appendSafe: Bool,
+        persistedCount: Int,
+        baseline: [Element],
+        source: [Element]) -> CostUsagePersistenceAction
+    {
+        guard canReuse, baseline.count == persistedCount else { return .replace }
+        if baseline == source {
+            return .reuse
+        }
+        if appendSafe, source.starts(with: baseline) {
+            return .append(startingAt: persistedCount)
+        }
+        return .replace
+    }
+}
 
 extension CostUsageStore {
     static func replaceUsageRows(

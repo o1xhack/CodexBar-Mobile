@@ -69,15 +69,16 @@ struct LongCatProviderTests {
 
     @Test
     func `background and CLI automatic sessions never import`() throws {
+        let policy = try ProviderPluginRuntime(bundledPlugin: "longcat").manifest.cookiePolicy
         for runtime in [ProviderRuntime.app, .cli] {
             let context = self.context(env: [:], cookieSource: .auto, runtime: runtime)
             let broker = ProviderPluginCookieBroker(
-                provider: .longcat, domains: ["longcat.chat"], context: context, usesCookieJar: true)
+                provider: .longcat, domains: ["longcat.chat"], context: context, policy: policy)
             #expect(try broker.nextSession(domain: "longcat.chat") == nil)
             if runtime == .cli {
                 try ProviderInteractionContext.$current.withValue(.userInitiated) { () throws in
                     let interactive = ProviderPluginCookieBroker(
-                        provider: .longcat, domains: ["longcat.chat"], context: context, usesCookieJar: true)
+                        provider: .longcat, domains: ["longcat.chat"], context: context, policy: policy)
                     #expect(try interactive.nextSession(domain: "longcat.chat") == nil)
                 }
             }

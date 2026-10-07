@@ -38,7 +38,7 @@ struct UsageStoreCodexCostCatchUpTests {
         }
         store._test_codexCostCatchUpSleepOverride = { delay in
             sleeps += 1
-            #expect(delay == (resource == "normal" ? 1998 : CodexCostCatchUpPolicy.constrainedRetryDelay))
+            #expect(delay == (resource == "normal" ? 0 : CodexCostCatchUpPolicy.constrainedRetryDelay))
             #expect(advances == 0)
             if resource != "normal" {
                 #expect(store.codexCostCatchUpActivity?.phase == .paused)
@@ -107,10 +107,84 @@ struct UsageStoreCodexCostCatchUpTests {
         await store.widgetSnapshotPersistTask?.value
 
         #expect(advances == 1)
-        #expect(sleeps == [1998])
+        #expect(sleeps == [0])
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysTokens == 52)
         #expect(store.tokenSnapshot(for: .codex)?.updatedAt == fixture.base.now)
         #expect(store.codexCostCatchUpActivity?.pauseReason == .noProgress)
+    }
+
+    @Test(arguments: [0.1, 0.75])
+    func `automatic discovery yields after its accumulated time or page budget`(duration: TimeInterval) async throws {
+        let store = try Self.makeStore(suite: "bounded-discovery")
+        defer { store.cancelCodexCostCatchUp() }
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in .init(pending: true, progressKey: "start") }
+        store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
+        store._test_codexCostCatchUpActiveDuration = duration
+        var advances = 0
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            return .init(pending: true, progressKey: "page-\(advances)")
+        }
+        var delayed = false
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            guard delay > 0 else { return }
+            delayed = true
+            #expect(advances == (duration == 0.1 ? 8 : 3))
+            #expect(abs(delay - Double(advances) * duration * 999) < 0.000001)
+            throw CancellationError()
+        }
+        store.startCodexCostCatchUpIfNeeded()
+        await store.codexCostCatchUpTask?.value
+        #expect(delayed)
+    }
+
+    @Test(arguments: [false, true])
+    func `accelerated work does not accumulate automatic sleep debt`(switchDuringYield: Bool) async throws {
+        let store = try Self.makeStore(suite: "acceleration-debt-\(switchDuringYield)")
+        defer { store.cancelCodexCostCatchUp() }
+        store.settings.backgroundWorkLowPowerModePreference = .off
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store._test_codexCostCatchUpStatusOverride = { _ in .init(pending: true, progressKey: "start") }
+        store._test_cachedCodexTokenSnapshotLoaderOverride = { _, _, _ in nil }
+        store._test_codexCostCatchUpActiveDuration = 2
+        let expectedAdvances = switchDuringYield ? 4 : 3
+        var advances = 0
+        var switched = false
+        var delayed = false
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            guard advances <= expectedAdvances else { throw CancellationError() }
+            if advances == 3, !switchDuringYield {
+                #expect(store.codexCostCatchUpPassIsRunning)
+                switched = true
+                store.startCodexCostCatchUpIfNeeded(mode: .automatic)
+            }
+            return .init(pending: true, progressKey: "page-\(advances)")
+        }
+        store._test_codexCostCatchUpSleepOverride = { delay in
+            if switchDuringYield, advances == 3, !switched {
+                #expect(delay == 0)
+                #expect(!store.codexCostCatchUpPassIsRunning)
+                switched = true
+                store.startCodexCostCatchUpIfNeeded(mode: .automatic)
+                return
+            }
+            guard delay > 0 else { return }
+            delayed = true
+            #expect(delay == 1998)
+            #expect(advances == expectedAdvances)
+            throw CancellationError()
+        }
+        store.startCodexCostCatchUpIfNeeded(mode: .accelerated)
+        let original = try #require(store.codexCostCatchUpTask)
+        await original.value
+        await store.codexCostCatchUpTask?.value
+        #expect(advances == expectedAdvances)
+        #expect(delayed)
+        #expect(switched)
+        #expect(store.codexCostCatchUpMode == .automatic)
     }
 
     @Test
@@ -137,7 +211,7 @@ struct UsageStoreCodexCostCatchUpTests {
         store.startCodexCostCatchUpIfNeeded()
         let task = try #require(store.codexCostCatchUpTask)
         await task.value
-        #expect(sleeps == [1998, 1998])
+        #expect(sleeps == [0, 1998])
     }
 
     @Test(arguments: [CodexCostCatchUpPowerSource.ac, .battery, .unknown])
@@ -163,7 +237,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.codexCostCatchUpDecision(
             mode: .automatic,
             previousActiveDuration: nil,
-            resourceState: (.ac, false, .nominal)).action == .runAfter(1998))
+            resourceState: (.ac, false, .nominal)).action == .runAfter(1800))
         #expect(store.codexCostCatchUpDecision(
             mode: .automatic,
             previousActiveDuration: 0.1,
@@ -196,7 +270,7 @@ struct UsageStoreCodexCostCatchUpTests {
         await task.value
         #expect(sleeps.count == 2)
         if mode == .automatic {
-            #expect(sleeps == [1998, 1800])
+            #expect(sleeps == [1800, 1800])
         } else {
             #expect(sleeps == [0, 0])
         }
@@ -314,7 +388,7 @@ struct UsageStoreCodexCostCatchUpTests {
 
         #expect(advanceCount == 2)
         #expect(snapshotLoadCount == 1)
-        #expect(sleepDurations == [1998, 1998])
+        #expect(sleepDurations == [0, 1998])
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 1)
         #expect(store.tokenError(for: .codex) == nil)
     }

@@ -1299,6 +1299,56 @@ extension SpendDashboardModelTests {
     }
 
     @Test
+    func `same named projects keep distinct paths and row identities`() throws {
+        let projects = [
+            Self.project(
+                name: "work",
+                days: [("2026-07-15", 20)],
+                path: "/first/work"),
+            Self.project(
+                name: "work",
+                days: [("2026-07-15", 5)],
+                path: "/second/work"),
+            Self.project(
+                name: "Renamed",
+                days: [("2026-07-16", 3)],
+                path: "/first/work"),
+        ]
+        let input = SpendDashboardModel.ProviderInput(
+            id: "codex-a",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [
+                    Self.entry(
+                        day: "2026-07-15",
+                        cost: 25),
+                    Self.entry(
+                        day: "2026-07-16",
+                        cost: 3),
+                ],
+                projects: projects))
+        let rows = try #require(Self.model(inputs: [input]).groups.first).projects
+        #expect(rows.count == 2)
+        #expect(Set(rows.map(\.id)).count == 2)
+        #expect(rows.map(\.path) == ["/first/work", "/second/work"])
+        #expect(rows.map(\.totalCost) == [23, 5])
+        #expect(rows.map(\.totalTokens) == [20, 10])
+
+        let renamed = SpendDashboardModel.ProjectRow(
+            rank: 1,
+            provider: .codex,
+            providerName: "Codex",
+            sourceID: "codex-a",
+            projectName: "New name",
+            path: "/first/work",
+            totalTokens: 20,
+            totalCost: 23)
+        #expect(rows[0].id == renamed.id)
+    }
+
+    @Test
     func `project rows exclude days outside the requested window`() throws {
         let model = Self.model(
             inputs: [
@@ -1351,51 +1401,8 @@ extension SpendDashboardModelTests {
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
         #expect(group.projects.map(\.totalCost) == [7, 5])
-        #expect(Set(group.projects.map(\.sourceID)) == ["codex-a", "codex-b"])
-        #expect(Set(group.projects.map(\.id)).count == 2)
-        #expect(group.projects.map(\.providerName) == ["Codex · #2", "Codex · #1"])
-    }
-
-    @Test
-    func `same named projects in one source stay separated by canonical path`() throws {
-        let model = SpendDashboardModel.build(
-            inputs: [
-                SpendDashboardModel.ProviderInput(
-                    id: "codex-a",
-                    provider: .codex,
-                    displayName: "Codex",
-                    snapshot: Self.snapshot(
-                        currency: "USD",
-                        entries: [Self.entry(day: "2026-07-15", cost: 12)],
-                        projects: [
-                            Self.project(
-                                name: "app",
-                                path: "/Users/example/work/app",
-                                days: [("2026-07-15", 5)]),
-                            Self.project(
-                                name: "app",
-                                path: "/Users/example/personal/app",
-                                days: [("2026-07-15", 7)]),
-                        ])),
-            ],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar)
-
-        let projects = try #require(model.groups.first?.projects)
-        #expect(projects.count == 2)
-        #expect(projects.map(\.totalCost) == [7, 5])
-        #expect(Set(projects.compactMap(\.path)) == [
-            "/Users/example/personal/app",
-            "/Users/example/work/app",
-        ])
-        #expect(Set(projects.map(\.id)).count == 2)
-        let expectedDisplayPaths = Set(projects.compactMap(\.path).map {
-            ($0 as NSString).abbreviatingWithTildeInPath
-        })
-        #expect(Set(projects.compactMap {
-            spendDashboardProjectDisambiguationPath(for: $0, projects: projects)
-        }) == expectedDisplayPaths)
+        #expect(Set(group.projects.map(\.id)) == ["7:codex-a|16:path:/tmp/shared", "7:codex-b|16:path:/tmp/shared"])
+        #expect(group.projects[0].providerName == "Codex · #2")
     }
 
     @Test
@@ -1453,9 +1460,9 @@ extension SpendDashboardModelTests {
 
     private static func project(
         name: String,
-        path: String? = nil,
         days: [(String, Double?)],
-        tokens: Int? = 10) -> CostUsageProjectBreakdown
+        tokens: Int? = 10,
+        path: String? = nil) -> CostUsageProjectBreakdown
     {
         CostUsageProjectBreakdown(
             name: name,
@@ -1562,5 +1569,25 @@ extension SpendDashboardModelTests {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         return calendar
+    }
+}
+
+extension SpendDashboardModelTests {
+    @Test
+    func `project row ids stay unique when source and project paths embed the path boundary`() {
+        func row(sourceID: String, path: String) -> SpendDashboardModel.ProjectRow {
+            SpendDashboardModel.ProjectRow(
+                rank: 1,
+                provider: .codex,
+                providerName: "Codex",
+                sourceID: sourceID,
+                projectName: "project",
+                path: path,
+                totalTokens: nil,
+                totalCost: nil)
+        }
+        let first = row(sourceID: "codex:profile:/a", path: "/b:path:/c")
+        let second = row(sourceID: "codex:profile:/a:path:/b", path: "/c")
+        #expect(first.id != second.id)
     }
 }

@@ -452,13 +452,13 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func `open code cookie refresh respects denial cooldown and preserves cookie`() async throws {
+    func `open code cookie refresh permits explicit retry and preserves unvalidated cookie`() async throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-opencode-cooldown")
         let context = fixture.settingsContext(provider: .opencode)
         let picker = try #require(OpenCodeProviderImplementation().settingsPickers(context: context).first)
         let action = try #require(picker.trailingActions.first)
         let service = "com.steipete.codexbar.tests.settings-cookie-cooldown.\(UUID().uuidString)"
-        var cooldownRespected = false
+        var explicitRetryAllowed = false
 
         BrowserCookieAccessGate.resetForTesting()
         BrowserCookieAccessGate.recordDenied(for: .chrome)
@@ -471,13 +471,15 @@ struct ProviderSettingsDescriptorTests {
                     cookieHeader: "old-test-cookie",
                     sourceLabel: "Test old")
                 fixture.store._test_providerRefreshOverride = { _ in
-                    cooldownRespected = !BrowserCookieAccessGate.shouldAttempt(.chrome)
+                    explicitRetryAllowed = KeychainAccessGate.withTaskOverrideForTesting(false) {
+                        BrowserCookieAccessGate.shouldAttempt(.chrome)
+                    }
                 }
                 defer { fixture.store._test_providerRefreshOverride = nil }
 
                 await action.perform()
 
-                #expect(cooldownRespected)
+                #expect(explicitRetryAllowed)
                 #expect(CookieHeaderCache.load(provider: .opencode)?.cookieHeader == "old-test-cookie")
                 #expect(picker.trailingText?() == L("Failed"))
             }

@@ -220,6 +220,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         (@MainActor (TimeInterval) async -> CLILoginRunner.Result)?
     #endif
     var manualRefreshViewportRestoreState = ManualRefreshViewportRestoreState()
+    var blinkNow: @MainActor () -> Date = Date.init
+    var blinkSleep: @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    var brandIcon: @MainActor (UsageProvider) -> NSImage? = { ProviderBrandIcon.image(for: $0) }
     var blinkTask: Task<Void, Never>?
     var menuBarCountdownRefreshTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
@@ -672,13 +675,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         guard !self.isReleasedForTesting else { return }
         #endif
         self.synchronizeAgentSessionsForSettingsChange()
-        let configChanged = self.settings.configRevision != self.lastConfigRevision
-        let orderChanged = self.settings.providerOrder != self.lastProviderOrder
+        let previousOrder = self.lastProviderOrder
+        let orderChanged = self.settings.providerOrder != previousOrder
         let localizationChanged = self.menuLocalizationSignature() != self.lastMenuLocalizationSignature
         let shouldRefreshOpenMenus = self.shouldRefreshOpenMenusForProviderSwitcher()
         self.invalidateMenus()
-        if orderChanged || configChanged {
-            self.rebuildProviderStatusItems()
+        if orderChanged {
+            self.reorderProviderStatusItems(previousOrder: previousOrder)
         }
         self.updateVisibility()
         self.updateIcons()
@@ -850,25 +853,34 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.prepareAttachedClosedMenusIfNeeded()
     }
 
-    private func rebuildProviderStatusItems() {
-        #if DEBUG
-        guard !self.isReleasedForTesting else { return }
-        #endif
-        let ordered = self.settings.orderedProviders()
-        let desired = Set(ordered)
-        for provider in Array(self.statusItems.keys) where !desired.contains(provider) {
-            self.removeProviderStatusItem(for: provider)
+    private func reorderProviderStatusItems(previousOrder: [ProviderInstanceID]) {
+        let ordered = self.settings.orderedFirstPartyProviders().filter(self.isVisible)
+        guard ordered != previousOrder.compactMap(\.firstPartyProvider).filter(self.isVisible) else { return }
+        let defaults = self.settings.userDefaults
+        let maximum = MenuBarStatusItemPlacementPreflight.currentMaximumPreferredPosition()
+        let keys = ordered.map {
+            MenuBarStatusItemPlacementPreflight.preferredPositionKey(
+                autosaveName: StatusItemIdentity.provider($0.instanceID).autosaveName)
         }
-
-        guard !self.shouldMergeIcons else { return }
-        let fallback = self.fallbackProvider
-        let force = self.store.debugForceAnimation
-        for instanceID in ordered {
-            guard let provider = instanceID.firstPartyProvider,
-                  self.isEnabled(provider) || fallback == provider || force
-            else { continue }
-            _ = self.lazyStatusItem(for: provider)
+        // Capture all slots before AppKit teardown can update another item's saved position.
+        let positions = keys.compactMap { key -> Double? in
+            guard let value = defaults.object(forKey: key),
+                  !MenuBarStatusItemPlacementPreflight.shouldClearPreferredPosition(
+                      value, maximumPreferredPosition: maximum)
+            else { return nil }
+            return (value as? NSNumber)?.doubleValue
+        }.sorted()
+        for instanceID in Array(self.statusItems.keys) {
+            self.removeProviderStatusItem(for: instanceID)
         }
+        for (index, key) in keys.enumerated() {
+            if index < positions.count {
+                defaults.set(positions[index], forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        // updateVisibility recreates the ordered items through the stable-identity vending path.
     }
 
     private func removeProviderStatusItem(for provider: UsageProvider) {

@@ -67,8 +67,7 @@ public enum CursorProviderDescriptor {
                     ProviderColor(hex: 0xF54E00),
                     ProviderColor(hex: 0x1B1913),
                     ProviderColor(hex: 0xEDECEC),
-                ],
-                widgetColor: ProviderColor(hex: 0x00BFA5)),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
                 noDataMessage: { "No Cursor cost usage found. Sign in to Cursor in your browser or the Cursor app." },

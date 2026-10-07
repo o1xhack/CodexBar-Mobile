@@ -139,7 +139,7 @@ public enum CodexProviderDescriptor {
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
             cli: ProviderCLIConfig(
                 name: "codex",
-                binaryLocator: { BinaryLocator.resolveCodexBinary() },
+                binaryLocator: { BinaryLocator.resolveCodexBinary(env: $0) },
                 versionDetector: { _ in ProviderVersionDetector.codexVersion() },
                 supportsCostCommand: true,
                 prefersBinaryLocatorForWhich: true,

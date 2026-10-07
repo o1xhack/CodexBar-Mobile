@@ -7,6 +7,28 @@ import Testing
 struct MenuBarLayoutProviderBalanceTests {
     private let now = Date(timeIntervalSince1970: 1_752_768_000)
 
+    @Test(arguments: ["$2.57", "$0.00", "-$1.25", "Less than $0.01"])
+    func `balance only plugin amounts reach automatic and explicit tokens`(amount: String) throws {
+        let snapshot = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [ProviderDetailSection(title: "Billing", rows: [.init(label: "Balance", value: amount)])],
+            updatedAt: self.now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .lithosai,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Browser session"))
+        let data = self.data(provider: .lithosai, snapshot: snapshot)
+        #expect(data.balance == amount)
+        #expect(data.automaticText == amount)
+        for token: MenuBarLayoutToken in [.balance, .percent(window: .automatic)] {
+            #expect(self.render(layout: MenuBarLayout(lines: [[token]]), data: data).attributedTitle.string == amount)
+        }
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .claude, snapshot: snapshot) == nil)
+        #expect(MenuBarLayoutBalanceResolver.balance(provider: .poe, snapshot: snapshot) == nil)
+    }
+
     @Test
     func `TypeSafe plugin balance reaches automatic and explicit layout tokens`() async throws {
         let snapshot = try await TypeSafePluginTests.fetch(engine: .quickJS)
@@ -92,7 +114,7 @@ struct MenuBarLayoutProviderBalanceTests {
             .attributedTitle.string == "25%")
     }
 
-    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao])
+    @Test(arguments: [UsageProvider.mimo, .hyper, .atlascloud, .vercel, .devpass, .doubao, .lithosai])
     func `absent balances never borrow unrelated spend`(provider: UsageProvider) throws {
         let snapshot = try UsageSnapshot(
             primary: nil,
@@ -120,22 +142,22 @@ struct MenuBarLayoutProviderBalanceTests {
     @Test
     func `synthetic balance renderer proof`() throws {
         guard let path = ProcessInfo.processInfo.environment["CODEXBAR_LAYOUT_BALANCE_PROOF"] else { return }
-        let providers: [UsageProvider] = [.mimo, .hyper, .atlascloud, .vercel, .devpass]
-        let image = NSImage(size: NSSize(width: 620, height: 260))
+        let providers: [UsageProvider] = [.mimo, .hyper, .atlascloud, .vercel, .devpass, .lithosai]
+        let image = NSImage(size: NSSize(width: 620, height: 300))
         image.lockFocus()
         NSColor.white.setFill()
-        NSRect(x: 0, y: 0, width: 620, height: 260).fill()
+        NSRect(x: 0, y: 0, width: 620, height: 300).fill()
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 14), .foregroundColor: NSColor.black,
         ]
         ("Stored layout: Balance · Auto % — synthetic data" as NSString)
-            .draw(at: NSPoint(x: 16, y: 230), withAttributes: attributes)
+            .draw(at: NSPoint(x: 16, y: 270), withAttributes: attributes)
         for (index, provider) in providers.enumerated() {
             let (snapshot, _) = try self.fixture(provider: provider)
             let output = self.render(
                 layout: MenuBarLayout(lines: [[.balance, .separatorDot, .percent(window: .automatic)]]),
                 data: self.data(provider: provider, snapshot: snapshot))
-            let y = CGFloat(190 - index * 40)
+            let y = CGFloat(230 - index * 40)
             (provider.rawValue as NSString).draw(at: NSPoint(x: 16, y: y), withAttributes: attributes)
             let title = NSMutableAttributedString(attributedString: output.attributedTitle)
             title.addAttribute(
@@ -159,8 +181,9 @@ struct MenuBarLayoutProviderBalanceTests {
                 giftBalance: 0,
                 updatedAt: self.now).toUsageSnapshot(), "$4.84")
         }
-        let label = provider == .devpass ? "Cycle remaining" : provider == .hyper ? "Balance" : "Available balance"
-        let value = provider == .hyper ? "42.5 HC" : "$25.00"
+        let label = provider == .devpass ? "Cycle remaining"
+            : [.hyper, .lithosai].contains(provider) ? "Balance" : "Available balance"
+        let value = provider == .hyper ? "42.5 HC" : provider == .lithosai ? "$2.57" : "$25.00"
         return try (UsageSnapshot(
             primary: nil,
             secondary: nil,

@@ -916,8 +916,8 @@ struct KimiUsageResponseParsingTests {
         #expect(response.ratelimitCode7d?.resetTime == "2026-07-09T06:56:36.876796734Z")
     }
 
-    @Test
-    func `subscription grace is a total budget for existing usage windows`() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `usage windows return while subscription requests ignore cancellation`() async throws {
         let usageJSON = """
         {
           "usages": [
@@ -934,8 +934,9 @@ struct KimiUsageResponseParsingTests {
           ]
         }
         """
-        // Keep the cancellation-ignoring request slower than the scaled wall-clock guard.
-        let subscriptionDelaySeconds = 0.5 * TestTimingBudget.slowdownFactor
+        let subscription = KimiEnrichmentLatch()
+        let hangGuard = subscription.hangGuard()
+        defer { hangGuard.cancel() }
         let transport = ProviderHTTPTransportHandler { request in
             let url = try #require(request.url)
             let response = try #require(HTTPURLResponse(
@@ -944,38 +945,31 @@ struct KimiUsageResponseParsingTests {
                 httpVersion: nil,
                 headerFields: nil))
             if url.path.hasSuffix("/GetUsages") {
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
-                        continuation.resume(returning: (Data(usageJSON.utf8), response))
-                    }
-                }
+                return (Data(usageJSON.utf8), response)
             }
 
-            return await withCheckedContinuation { continuation in
-                DispatchQueue.global().asyncAfter(deadline: .now() + subscriptionDelaySeconds) {
-                    continuation.resume(returning: (Data("{}".utf8), response))
-                }
-            }
+            await subscription.hold()
+            return (Data("{}".utf8), response)
         }
 
-        let startedAt = ContinuousClock.now
-        let snapshot = try await KimiUsageFetcher.fetchUsage(
-            authToken: "test-token",
-            transport: transport,
-            subscriptionGrace: .milliseconds(20))
-        let elapsed = startedAt.duration(to: .now)
+        let snapshot: KimiUsageSnapshot
+        do {
+            snapshot = try await KimiUsageFetcher.fetchUsage(
+                authToken: "test-token",
+                transport: transport,
+                subscriptionGrace: .milliseconds(20))
+        } catch {
+            await subscription.release()
+            throw error
+        }
+        #expect(await !subscription.released)
+        await subscription.release()
         let usage = snapshot.toUsageSnapshot()
 
         #expect(usage.primary?.usedPercent == 25)
         #expect(usage.primary?.windowMinutes == KimiProviderDescriptor.weeklyWindowMinutes)
         #expect(usage.secondary?.usedPercent == 25)
         #expect(usage.extraRateWindows == nil)
-        #expect(
-            elapsed < TestTimingBudget.scaled(.milliseconds(250)),
-            "Subscription enrichment outlived its total budget: \(elapsed)")
-
-        // Drain the deliberately cancellation-ignoring test request before the test exits.
-        try await Task.sleep(for: TestTimingBudget.scaled(.milliseconds(550)))
     }
 
     @Test

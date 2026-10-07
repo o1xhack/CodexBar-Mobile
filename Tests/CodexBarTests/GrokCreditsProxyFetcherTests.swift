@@ -689,24 +689,32 @@ struct GrokCreditsProxyFetcherTests {
         #expect(result.sourceLabel == "grok-web")
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `a stalled grok dot com does not hold back the credits answer`() async throws {
         let reset = Date(timeIntervalSince1970: 1_800_000_003)
-        let started = ContinuousClock.now
+        let cancelled = AsyncStream<Void>.makeStream()
+        defer { cancelled.continuation.finish() }
         let result = try await GrokOAuthFetchStrategy.resolvingUnknownUsage(
             GrokWebBillingSnapshot(usedPercent: nil, resetsAt: reset),
             credentials: Self.credentials,
             budget: .milliseconds(50),
             grpcBilling: { _ in
-                try await Task.sleep(for: .seconds(30))
+                defer { cancelled.continuation.finish() }
+                do {
+                    try await Task.sleep(for: .seconds(60))
+                    Issue.record("Enrichment reached its hang guard without cancellation")
+                } catch {
+                    cancelled.continuation.yield(())
+                    throw error
+                }
                 return GrokWebBillingSnapshot(usedPercent: 20, resetsAt: nil)
             })
-        let elapsed = ContinuousClock.now - started
+        var cancellation = cancelled.stream.makeAsyncIterator()
+        #expect(await cancellation.next() != nil)
 
         #expect(result.snapshot.usedPercent == nil)
         #expect(result.snapshot.resetsAt == reset)
         #expect(result.sourceLabel == "grok-cli-proxy")
-        #expect(elapsed < .seconds(5))
     }
 
     @Test

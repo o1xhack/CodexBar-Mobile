@@ -24,7 +24,7 @@ public struct ProviderCLIConfig: Sendable {
 
     public let name: String
     public let aliases: [String]
-    public let binaryLocator: (@Sendable () -> String?)?
+    public let binaryLocator: (@Sendable ([String: String]) -> String?)?
     public let versionDetector: (@Sendable (BrowserDetection) -> String?)?
     public let supportsCostCommand: Bool
     public let prefersBinaryLocatorForWhich: Bool
@@ -35,7 +35,7 @@ public struct ProviderCLIConfig: Sendable {
     public init(
         name: String,
         aliases: [String] = [],
-        binaryLocator: (@Sendable () -> String?)? = nil,
+        binaryLocator: (@Sendable ([String: String]) -> String?)? = nil,
         versionDetector: (@Sendable (BrowserDetection) -> String?)?,
         supportsCostCommand: Bool = false,
         prefersBinaryLocatorForWhich: Bool = false,

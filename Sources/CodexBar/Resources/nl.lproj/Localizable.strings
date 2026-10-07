@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Gemiddeld (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Vermijd sleutelhangerprompts";
 "Balance" = "Saldo";
+"Cloud credits" = "Cloudtegoed";
+"Expired" = "Verlopen";
 "Battery Saver" = "Batterijbesparing";
 "Bordered" = "Omzoomd";
 "Build" = "Bouwen";
@@ -541,6 +543,11 @@
 "session_depleted_notification_body" = "0% over. Zal op de hoogte stellen wanneer het weer beschikbaar is.";
 "session_restored_notification_title" = "%@ sessie hersteld";
 "session_restored_notification_body" = "Sessiequota zijn weer beschikbaar.";
+"limit_reset_notifications_title" = "Resetmeldingen";
+"limit_reset_notifications_subtitle" = "Meldt welke provider en welk venster zijn gereset wanneer een sessie- of weeklimiet wordt gereset.";
+"limit_reset_notification_title" = "%1$@ %2$@ limiet gereset";
+"limit_reset_notification_body" = "Er is weer nieuw quotum beschikbaar.";
+"limit_reset_notification_body_with_account" = "Account %@. Er is weer nieuw quotum beschikbaar.";
 "quota_warning_warn_at" = "Waarschuw bij";
 "quota_warning_global_threshold_subtitle" = "Resterende percentages voor sessie- en wekelijkse vensters, tenzij een provider deze overschrijft.";
 "quota_warning_sound" = "Meldingsgeluid afspelen";
@@ -845,7 +852,6 @@
 "No local data found" = "Geen lokale gegevens gevonden";
 "Credits unavailable; keep Codex running to refresh." = "Tegoeden niet beschikbaar; laat Codex draaien om te vernieuwen.";
 "No available fetch strategy for minimax." = "Geen beschikbare ophaalstrategie voor minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Geen Cursorsessie gevonden. Meld u aan bij cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX of Edge Canary. Als u Safari gebruikt, verleen CodexBar volledige schijftoegang in Systeeminstellingen ▸ Privacy en beveiliging. U kunt zich ook aanmelden bij Cursor via het CodexBar-menu (Account toevoegen/wisselen).";
 "No OpenCode session cookies found in browsers." = "Er zijn geen OpenCode-sessiecookies gevonden in browsers.";
 "No available fetch strategy for %@." = "Geen beschikbare ophaalstrategie voor %@.";
 "Today" = "Vandaag";
@@ -1553,7 +1559,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Verstuurt bij elke synchronisatie 77 stabiele mock-snapshots voor 67 provider-ID's, inclusief meerdere accounts, sub2api, Wayfinder en terugval voor onbekende providers. Mock-e-mailadressen gebruiken het TLD `.test`, zodat de iPhone een MOCK-badge toont. Als je dit uitschakelt, verwijdert CloudKit de mock-records binnen ongeveer één synchronisatiecyclus. Standaard uitgeschakeld.";
+"mobile_toggle_mock_subtitle" = "Verstuurt bij elke synchronisatie 105 stabiele mock-snapshots voor 95 provider-ID's, inclusief meerdere accounts, sub2api, Wayfinder en terugval voor onbekende providers. Mock-e-mailadressen gebruiken het TLD `.test`, zodat de iPhone een MOCK-badge toont. Als je dit uitschakelt, verwijdert CloudKit de mock-records binnen ongeveer één synchronisatiecyclus. Standaard uitgeschakeld.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1621,6 +1627,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Onafhankelijke chat";
+"Independent chats" = "Onafhankelijke chats";
+"Chat %d" = "Chat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1716,3 +1726,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Synchronisatie van Mac-instellingen staat los van iPhone-gebruikssynchronisatie. Schakel dit op elke Mac in om die hier te tonen. Kostengeschiedenis blijft lokaal.";
 
 "Cached data from" = "Gegevens in cache van";
+"Supported browsers: %@. Use Manual for other browsers." = "Ondersteunde browsers: %@. Gebruik Handmatig voor andere browsers.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Plak de Cookie-header van een Chrome-verzoek aan www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Gereserveerd";

@@ -56,24 +56,6 @@ private final class CookieOperationLog: @unchecked Sendable {
     }
 }
 
-private final class CookieTimeoutProbe: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedFiredAt: Date?
-
-    var firedAt: Date? {
-        self.lock.withLock { self.storedFiredAt }
-    }
-
-    func record() {
-        self.lock.withLock {
-            if self.storedFiredAt == nil {
-                self.storedFiredAt = Date()
-            }
-        }
-    }
-}
-
-@Suite(.serialized)
 struct OpenAIDashboardBrowserCookieImporterTests {
     @Test
     func `profile denial names exact running component`() {
@@ -160,17 +142,20 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         }
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `blocking browser cookie load cannot exceed shared deadline`() async throws {
-        let start = Date()
-        let timeoutProbe = CookieTimeoutProbe()
+        let timeoutProbe = CookieCallbackFlag()
+        let release = DispatchSemaphore(value: 0)
+        let finished = DispatchSemaphore(value: 0)
+        defer { release.signal() }
 
         do {
             _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieLoad(
-                deadline: start.addingTimeInterval(0.05),
-                timeoutObserver: timeoutProbe.record)
+                deadline: Date().addingTimeInterval(0.05),
+                timeoutObserver: timeoutProbe.set)
             {
-                Thread.sleep(forTimeInterval: 0.5)
+                defer { finished.signal() }
+                #expect(release.wait(timeout: .now() + 60) == .success)
                 return true
             }
             Issue.record("Expected cookie load timeout")
@@ -179,24 +164,30 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        let firedAt = try #require(timeoutProbe.firedAt)
-        #expect(firedAt.timeIntervalSince(start) < 0.3)
+        #expect(timeoutProbe.value)
+        release.signal()
+        let completion = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: finished.wait(timeout: .now() + 30))
+            }
+        }
+        #expect(completion == .success)
     }
 
     @Test
     func `timeout observer stays silent when operation wins`() async throws {
-        let timeoutProbe = CookieTimeoutProbe()
+        let timeoutProbe = CookieCallbackFlag()
 
         let value = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieLoad(
             deadline: Date().addingTimeInterval(0.05),
-            timeoutObserver: timeoutProbe.record)
+            timeoutObserver: timeoutProbe.set)
         {
             true
         }
         try await Task.sleep(for: .milliseconds(100))
 
         #expect(value)
-        #expect(timeoutProbe.firedAt == nil)
+        #expect(!timeoutProbe.value)
     }
 
     @Test
@@ -274,19 +265,18 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         #expect(log.snapshot == ["first-start", "first-end", "second"])
     }
 
-    @Test @MainActor
+    @Test(.timeLimit(.minutes(1))) @MainActor
     func `slow callback times out before completion`() async throws {
-        let start = Date()
-        let timeoutProbe = CookieTimeoutProbe()
+        let timeoutProbe = CookieCallbackFlag()
+        let callback = CookieCallbackHarness()
+        defer { callback.finish() }
 
         do {
             try await OpenAIDashboardBrowserCookieImporter.runBoundedCallback(
-                deadline: start.addingTimeInterval(0.05),
-                timeoutObserver: timeoutProbe.record)
+                deadline: Date().addingTimeInterval(0.05),
+                timeoutObserver: timeoutProbe.set)
             { completion in
-                DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
-                    completion()
-                }
+                callback.capture(completion)
             }
             Issue.record("Expected callback timeout")
         } catch let error as URLError {
@@ -294,23 +284,21 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        let firedAt = try #require(timeoutProbe.firedAt)
-        #expect(firedAt.timeIntervalSince(start) < 0.3)
+        #expect(timeoutProbe.value)
     }
 
-    @Test @MainActor
+    @Test(.timeLimit(.minutes(1))) @MainActor
     func `slow value callback times out before completion`() async throws {
-        let start = Date()
-        let timeoutProbe = CookieTimeoutProbe()
+        let timeoutProbe = CookieCallbackFlag()
+        let callback = CookieCallbackHarness()
+        defer { callback.finish() }
 
         do {
             let _: [String] = try await OpenAIDashboardBrowserCookieImporter.runBoundedValueCallback(
-                deadline: start.addingTimeInterval(0.05),
-                timeoutObserver: timeoutProbe.record)
+                deadline: Date().addingTimeInterval(0.05),
+                timeoutObserver: timeoutProbe.set)
             { completion in
-                DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.5) {
-                    completion([])
-                }
+                callback.capture { completion([]) }
             }
             Issue.record("Expected value callback timeout")
         } catch let error as URLError {
@@ -318,8 +306,7 @@ struct OpenAIDashboardBrowserCookieImporterTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        let firedAt = try #require(timeoutProbe.firedAt)
-        #expect(firedAt.timeIntervalSince(start) < 0.3)
+        #expect(timeoutProbe.value)
     }
 
     @Test @MainActor

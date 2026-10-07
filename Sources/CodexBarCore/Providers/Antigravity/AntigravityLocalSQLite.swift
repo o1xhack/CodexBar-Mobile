@@ -13,19 +13,17 @@ extension AntigravityLocalReader {
                 try budget.check()
                 budget.statistics.files += 1
                 guard budget.statistics.files <= budget.limits.databases else { throw ScanFailure.exhausted }
+                budget.beginDatabase()
                 let source = try self.readDatabase(url, budget: budget)
                 result.events.append(contentsOf: source.events)
                 result.isComplete = result.isComplete && source.isComplete
                 result.containsHistorySource = result.containsHistorySource || source.containsHistorySource
                 result.evidenceIsUnstable = result.evidenceIsUnstable || source.evidenceIsUnstable
             } catch ScanFailure.schemaExhausted {
-                // Schema-budget exhaustion is a soft limit: preserve rows already decoded from earlier
-                // databases. They are valid partial history and are more useful than an empty result when
-                // a large history tree hits the cumulative schema-byte cap. Hard row, byte, and duration
+                // Schema limits apply to each database, so an oversized schema costs only its own database.
+                // Rows from the other databases stay valid partial history. Hard row, byte, and duration
                 // limits are not caught here and continue to withhold newly truncated reports as documented.
-                guard !result.events.isEmpty else { throw ScanFailure.schemaExhausted }
                 result.isComplete = false
-                break
             }
         }
         return result
@@ -264,7 +262,8 @@ extension AntigravityLocalReader {
             // Release the gen_metadata cursor before the optional steps pass reuses the same snapshot.
             sqlite3_finalize(activeStatement)
             statement = nil
-            let hasSteps = try self.hasSupportedStepsTable(database, budget: budget)
+            let hasSteps = try self.inspectSQLiteTableSupport(
+                database, table: "steps", payloadColumn: "metadata", budget: budget) == .supported
             if let failure = progress.failure {
                 throw failure
             }

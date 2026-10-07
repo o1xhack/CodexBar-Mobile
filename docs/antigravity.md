@@ -48,8 +48,28 @@ unreadable environments are skipped. Cleanup never selects a process by name, ex
 Children that deliberately discard the inherited environment cannot be identified by this safety net. The installed
 `agy` 1.2.11 `--help` offers MCP configuration commands but no per-probe switch to disable MCP startup.
 The report contains no account or plan identity: explicit CLI mode remains authoritative, while Auto uses
-this fallback only without a selected token account or explicitly injected OAuth credentials. Successful
+the ambient print fallback only without a selected token account or explicitly injected OAuth credentials. Successful
 HTTPS results retain their verified identity. Failed command diagnostics do not include raw stderr.
+
+On macOS, Auto can also run the print command for a selected or injected Google account. CodexBar writes
+its credentials into a temporary `0700` home with a `0600` token file, then runs `agy` with only PATH,
+locale, temporary-directory, and proxy settings inherited. `SSH_TTY` selects agy's file-token storage,
+keeping the ambient CLI login and Keychain untouched. Credentials without an ID token are supported;
+`agy` can refresh an expired grant in that temporary home without starting a login.
+
+Before attributing usage, CodexBar checks the effective access token through Google's userinfo endpoint
+and rejects a different or unverifiable account, including conflicting refreshed ID-token claims.
+Only verified refreshed credentials reach the existing saved-account updater. The CLI compares and saves
+under the shared config-file lock, advancing its comparison only after its own successful write. A concurrent
+writer or externally changed credential skips the best-effort update.
+The app retains its account-token and config-revision guards. The temporary home is removed on success,
+failure, and cancellation. Scoped failures retain the ambient diagnostic and allow account-scoped OAuth
+fallback; cancellation stops the pipeline. Linux keeps its existing OAuth fallback.
+
+Scoped runs share the ambient runner's three-second version check, 90-second command limit, 1 MiB output
+limit, and descendant cleanup. Identity verification has a 15-second request and resource deadline.
+The existing menu account model caps a refresh at six accounts; CLI `--all-accounts` refreshes sequentially.
+Grouped weekly-only Starter quotas use the same parser as the other sources.
 
 If live sources fail and local conversation history is available, CodexBar labels the result as offline and
 shows a safe explanation of the live failure in settings and CLI usage output. CLI failures distinguish sign-in,
@@ -68,6 +88,12 @@ Antigravity supports four usage data sources:
 4. Google OAuth-backed remote usage (explicit OAuth mode, and the account-scoped fallback used for multi-account switching). The OAuth path can store multiple Google accounts through the shared token-account switcher.
 
 ## When the Antigravity app is closed
+
+OAuth Cloud Code requests use the fixed compatibility identity
+`antigravity/hub/2.9.1 <darwin|linux>/<arm64|amd64>`. The shared request builder applies it to
+account setup, quota summaries, and legacy model/quota fallbacks for shared and selected Google accounts,
+including the OAuth fallback after a scoped `agy` run. The external `agy` process owns its own quota requests;
+the scoped ephemeral HTTP session in CodexBar verifies identity through Google's userinfo endpoint.
 
 The app-local `language_server` exists only while Antigravity.app is running. With the app closed,
 CodexBar relies on the `agy` CLI HTTPS source or the Google OAuth fallback. Without a signed-in
@@ -101,8 +127,8 @@ when CodexBar has a selected/injected Google account or an existing shared crede
 `fetchAvailableModels` payload is only accepted after `retrieveUserQuota` echoes bucket fractions; this can be an
 availability-style fallback rather than the full Antigravity quota summary.
 When OAuth identifies the account but quota endpoints deny access, CodexBar shows `Limits not available` instead of an
-empty quota card. Auto also skips `agy` reports without account identity when a Google account is selected or injected,
-because it cannot verify that those quotas belong to that account. Settings explains this beside **Usage source**.
+empty quota card. Auto skips ambient `agy` reports without account identity when a Google account is selected or injected;
+on macOS it can instead verify a private scoped run as described above.
 To try the local app or `agy` account instead, select **Local API / agy CLI** (CLI: `--source cli`).
 That source may use a different signed-in account from the Google account selected in CodexBar; it does not verify a match.
 Saved Google accounts remain stored but inactive in this mode: they do not label local reports or trigger
@@ -115,11 +141,14 @@ be polled within the readiness deadline.
 
 - OAuth refresh form-encodes credential values, preserving literal plus signs, separators, and percent escapes.
 - Login still uses Antigravity's Google OAuth client, discovered from `Antigravity.app` or overridden with `ANTIGRAVITY_OAUTH_CLIENT_ID` and `ANTIGRAVITY_OAUTH_CLIENT_SECRET`.
+- Discovery reads the ID and secret initialized together in the language server's OAuth configuration. Antigravity 2.19.1 on Apple Silicon and Intel stores two clients in separately pooled strings; their order does not identify a pair. The first recognized configuration record wins deterministically. Older artifacts with a single pair remain supported; ambiguous artifacts without a recognized record are rejected.
+- If discovery fails or Google rejects the client with `invalid_client`, update Antigravity or set both overrides to a matching client ID and secret before retrying. These failures do not add or replace a saved account.
 - A successful login writes the latest shared credentials to `~/.codexbar/antigravity/oauth_creds.json` and upserts a token-account entry for the Google account.
 - Each token-account entry stores serialized `AntigravityOAuthCredentials` and is injected into remote fetches through `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON`.
 - When a token account is selected, the OAuth fetcher uses that account before falling back to the shared credentials file.
   In `auto` mode the ambient Antigravity app, `agy` CLI, and IDE probes still run first, but a snapshot whose account
-  does not match the selected account is rejected so the pipeline falls through to the account-scoped OAuth fetch (see
+  does not match the selected account is rejected. The CLI strategy can try a private scoped run on macOS before
+  the pipeline falls through to the account-scoped OAuth fetch (see
   `AntigravitySelectedAccountGuard`). If no account is selected/injected, `auto` includes OAuth only when the legacy
   shared credentials file already exists. Explicit `cli`/`oauth` source modes stay authoritative and are not re-checked.
 - Removing the last saved token account that matches `~/.codexbar/antigravity/oauth_creds.json` deletes that shared file,
@@ -348,7 +377,35 @@ recorded breakdown names. See [model pricing](model-pricing.md) for the supporte
 
 Local history reads only the existing recognized roots: `~/.gemini/antigravity-cli/conversations/*.db`,
 `~/.gemini/antigravity/*.db`, and `~/.gemini/antigravity/conversations/*.db`. `GEMINI_CLI_HOME` replaces
-`~/.gemini`. When SQLite discovery completes without any databases, the reader can use
+`~/.gemini` as the primary home. **Settings → Providers → Antigravity → Additional Gemini profile homes**
+lets you opt in to other homes with a folder picker and remove them individually. Select each profile's
+Gemini directory (usually its `.gemini` directory), not its parent HOME or its `conversations` directory.
+The CLI reads the same `antigravityAdditionalProfileHomes` array from the Antigravity provider entry in
+`~/.codexbar/config.json` (or `CODEXBAR_CONFIG`):
+
+```json
+{
+  "version": 1,
+  "providers": [{
+    "id": "antigravity",
+    "enabled": true,
+    "antigravityAdditionalProfileHomes": ["/path/to/profile/home/.gemini"]
+  }]
+}
+```
+
+Use absolute paths or `~/…` relative to the refresh environment's HOME. An empty or omitted list keeps
+single-home behavior. Each selected home contributes the same three recognized directories; CodexBar never
+discovers additional homes from running processes or by traversing unrelated directories. Duplicate paths
+(including symlink aliases) are scanned once. Copied databases retaining their conversation filename are
+deduplicated by conversation and row/request identity; distinct conversations remain separate. Conflicting
+copies remain unpublishable rather than choosing an arbitrary token count. Empty and relative entries are ignored.
+Missing homes contribute no history. Unreadable roots or roots that are files retain the existing partial-history
+handling. The same scan budgets
+apply across all homes. Changing the home set invalidates menu and dashboard history caches.
+
+These homes affect local token/cost history only, not login, quota queries, or account attribution.
+When SQLite discovery across all selected homes completes without any databases, the reader can use
 `~/.config/tokscale/antigravity-cache/sessions/*.jsonl`; `TOKSCALE_CONFIG_DIR` replaces `~/.config/tokscale`.
 Both overrides and `HOME` come from the same refresh environment. Declared roots and session files may be symlinks;
 discovery still visits only the immediate entries of the recognized directories. This is machine-local token history,
@@ -359,7 +416,10 @@ affected models unpriced rather than failing the scan.
 
 Use `codexbar cost --provider antigravity --format json` to read this same local history from the CLI.
 The cost endpoint and dashboard also include it when Antigravity is selected. Known models receive local token ×
-public API-price estimates from the pricing catalog. Unknown models stay unpriced. These figures are not Antigravity
+public API-price estimates from the pricing catalog. Unknown models with tokens stay unpriced.
+Requests with no model and zero tokens still count for the day but add no model row. With pricing enabled,
+they count as estimated at $0; without pricing, their cost remains absent. Named zero-token rows are unchanged. A model-less zero-token day does not hide
+named unpriced model rows from other days. These figures are not Antigravity
 charges or credit deductions, and these entry points do not expand the supported timestamp layouts described below.
 Local reads use cached or built-in prices first. Routine catalog updates run in the background; `codexbar cost --provider antigravity --refresh` may wait for a bounded pricing refresh when a recorded model has no known rate. Empty or absent history never starts a pricing download. Historical requests use prices applicable to their event timestamps.
 
@@ -381,12 +441,19 @@ the menu, Usage & Spend, exported JSON, and the CLI; they never establish empty 
 zero. Failed or retained-partial dashboard attempts do not acknowledge successful incorporation of a refresh trigger. Overflowed aggregate
 totals remain unknown rather than becoming saturated or wrapping.
 Hard database-count, row-count, cumulative-byte, or duration budget exhaustion does not publish a newly truncated report; it remains unavailable and preserves prior complete history.
-Schema-budget exhaustion preserves validated rows from earlier databases as partial history, subject to the same lower-bound labeling and prior-complete-report rules. The schema cap remains 64 KiB.
+Schema-budget exhaustion withholds only the database whose schema exceeded a limit. Validated rows from the other databases remain partial history, subject to the same lower-bound labeling and prior-complete-report rules.
 
 The schema evidence is [Tokscale's pinned SQLite parser](https://github.com/junhoyeo/tokscale/blob/62ca1eb1677556972ba963fdfa3a41ab23c1eb4b/crates/tokscale-core/src/sessions/antigravity_cli.rs),
-whose header records six databases and 140 turns. SQLite usage fields 1 + 2 are input, 5 is cache read,
-9 is text output, and 10 is thinking output: text and thinking are separate counts. Historical model IDs are retained;
-missing models stay unknown unless an unambiguous raw label maps to a model within the same session.
+whose header records six databases and 140 turns and establishes the table layout below. SQLite usage
+field 2 is input. Field 1 is the model enum ID (for example 1298 for `gemini-3.7-flash`), and CodexBar
+does not count it. Field 5 is cache read. Field 9 is reasoning (thinking) output, and field 10 is text
+(visible) output: reasoning and text are separate counts. CodexBar follows
+[ccusage's Antigravity adapter](https://github.com/ccusage/ccusage/blob/d41bf3d48a911e9742793087142e323093ae6a4f/rust/adapters/antigravity/src/parser.rs)
+for this field 1/9/10 reading, cross-checked against
+[decoded local history](https://github.com/steipete/CodexBar/pull/4124). This reading differs from Tokscale's own reading
+of fields 9/10.
+Historical model IDs are retained; missing models stay unknown unless an unambiguous raw label maps to a
+model within the same session.
 Conflicting mappings remain unresolved. Every repeated known protobuf envelope is validated and merged.
 The supported database layout is an ordinary `gen_metadata` table with stored `idx` and `data` columns.
 Extra ordinary columns and `WITHOUT ROWID` tables are supported; views, virtual tables, and generated/hidden columns
@@ -434,8 +501,10 @@ One cancellable job on `CostUsageScanExecutor` owns discovery, SQL, decoding, an
 10,000 directory entries, 10,000 rows per file, 50,000 rows overall, 16 MiB per record, 64 MiB per file,
 128 MiB of attempted payload bytes overall, and a five-second cooperative scan deadline. Rejected rows consume the budget;
 exactly 500 complete databases are accepted. Discovery is incremental and JSONL is read in bounded chunks.
-Schema inspection accepts at most 128 catalogue entries and 64 columns per database (one additional row detects
-truncation), with a cumulative 64 KiB allowance for inspected schema text and the same cooperative deadline/cancellation.
+Schema inspection bounds each catalogue walk to 128 entries and each table to 64 columns (one additional row detects
+truncation), with a shared 64 KiB allowance per database for inspected schema text and the same cooperative deadline/cancellation.
+An ordinary conversation database uses a few hundred bytes of that allowance. A job-wide allowance let a long history of
+small schemas add up to it: about 240 databases exhausted 64 KiB, well below the 500-database cap.
 SQLite values are capped at 64 KiB during
 inspection (or the smaller payload limit plus record overhead). SQLite then uses one streaming payload SELECT over the
 validated ordinary table. A length-based conditional projection checks the remaining

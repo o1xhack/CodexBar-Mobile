@@ -16,12 +16,14 @@ struct AntigravityProtoReader {
     }
 
     struct ParsedUsage: Equatable, Sendable {
-        var systemPrompt = 0
         var newInput = 0
         var cacheRead = 0
         var output = 0
         var reasoning = 0
         var responseID: String?
+        /// Field 1: the model enum ID (e.g. 1298 for `gemini-3.7-flash`). Validated and kept for
+        /// copied-row identity; never counted as tokens. Absent for JSONL-sourced usage.
+        var modelID: Int?
         fileprivate var botIdentifier = AuxiliaryIdentifier()
 
         var botID: String? {
@@ -273,12 +275,16 @@ struct AntigravityProtoReader {
     {
         try self.fields(bytes, checkCancellation: checkCancellation) { field in
             switch field.number {
-            case 1: usage.systemPrompt = try field.counter()
+            case 1:
+                // Field 1 is the model enum ID (e.g. 1298 for gemini-3.7-flash), not a token count.
+                // Keep it for copied-row identity so two rows differing only here still conflict,
+                // but never add it to input or total tokens.
+                usage.modelID = try field.counter()
             case 2: usage.newInput = try field.counter()
             case 5: usage.cacheRead = try field.counter()
             case 7: try usage.botIdentifier.read(field)
-            case 9: usage.output = try field.counter()
-            case 10: usage.reasoning = try field.counter()
+            case 9: usage.reasoning = try field.counter()
+            case 10: usage.output = try field.counter()
             case 11: usage.responseID = try field.string()
             default: break
             }

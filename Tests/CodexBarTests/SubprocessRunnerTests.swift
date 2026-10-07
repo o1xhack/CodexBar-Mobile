@@ -151,26 +151,29 @@ struct SubprocessRunnerTests {
         import subprocess
         import sys
 
+        ready_read, ready_write = os.pipe()
         child = subprocess.Popen(
-            [sys.executable, "-c", "import time; time.sleep(5)"],
+            [sys.executable, "-c", "import os,signal,sys; os.write(int(sys.argv[1]), b'R'); signal.pause()",
+             str(ready_write)],
             start_new_session=True,
+            pass_fds=(ready_write,),
         )
         with open(os.environ["CODEXBAR_TEST_CHILD_PID_FILE"], "w") as handle:
             handle.write(str(child.pid))
+        os.read(ready_read, 1)
         print("parent-output", flush=True)
         """
 
-        let start = Date()
         let result = try await SubprocessRunner.run(
             binary: "/usr/bin/python3",
             arguments: ["-c", script],
             environment: environment,
             timeout: 5,
             label: "detached-output-holder")
-        let elapsed = Date().timeIntervalSince(start)
 
         #expect(result.stdout.contains("parent-output"))
-        #expect(elapsed < 3, "Output drain should not wait for the detached child, took \(elapsed)s")
+        let childPID = try #require(KiroProcessTestSupport.readPID(from: childPIDFile))
+        #expect(kill(childPID, 0) == 0)
     }
 
     /// Regression test for #474: a hung subprocess must be killed and throw `.timedOut`
@@ -179,15 +182,21 @@ struct SubprocessRunnerTests {
     /// This test was previously deleted (commit 3961770) because `waitUntilExit()` blocked
     /// the cooperative thread pool, starving the timeout task. The fix moves blocking calls
     /// to `DispatchQueue.global()`, making this test reliable.
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `throws timed out when process hangs`() async throws {
-        let start = Date()
+        let stdin = Pipe()
+        defer {
+            try? stdin.fileHandleForWriting.close()
+            try? stdin.fileHandleForReading.close()
+        }
+        // Hold stdin open so only termination, not natural completion, can release the child.
         do {
             _ = try await SubprocessRunner.run(
-                binary: "/bin/sleep",
-                arguments: ["5"],
-                environment: ProcessInfo.processInfo.environment,
+                binary: "/bin/cat",
+                arguments: [],
+                environment: [:],
                 timeout: 1,
+                standardInput: stdin,
                 label: "hung-process-test")
             Issue.record("Expected SubprocessRunnerError.timedOut but no error was thrown")
         } catch let error as SubprocessRunnerError {
@@ -199,10 +208,6 @@ struct SubprocessRunnerTests {
         } catch {
             Issue.record("Expected SubprocessRunnerError.timedOut, got unexpected error: \(error)")
         }
-
-        let elapsed = Date().timeIntervalSince(start)
-        // Must complete in well under 5s (the sleep duration). Allow generous bound for CI.
-        #expect(elapsed < 3, "Timeout should fire in ~1s, not wait for process to exit naturally")
     }
 
     @Test
@@ -259,44 +264,62 @@ struct SubprocessRunnerTests {
     /// Multiple concurrent hung subprocesses must all time out independently, proving that
     /// one blocked subprocess does not starve the timeout mechanism of others.
     /// This is the core scenario that caused the original permanent-refresh-stall bug.
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `concurrent hung processes all time out`() async {
-        let start = Date()
         let count = 8
-
-        await withTaskGroup(of: Void.self) { group in
-            for i in 0..<count {
-                group.addTask {
-                    do {
-                        _ = try await SubprocessRunner.run(
-                            binary: "/bin/sleep",
-                            arguments: ["30"],
-                            environment: ProcessInfo.processInfo.environment,
-                            timeout: 2,
-                            label: "concurrent-hung-\(i)")
-                        Issue.record("Expected .timedOut for concurrent-hung-\(i)")
-                    } catch let error as SubprocessRunnerError {
-                        guard case .timedOut = error else {
-                            Issue.record("Expected .timedOut for concurrent-hung-\(i), got \(error)")
-                            return
+        let fired = AsyncStream.makeStream(of: Void.self)
+        let release = DispatchSemaphore(value: 0)
+        let holdTimeout: @Sendable () -> Void = {
+            fired.continuation.yield(())
+            #expect(release.wait(timeout: .now() + 30) == .success)
+        }
+        let outcomes = Task {
+            defer { fired.continuation.finish() }
+            return await SubprocessRunner.$timeoutWillFire.withValue(holdTimeout) {
+                await withTaskGroup(of: Bool.self, returning: [Bool].self) { group in
+                    for index in 0..<count {
+                        group.addTask {
+                            let stdin = Pipe()
+                            defer {
+                                try? stdin.fileHandleForWriting.close()
+                                try? stdin.fileHandleForReading.close()
+                            }
+                            do {
+                                _ = try await SubprocessRunner.run(
+                                    binary: "/bin/cat",
+                                    arguments: [],
+                                    environment: [:],
+                                    timeout: 0.1,
+                                    standardInput: stdin,
+                                    label: "concurrent-hung-\(index)")
+                                return false
+                            } catch SubprocessRunnerError.timedOut {
+                                return true
+                            } catch {
+                                Issue.record("Unexpected error: \(error)")
+                                return false
+                            }
                         }
-                    } catch {
-                        Issue.record("Unexpected error for concurrent-hung-\(i): \(error)")
                     }
+                    return await group.reduce(into: []) { $0.append($1) }
                 }
             }
         }
-
-        let elapsed = Date().timeIntervalSince(start)
-        // Under release-load parallel tests the runner can be CPU-starved, but it should still finish far before
-        // the natural sleep exit and below a serial 8 * 2s timeout chain.
-        #expect(
-            elapsed < 15,
-            "All \(count) concurrent timeouts should fire in ~2s, took \(elapsed)s")
+        var reached = 0
+        for await _ in fired.stream {
+            reached += 1
+            if reached == count { break }
+        }
+        #expect(reached == count)
+        // All timeout handlers must be in flight together, before any is allowed to kill its child.
+        for _ in 0..<count {
+            release.signal()
+        }
+        #expect(await outcomes.value == Array(repeating: true, count: count))
     }
 
     /// Stress-test the timeout race guard: with very short timeouts, the exit-code task
-    /// and the timeout task race tightly, exercising the KillFlag synchronization path.
+    /// and the timeout task race tightly, exercising the TimeoutState synchronization path.
     @Test
     func `timeout race stress`() async {
         for i in 0..<20 {
@@ -319,32 +342,39 @@ struct SubprocessRunnerTests {
         }
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `cancellation terminates hung process promptly`() async throws {
-        let start = Date()
+        let pidFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-cancelled-process-\(UUID().uuidString).pid")
+        defer {
+            if let pid = KiroProcessTestSupport.readPID(from: pidFile) { _ = kill(pid, SIGKILL) }
+            try? FileManager.default.removeItem(at: pidFile)
+        }
         let task = Task {
             try await SubprocessRunner.run(
-                binary: "/bin/sleep",
-                arguments: ["10"],
-                environment: ProcessInfo.processInfo.environment,
-                timeout: 30,
+                binary: "/usr/bin/python3",
+                arguments: [
+                    "-c",
+                    "import os,signal,sys; " +
+                        "open(sys.argv[1], 'w').write(str(os.getpid())); signal.pause()",
+                    pidFile.path,
+                ],
+                environment: [:],
+                timeout: .infinity,
                 label: "cancelled-hung-process")
         }
-
-        try await Task.sleep(for: .milliseconds(100))
+        defer { task.cancel() }
+        let pid = try await KiroProcessTestSupport.waitForPID(in: pidFile)
+        #expect(kill(pid, 0) == 0)
         task.cancel()
 
         do {
             _ = try await task.value
             Issue.record("Expected CancellationError but subprocess completed")
         } catch is CancellationError {
-            // Expected: cancellation should tear down the child process immediately.
-        } catch {
-            Issue.record("Expected CancellationError, got \(error)")
+            // There is no timeout or natural exit path to mask missing cancellation teardown.
         }
-
-        let elapsed = Date().timeIntervalSince(start)
-        #expect(elapsed < 5, "Cancelled subprocess should not wait for timeout or natural exit")
+        #expect(kill(pid, 0) == -1)
     }
 
     /// Verify that many concurrent SubprocessRunner calls complete without starving each other.

@@ -46,6 +46,7 @@ struct GrokLocalSessionScannerTests {
     func `daily buckets stay local and never invent dollars`() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("grok-session-scan-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
         let cwd = root.appendingPathComponent("sessions/%2Ftmp%2Fdemo", isDirectory: true)
         let first = cwd.appendingPathComponent("session-a", isDirectory: true)
         let second = cwd.appendingPathComponent("session-b", isDirectory: true)
@@ -88,6 +89,7 @@ struct GrokLocalSessionScannerTests {
     func `idle days do not reuse yesterday as today`() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("grok-session-idle-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
         let session = root.appendingPathComponent("sessions/%2Ftmp%2Fdemo/session-a", isDirectory: true)
         try FileManager.default.createDirectory(at: session, withIntermediateDirectories: true)
         let calendar = Calendar.current
@@ -150,13 +152,64 @@ struct GrokLocalSessionScannerTests {
     }
 
     @Test
-    func `empty homes do not publish a spend snapshot`() {
+    func `only session root signals contribute to local usage`() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("grok-layout-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let session = home.appendingPathComponent("sessions/project/session")
+        let nested = session.appendingPathComponent("artifacts/nested-session")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
+        try self.writeSignals(
+            at: session.appendingPathComponent("signals.json"),
+            tokens: 100,
+            model: "example-model",
+            date: now)
+        try self.writeSignals(
+            at: nested.appendingPathComponent("signals.json"),
+            tokens: 900,
+            model: "artifact-model",
+            date: now)
+        try Data("unrelated".utf8).write(to: home.appendingPathComponent("sessions/project/unrelated.txt"))
+
+        let fileManager = GrokScanRecordingFileManager()
+        let summary = GrokLocalSessionScanner.summarize(
+            env: ["GROK_HOME": home.path], fileManager: fileManager, now: now)
+        #expect(summary.sessionCount == 1)
+        #expect(summary.totalTokens == 100)
+        #expect(summary.lastSessionAt == now)
+        #expect(summary.primaryModel == "example-model")
+        #expect(summary.models == ["example-model"])
+        #expect(summary.scannedAt == now)
+        let day = try #require(GrokLocalSessionScanner.dayKey(for: now, calendar: .current))
+        #expect(summary.daily == [GrokLocalDailyBucket(
+            date: day, totalTokens: 100, sessionCount: 1, models: ["example-model"])])
+        #expect(Set(fileManager.visitedNames) == ["project", "session", "unrelated.txt"])
+    }
+
+    @Test(arguments: ["missing", "empty", "unavailable"])
+    func `empty homes do not publish a spend snapshot`(state: String) throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("grok-session-empty-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        if state != "missing" {
+            try FileManager.default.createDirectory(
+                at: root.appendingPathComponent("sessions"), withIntermediateDirectories: true)
+        }
+        let fileManager = GrokScanRecordingFileManager()
+        fileManager.refusesEnumeration = state == "unavailable"
+        let now = Date(timeIntervalSince1970: 1_787_079_600)
         let summary = GrokLocalSessionScanner.summarize(
             env: ["GROK_HOME": root.path],
+            fileManager: fileManager,
             lookbackDays: 7,
-            now: Date())
+            now: now)
+        #expect(summary.sessionCount == 0)
+        #expect(summary.totalTokens == 0)
+        #expect(summary.lastSessionAt == nil)
+        #expect(summary.primaryModel == nil)
+        #expect(summary.models.isEmpty)
+        #expect(summary.daily.isEmpty)
+        #expect(summary.scannedAt == now)
         #expect(summary.toCostUsageTokenSnapshot(historyDays: 7) == nil)
     }
 
@@ -228,5 +281,48 @@ struct GrokLocalSessionScannerTests {
         ]
         try JSONSerialization.data(withJSONObject: payload).write(to: url)
         try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
+    }
+}
+
+private final class GrokScanRecordingFileManager: FileManager, @unchecked Sendable {
+    var visitedNames: [String] = []
+    var refusesEnumeration = false
+
+    /// The public Swift overlay delegates to this overridable Foundation entry point.
+    override func __enumerator(
+        at url: URL,
+        includingPropertiesForKeys keys: [URLResourceKey]?,
+        options mask: FileManager.DirectoryEnumerationOptions = [],
+        errorHandler handler: ((URL, Error) -> Bool)? = nil) -> FileManager.DirectoryEnumerator?
+    {
+        guard !self.refusesEnumeration else { return nil }
+        guard let enumerator = super.__enumerator(
+            at: url, includingPropertiesForKeys: keys, options: mask, errorHandler: handler)
+        else { return nil }
+        return GrokScanRecordingEnumerator(base: enumerator) { self.visitedNames.append($0.lastPathComponent) }
+    }
+}
+
+private final class GrokScanRecordingEnumerator: FileManager.DirectoryEnumerator {
+    let base: FileManager.DirectoryEnumerator
+    let record: (URL) -> Void
+
+    init(base: FileManager.DirectoryEnumerator, record: @escaping (URL) -> Void) {
+        self.base = base
+        self.record = record
+    }
+
+    override var level: Int {
+        self.base.level
+    }
+
+    override func nextObject() -> Any? {
+        let object = self.base.nextObject()
+        if let url = object as? URL { self.record(url) }
+        return object
+    }
+
+    override func skipDescendants() {
+        self.base.skipDescendants()
     }
 }

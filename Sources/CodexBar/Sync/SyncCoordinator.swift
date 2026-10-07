@@ -746,6 +746,25 @@ final class SyncCoordinator {
             isSyntheticPlaceholder: window.isSyntheticPlaceholder)
     }
 
+    /// Mac cards show some reset descriptions as balances beside the reset time
+    /// (`showsPrimary/SecondaryBalanceDescription`); newer iPhones do the same.
+    static func withBalanceDescription(_ window: SyncRateWindow, shows: Bool) -> SyncRateWindow {
+        let balance = window.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return SyncRateWindow(
+            id: window.id,
+            label: window.label,
+            usedPercent: window.usedPercent,
+            usageKnown: window.usageKnown,
+            windowMinutes: window.windowMinutes,
+            period: window.period,
+            resetsAt: window.resetsAt,
+            resetDescription: window.resetDescription,
+            nextRegenPercent: window.nextRegenPercent,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder,
+            blockingQuota: window.blockingQuota,
+            balanceDescription: shows && balance?.isEmpty == false ? balance : nil)
+    }
+
     /// Publish effective availability in the legacy fields so old phones cannot
     /// promise access at a shorter reset while a provider's longer pool blocks it.
     static func projectingBlockingQuota(
@@ -786,7 +805,9 @@ final class SyncCoordinator {
                     rawUsedPercent: window.usedPercent,
                     rawResetsAt: window.resetsAt,
                     rawResetDescription: window.resetDescription,
-                    rawNextRegenPercent: window.nextRegenPercent))
+                    rawNextRegenPercent: window.nextRegenPercent),
+                // The projected window describes the blocking pool, not the lane's own balance.
+                balanceDescription: nil)
         }
     }
 
@@ -809,9 +830,14 @@ final class SyncCoordinator {
                 title: section.title,
                 rows: section.rows.map {
                     SyncProviderDetailSection.Row(
+                        id: $0.id,
                         label: $0.label,
                         value: $0.value,
-                        secondaryValue: $0.secondaryValue)
+                        secondaryValue: $0.secondaryValue,
+                        progress: $0.progress.flatMap {
+                            SyncProviderDetailSection.Row.Progress(used: $0.used, total: $0.total)
+                        },
+                        usageValue: $0.usageValue)
                 },
                 chart: chart)
         }
@@ -1123,6 +1149,20 @@ final class SyncCoordinator {
                 usageKnown: extra.usageKnown))
         }
 
+        let balancePolicy = ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuCard
+        if let primary = semanticWindows.primary {
+            let annotated = Self.withBalanceDescription(primary, shows: balancePolicy.showsPrimaryBalanceDescription)
+            rateWindows[0] = annotated
+            semanticWindows.primary = annotated
+        }
+        if let secondary = semanticWindows.secondary {
+            let annotated = Self.withBalanceDescription(
+                secondary,
+                shows: balancePolicy.showsSecondaryBalanceDescription)
+            rateWindows[semanticWindows.primary == nil ? 0 : 1] = annotated
+            semanticWindows.secondary = annotated
+        }
+
         rateWindows = Self.projectingBlockingQuota(rateWindows, provider: provider, snapshot: snapshot)
 
         // Legacy primary/secondary for backward compat with older iOS builds.
@@ -1367,8 +1407,9 @@ final class SyncCoordinator {
         guard let providerCost else { return nil }
         let kind: String
         let amount: Double
+        var period = providerCost.period
         switch provider {
-        case .neuralwatt, .zenmux:
+        case .neuralwatt, .zenmux, .lithosai:
             guard providerCost.limit <= 0 else { return nil }
             kind = "balance"
             amount = providerCost.used
@@ -1391,6 +1432,12 @@ final class SyncCoordinator {
         case .xai:
             kind = "balance"
             amount = providerCost.balance ?? providerCost.used
+        case .grok:
+            // Purchased Extra Usage Credits; a reported zero clears an earlier positive balance.
+            guard let balance = providerCost.balance else { return nil }
+            kind = "balance"
+            amount = balance
+            period = providerCost.period ?? "Purchased credits"
         default:
             return nil
         }
@@ -1399,7 +1446,7 @@ final class SyncCoordinator {
             kind: kind,
             amount: amount,
             currencyCode: providerCost.currencyCode,
-            period: providerCost.period,
+            period: period,
             isEstimated: confidence == .estimated || confidence == .percentOnly,
             observedAt: kind == "balance"
                 ? providerCost.balanceUpdatedAt ?? providerCost.updatedAt

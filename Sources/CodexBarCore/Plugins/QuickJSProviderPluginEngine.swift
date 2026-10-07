@@ -457,6 +457,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
 
         let ctx = JS_NewObject(self.context)
         let host = JS_NewObject(self.context)
+        _ = JS_SetPropertyStr(self.context, host, "cookieBrowserNames", self.makeString(
+            BrowserCookieImportSupport.browserNames(for: self.manifest.id.firstPartyProvider)))
         defer {
             cqjs_free_value(self.context, host)
             cqjs_free_value(self.context, ctx)

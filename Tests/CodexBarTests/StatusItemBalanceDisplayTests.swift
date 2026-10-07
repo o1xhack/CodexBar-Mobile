@@ -942,6 +942,27 @@ struct StatusItemBalanceDisplayTests {
 
 extension StatusItemBalanceDisplayTests {
     @Test
+    func `merged selection shows the balance only plugin in legacy and stored layouts`() throws {
+        let settings = self.makeSettings(suiteName: #function, provider: .lithosai)
+        settings.menuBarDisplayMode = .percent
+        let (store, controller) = self.makeStoreAndController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+        let snapshot = try UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [ProviderDetailSection(title: "Billing", rows: [.init(label: "Balance", value: "$2.57")])],
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .lithosai)
+        let selected = controller.primaryProviderForUnifiedIcon()
+        #expect(selected == .lithosai)
+        #expect(controller.menuBarDisplayText(for: selected, snapshot: snapshot) == "$2.57")
+        let data = controller.menuBarLayoutRenderData(provider: selected, snapshot: snapshot, warningFlash: false)
+        #expect(data.balance == "$2.57")
+        #expect(data.automaticText == "$2.57")
+        #expect(data.automatic == nil)
+    }
+
+    @Test
     func `Codex direct layout lanes suppress exhausted windows after reset in status item and preview`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-codex-direct-lane-expired",

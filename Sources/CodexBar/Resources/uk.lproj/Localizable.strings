@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Середній (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Уникайте підказок Keychain";
 "Balance" = "Баланс";
+"Cloud credits" = "Хмарні кредити";
+"Expired" = "Термін дії минув";
 "Battery Saver" = "Економія батареї";
 "Bordered" = "З рамкою";
 "Build" = "Збірка";
@@ -541,6 +543,11 @@
 "session_depleted_notification_body" = "Залишилося 0%. Надішле сповіщення, коли знову стане доступним.";
 "session_restored_notification_title" = "%@ сеанс відновлено";
 "session_restored_notification_body" = "Квота сесії знову доступна.";
+"limit_reset_notifications_title" = "Сповіщення про скидання";
+"limit_reset_notifications_subtitle" = "Повідомляє, у якого провайдера та в якому вікні скинуто ліміт сесії або тижня.";
+"limit_reset_notification_title" = "Ліміт %1$@ скинуто (%2$@)";
+"limit_reset_notification_body" = "Нова квота доступна.";
+"limit_reset_notification_body_with_account" = "Обліковий запис %@. Нова квота доступна.";
 "quota_warning_warn_at" = "Попередити при";
 "quota_warning_global_threshold_subtitle" = "Відсотки, що залишилися для вікон сесії та тижня, якщо постачальник не замінить їх.";
 "quota_warning_sound" = "Відтворити звук сповіщення";
@@ -845,7 +852,6 @@
 "No local data found" = "Немає локальних даних";
 "Credits unavailable; keep Codex running to refresh." = "Кредити недоступні; продовжуйте працювати Codex для оновлення.";
 "No available fetch strategy for minimax." = "Немає доступної стратегії вибірки для minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Сеанс курсору не знайдено. Увійдіть на cursor.com у Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX або Edge Canary. Якщо ви користуєтеся Safari, надайте CodexBar повний доступ до диска в системних параметрах ▸ Конфіденційність і безпека. Ви також можете ввійти в Cursor з меню CodexBar (Додати/змінити обліковий запис).";
 "No OpenCode session cookies found in browsers." = "У браузерах не знайдено сеансових файлів cookie OpenCode.";
 "No available fetch strategy for %@." = "Немає доступної стратегії отримання для %@.";
 "Today" = "Сьогодні";
@@ -1553,7 +1559,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Під час кожної синхронізації надсилає 77 стабільних тестових знімків для 67 ідентифікаторів постачальників, зокрема для кількох облікових записів, sub2api, Wayfinder і резервного варіанта для невідомих постачальників. Тестові адреси використовують домен верхнього рівня `.test`, тому iPhone показує позначку MOCK. Після вимкнення CloudKit видалить тестові записи приблизно за один цикл синхронізації. Типово вимкнено.";
+"mobile_toggle_mock_subtitle" = "Під час кожної синхронізації надсилає 105 стабільних тестових знімків для 95 ідентифікаторів постачальників, зокрема для кількох облікових записів, sub2api, Wayfinder і резервного варіанта для невідомих постачальників. Тестові адреси використовують домен верхнього рівня `.test`, тому iPhone показує позначку MOCK. Після вимкнення CloudKit видалить тестові записи приблизно за один цикл синхронізації. Типово вимкнено.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1621,6 +1627,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Окремий чат";
+"Independent chats" = "Окремі чати";
+"Chat %d" = "Чат %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1717,3 +1727,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Синхронізація налаштувань Mac окрема від синхронізації використання iPhone. Увімкніть її на кожному Mac, щоб він з’явився тут. Історія витрат залишається локальною.";
 
 "Cached data from" = "Кешовані дані від";
+"Supported browsers: %@. Use Manual for other browsers." = "Підтримувані браузери: %@. Для інших браузерів використовуйте ручний режим.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Вставте заголовок Cookie із запиту Chrome до www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Зарезервовано";

@@ -42,7 +42,7 @@ struct AntigravityLocalPublicationTests {
             await store.refreshTokenUsageNow(for: .antigravity, force: true)
             await store.refreshSpendDashboardTokenUsageNow(for: .antigravity, force: true)
             #expect(store.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: .antigravity)?
-                .snapshot?.last30DaysTokens == (hasHistory ? 396 : nil))
+                .snapshot?.last30DaysTokens == (hasHistory ? 374 : nil))
             // A new regular publication must not be acknowledged by a failing independent refresh.
             await store.refreshTokenUsageNow(for: .antigravity, force: true)
         }
@@ -56,10 +56,10 @@ struct AntigravityLocalPublicationTests {
         let publication = store.spendDashboardTokenSnapshotPublicationForCurrentConfig(for: .antigravity)
         let regular = store.tokenSnapshotPublicationForCurrentProviderConfig(for: .antigravity)
         if source == "partial", hasHistory {
-            #expect(publication?.snapshot?.last30DaysTokens == 396)
+            #expect(publication?.snapshot?.last30DaysTokens == 374)
             #expect(publication?.snapshot?.historyCoverageIsEstablished == true)
             #expect(publication?.publicationRevision == revision)
-            #expect(regular?.snapshot?.last30DaysTokens == 396)
+            #expect(regular?.snapshot?.last30DaysTokens == 374)
             #expect(regular?.publicationRevision == regularRevision)
             #expect(store.spendDashboardTokenIncorporatedTriggers[.antigravity] == acknowledged)
             #expect(store.spendDashboardTokenFailedTriggers[.antigravity] != nil)
@@ -68,11 +68,11 @@ struct AntigravityLocalPublicationTests {
             // partial history instead of failing. Coverage stays unclaimed, which is what keeps the
             // totals marked as a lower bound everywhere they are rendered.
             let snapshot = try #require(publication?.snapshot)
-            #expect(snapshot.last30DaysTokens == 198)
+            #expect(snapshot.last30DaysTokens == 187)
             #expect(snapshot.historyCoverageIsEstablished == false)
             #expect(snapshot.historyScanIsPartial)
             #expect(store.spendDashboardTokenFailedTriggers[.antigravity] == nil)
-            #expect(regular?.snapshot?.last30DaysTokens == 198)
+            #expect(regular?.snapshot?.last30DaysTokens == 187)
             #expect(store.tokenFailureGates[.antigravity]?.streak == 0)
             #expect(store.tokenError(for: .antigravity) == nil)
         } else if source == "empty" || source == "out-of-window" {
@@ -92,7 +92,7 @@ struct AntigravityLocalPublicationTests {
             #expect(store.spendDashboardTokenFailedTriggers[.antigravity] != nil)
             #expect(store.spendDashboardTokenIncorporatedTriggers[.antigravity] == acknowledged)
             #expect(store.tokenSnapshotPublicationRevision(for: .antigravity) == regularRevision)
-            #expect(regular?.snapshot?.last30DaysTokens == (hasHistory ? 396 : nil))
+            #expect(regular?.snapshot?.last30DaysTokens == (hasHistory ? 374 : nil))
             #expect((regular != nil) == hasHistory)
             #expect(store.tokenFailureGates[.antigravity]?.streak == 1)
             #expect((store.tokenError(for: .antigravity) != nil) == !hasHistory)
@@ -116,7 +116,7 @@ struct AntigravityLocalPublicationTests {
         store._test_tokenUsageSnapshotLoaderOverride = { _, _, _, _, _ in try await absent.snapshot() }
         await store.refreshTokenUsageNow(for: provider, force: true)
         #expect(store.tokenSnapshotPublicationRevision(for: provider) == revision)
-        #expect(store.tokenSnapshot(for: provider)?.last30DaysTokens == 198)
+        #expect(store.tokenSnapshot(for: provider)?.last30DaysTokens == 187)
         #expect(store.tokenError(for: provider) == nil)
         #expect(store.tokenFailureGates[provider.instanceID]?.streak == (provider == .codex ? 0 : 1))
         await store.codexCostCatchUpTask?.value
@@ -131,7 +131,7 @@ struct AntigravityLocalPublicationTests {
         let fixture = try Fixture()
         for (index, tokens) in [Int.max - 1, 2, 7].enumerated() {
             try fixture.database("day-\(index)", blobs: [Fixture.blob(
-                system: 0,
+                modelID: 0,
                 input: UInt64(tokens),
                 output: 0,
                 cacheRead: 0,

@@ -40,6 +40,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let usedPercentIsImplicitZero: Bool
     /// Shares compose this snapshot's credit `usedPercent` from the same payload before clamping; empty if unverified.
     public let productUsage: [GrokProductUsage]
+    /// Purchased credits from the CLI proxy, denominated in USD separately from the included quota.
+    public let prepaidBalanceUSD: Double?
 
     public init(
         usedPercent: Double?,
@@ -48,7 +50,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         subscriptionTier: String? = nil,
         usedPercentIsWirePublished: Bool = true,
         usedPercentIsImplicitZero: Bool = false,
-        productUsage: [GrokProductUsage] = [])
+        productUsage: [GrokProductUsage] = [],
+        prepaidBalanceUSD: Double? = nil)
     {
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
@@ -57,6 +60,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
         self.usedPercentIsImplicitZero = usedPercentIsImplicitZero
         self.productUsage = productUsage
+        self.prepaidBalanceUSD = prepaidBalanceUSD
     }
 
     /// Overlay the CLI settings plan name. Usage percent stays on the existing credits rules.
@@ -68,7 +72,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
             usedPercentIsImplicitZero: self.usedPercentIsImplicitZero,
-            productUsage: self.productUsage)
+            productUsage: self.productUsage,
+            prepaidBalanceUSD: self.prepaidBalanceUSD)
     }
 
     /// Keep period and plan metadata a second billing surface did not publish. Usage percent
@@ -83,7 +88,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished,
             usedPercentIsImplicitZero: self.usedPercentIsImplicitZero,
-            productUsage: self.productUsage)
+            productUsage: self.productUsage,
+            prepaidBalanceUSD: self.prepaidBalanceUSD ?? other.prepaidBalanceUSD)
     }
 }
 

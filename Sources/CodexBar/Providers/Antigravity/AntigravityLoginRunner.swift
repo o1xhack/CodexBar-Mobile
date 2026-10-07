@@ -154,15 +154,26 @@ enum AntigravityLoginRunner {
             throw AntigravityLoginError.failed("Invalid token response.")
         }
         guard httpResponse.statusCode == 200 else {
-            let message = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                ?? "HTTP \(httpResponse.statusCode)"
-            throw AntigravityLoginError.failed(message)
+            throw AntigravityLoginError.failed(Self.tokenExchangeFailureMessage(
+                data: data, statusCode: httpResponse.statusCode))
         }
         do {
             return try JSONDecoder().decode(TokenResponse.self, from: data)
         } catch {
             throw AntigravityLoginError.failed("Could not decode token response.")
         }
+    }
+
+    static func tokenExchangeFailureMessage(data: Data, statusCode: Int) -> String {
+        let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        if body?["error"] as? String == "invalid_client" {
+            return """
+            Google rejected the Antigravity OAuth client (invalid_client). Update Antigravity.app, or set \
+            ANTIGRAVITY_OAUTH_CLIENT_ID and ANTIGRAVITY_OAUTH_CLIENT_SECRET to a matching pair before retrying.
+            """
+        }
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? "HTTP \(statusCode)"
     }
 
     private static func fetchUserEmail(accessToken: String) async throws -> String? {

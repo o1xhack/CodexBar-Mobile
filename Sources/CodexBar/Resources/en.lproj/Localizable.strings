@@ -56,6 +56,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Avoid Keychain prompts";
 "Balance" = "Balance";
+"Cloud credits" = "Cloud credits";
+"Expired" = "Expired";
 "Battery Saver" = "Battery Saver";
 "Bordered" = "Bordered";
 "Build" = "Build";
@@ -506,6 +508,11 @@
 "session_depleted_notification_body" = "0% left. Will notify when it's available again.";
 "session_restored_notification_title" = "%@ session restored";
 "session_restored_notification_body" = "Session quota is available again.";
+"limit_reset_notifications_title" = "Reset notifications";
+"limit_reset_notifications_subtitle" = "Names the provider and window when a session or weekly limit resets.";
+"limit_reset_notification_title" = "%1$@ %2$@ limit reset";
+"limit_reset_notification_body" = "Fresh quota is available.";
+"limit_reset_notification_body_with_account" = "Account %@. Fresh quota is available.";
 "quota_warning_warn_at" = "Warn at";
 "quota_warning_global_threshold_subtitle" = "Remaining percentages for session and weekly windows unless a provider overrides them.";
 "quota_warning_sound" = "Play notification sound";
@@ -834,7 +841,6 @@
 "No local data found" = "No local data found";
 "Credits unavailable; keep Codex running to refresh." = "Credits unavailable; keep Codex running to refresh.";
 "No available fetch strategy for minimax." = "No available fetch strategy for minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account).";
 "No OpenCode session cookies found in browsers." = "No OpenCode session cookies found in browsers.";
 "No available fetch strategy for %@." = "No available fetch strategy for %@.";
 "Today" = "Today";
@@ -1365,6 +1371,9 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+"Independent chats" = "Independent chats";
+"Independent chat" = "Independent chat";
+"Chat %d" = "Chat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1563,7 +1572,7 @@
 "mobile_sync_status_syncing" = "Syncing…";
 "mobile_sync_status_syncing_elapsed_format" = "Syncing — %@ · %ds";
 "mobile_sync_status_syncing_phase_format" = "Syncing — %@…";
-"mobile_toggle_mock_subtitle" = "Pushes 77 stable mock snapshots across 67 provider IDs on every sync, including multi-account, sub2api, Wayfinder, and unknown-provider fallback cases. Mock emails use the `.test` TLD so iPhone shows a MOCK badge. Turning this off lets CloudKit remove the mock records within about one sync cycle. Off by default.";
+"mobile_toggle_mock_subtitle" = "Pushes 105 stable mock snapshots across 95 provider IDs on every sync, including multi-account, sub2api, Wayfinder, and unknown-provider fallback cases. Mock emails use the `.test` TLD so iPhone shows a MOCK badge. Turning this off lets CloudKit remove the mock records within about one sync cycle. Off by default.";
 "mobile_toggle_mock_title" = "Inject mock provider data";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
 "mobile_toggle_push_title" = "Push notifications to iOS";
@@ -1723,3 +1732,6 @@
 
 
 "Cached data from" = "Cached data from";
+"Supported browsers: %@. Use Manual for other browsers." = "Supported browsers: %@. Use Manual for other browsers.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reserved";

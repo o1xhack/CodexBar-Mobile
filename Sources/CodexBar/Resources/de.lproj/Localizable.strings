@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Durchschnitt (\\\\(metadata.sessionLabel) + \\\\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Vermeiden Sie Aufforderungen zum Schlüsselbund";
 "Balance" = "Gleichgewicht";
+"Cloud credits" = "Cloud-Guthaben";
+"Expired" = "Abgelaufen";
 "Battery Saver" = "Batteriesparmodus";
 "Bordered" = "Umrandet";
 "Build" = "Build";
@@ -539,6 +541,11 @@
 "session_depleted_notification_body" = "0 % übrig. Werde benachrichtigen, wenn es wieder verfügbar ist.";
 "session_restored_notification_title" = "%@ Sitzung wiederhergestellt";
 "session_restored_notification_body" = "Das Sitzungskontingent ist wieder verfügbar.";
+"limit_reset_notifications_title" = "Reset-Benachrichtigungen";
+"limit_reset_notifications_subtitle" = "Nennt Anbieter und Zeitfenster, wenn ein Sitzungs- oder Wochenlimit zurückgesetzt wird.";
+"limit_reset_notification_title" = "%1$@ %2$@ Limit zurückgesetzt";
+"limit_reset_notification_body" = "Neues Kontingent ist verfügbar.";
+"limit_reset_notification_body_with_account" = "Konto %@. Neues Kontingent ist verfügbar.";
 "quota_warning_warn_at" = "Warnen Sie vor";
 "quota_warning_global_threshold_subtitle" = "Verbleibende Prozentsätze für Sitzungs- und Wochenfenster, es sei denn, ein Anbieter überschreibt sie.";
 "quota_warning_sound" = "Benachrichtigungston abspielen";
@@ -843,7 +850,6 @@
 "No local data found" = "Keine lokalen Daten gefunden";
 "Credits unavailable; keep Codex running to refresh." = "Credits nicht verfügbar; Lassen Sie Codex zum Aktualisieren laufen.";
 "No available fetch strategy for minimax." = "Für Minimax ist keine Abrufstrategie verfügbar.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Keine Cursor-Sitzung gefunden. Bitte melden Sie sich bei Cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX oder Edge Canary an. Wenn Sie Safari verwenden, gewähren Sie CodexBar vollständigen Festplattenzugriff unter Systemeinstellungen ▸ Datenschutz und Sicherheit. Sie können sich auch über das CodexBar-Menü (Konto hinzufügen/wechseln) bei Cursor anmelden.";
 "No OpenCode session cookies found in browsers." = "In Browsern wurden keine OpenCode-Sitzungscookies gefunden.";
 "No available fetch strategy for %@." = "Für %@ ist keine Abrufstrategie verfügbar.";
 "Today" = "Heute";
@@ -1554,7 +1560,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Überträgt bei jeder Synchronisierung 77 stabile Mock-Snapshots für 67 Anbieter-IDs, einschließlich Mehrfachkonten, sub2api, Wayfinder und Fallbacks für unbekannte Anbieter. Mock-E-Mail-Adressen verwenden die TLD `.test`, damit das iPhone ein MOCK-Badge anzeigt. Beim Deaktivieren entfernt CloudKit die Mock-Datensätze innerhalb von etwa einem Synchronisierungszyklus. Standardmäßig deaktiviert.";
+"mobile_toggle_mock_subtitle" = "Überträgt bei jeder Synchronisierung 105 stabile Mock-Snapshots für 95 Anbieter-IDs, einschließlich Mehrfachkonten, sub2api, Wayfinder und Fallbacks für unbekannte Anbieter. Mock-E-Mail-Adressen verwenden die TLD `.test`, damit das iPhone ein MOCK-Badge anzeigt. Beim Deaktivieren entfernt CloudKit die Mock-Datensätze innerhalb von etwa einem Synchronisierungszyklus. Standardmäßig deaktiviert.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1622,6 +1628,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Unabhängiger Chat";
+"Independent chats" = "Unabhängige Chats";
+"Chat %d" = "Chat %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1717,3 +1727,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Die Mac-Einstellungssynchronisierung ist von der iPhone-Nutzungssynchronisierung getrennt. Aktiviere sie auf jedem Mac, damit er hier erscheint. Der Kostenverlauf bleibt lokal.";
 
 "Cached data from" = "Zwischengespeicherte Daten vom";
+"Supported browsers: %@. Use Manual for other browsers." = "Unterstützte Browser: %@. Verwende für andere Browser „Manuell“.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Füge den Cookie-Header einer Chrome-Anfrage an www.workbuddy.cn/profile/plans-usage ein.";
+"Reserved" = "Reserviert";

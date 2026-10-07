@@ -337,7 +337,7 @@ struct CostUsageCodexRetryBufferPresence: Codable, Equatable, Sendable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Increment for native parser corrections; older or absent revisions use bounded reparsing.
-    static let currentCodexParserRevision = 5
+    static let currentCodexParserRevision = 8
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -382,6 +382,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexScanComplete: Bool?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
+    var codexRequestLedgerState: CostUsageScanner.CodexRequestLedgerState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     /// Only the store's private read-view adapter uses presence without loading replay bodies.
@@ -402,6 +403,16 @@ struct CostUsageFileUsage: Codable, Equatable {
 
     var hasBufferedCodexForkRetryLines: Bool {
         self.hasBufferedCodexSubagentLines || self.hasBufferedCodexUnresolvedForkLines
+    }
+
+    var hasPendingCodexForkRetry: Bool {
+        // A confirmed missing parent settles scheduling. Keep its buffer for dependency changes.
+        self.hasBufferedCodexForkRetryLines
+            && (self.forkBaselineDependencyKey == nil || !CostUsageScanner.isUnresolvedMissingParentFork(self))
+    }
+
+    var hasPendingCodexScanWork: Bool {
+        self.codexScanComplete == false || self.hasPendingCodexForkRetry
     }
 }
 

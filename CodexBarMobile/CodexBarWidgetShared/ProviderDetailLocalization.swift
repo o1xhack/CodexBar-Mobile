@@ -13,10 +13,10 @@ enum ProviderDetailLocalization {
         "aiand", "aixy", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
         "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
         "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
-        "huggingface", "hyper", "ibmbob", "kiro", "litellm", "llmman", "llmproxy",
-        "mimo", "minimax", "moonshot", "muse", "nous", "openai", "openrouter",
+        "huggingface", "hyper", "ibmbob", "kiro", "litellm", "lithosai", "llmman", "llmproxy",
+        "mimo", "minimax", "moonshot", "muse", "museai", "nous", "openai", "openrouter",
         "perplexity", "pi", "poe", "raycast", "replicate", "sakana", "sub2api", "typesafe",
-        "v0", "vercel", "wayfinder", "xai", "xkiro", "zai", "zoommate",
+        "v0", "vercel", "wayfinder", "workbuddy", "xai", "xkiro", "zai", "zoommate",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
@@ -59,6 +59,9 @@ enum ProviderDetailLocalization {
         "Used", "User", "v0 API", "Version", "Voice slots", "Weekly", "Weekly usage", "Your shared usage",
         "ZeroGPU", "5 hours",
         "credits", "points", "tokens",
+        // Upstream v0.71-v0.72: WorkBuddy, LithosAI, muse.ai and Claude cloud credits.
+        "Account status", "Additional tokens", "Cloud credits", "Payment card", "Spend",
+        "This month (UTC)", "Today (UTC)", "Total",
     ]
 
     /// These sections deliberately use provider-returned account, team, model,
@@ -155,6 +158,22 @@ enum ProviderDetailLocalization {
              "typesafe", "v0":
             return self.localizedBundledPluginValue(
                 value, providerID: providerID, rowLabel: rowLabel, locale: locale)
+        case "lithosai":
+            // "Added" here is a card state, not the generic "Added" counter label.
+            let keys = [
+                "Active": "lithosai_value_active",
+                "Added": "lithosai_value_card_added",
+                "Not added": "lithosai_value_card_not_added",
+                "On hold": "lithosai_value_on_hold",
+                "Browser session": "Browser session",
+                "Unavailable": "Unavailable",
+            ]
+            guard let key = keys[value] else { return value }
+            return MobileLocalizedString.value(key, defaultValue: value, locale: locale)
+        case "workbuddy":
+            return self.localizedCreditsLeft(value, locale: locale) ?? value
+        case "museai":
+            return self.localizedAmountLeft(value, locale: locale) ?? value
         case "kiro":
             break
         default:
@@ -436,6 +455,25 @@ enum ProviderDetailLocalization {
             localized.append(self.localizedFormat(match.format, argument: amount, locale: locale))
         }
         return localized.joined(separator: " · ")
+    }
+
+    /// WorkBuddy: "1,200 / 5,000 credits left".
+    private static func localizedCreditsLeft(_ value: String, locale: Locale) -> String? {
+        let suffix = " credits left"
+        guard value.hasSuffix(suffix) else { return nil }
+        let parts = value.dropLast(suffix.count).components(separatedBy: " / ")
+        guard parts.count == 2, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
+        return self.localizedFormat("%@ / %@ credits left", arguments: parts, locale: locale)
+    }
+
+    /// muse.ai: "2.8B tokens left" or a dollar top-up fallback such as "$4.20 left".
+    private static func localizedAmountLeft(_ value: String, locale: Locale) -> String? {
+        for (suffix, key) in [(" tokens left", "%@ tokens left"), (" left", "%@ left")] where value.hasSuffix(suffix) {
+            let amount = String(value.dropLast(suffix.count))
+            guard !amount.isEmpty, !amount.contains(" ") else { return nil }
+            return self.localizedFormat(key, argument: amount, locale: locale)
+        }
+        return nil
     }
 
     private static func localizedFormat(_ key: String, argument: String, locale: Locale) -> String {
