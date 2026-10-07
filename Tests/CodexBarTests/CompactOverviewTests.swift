@@ -33,9 +33,11 @@ struct CompactOverviewTests {
     func `compact keeps details when no quota metrics can describe the provider`() throws {
         var model = try Self.model()
         #expect(!model.showsOverviewSupplementalContent(compact: true))
+        #expect(!OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact).usesFullCard)
         #expect(model.showsOverviewSupplementalContent(compact: false))
         model.metrics = []
         #expect(model.showsOverviewSupplementalContent(compact: true))
+        #expect(OverviewMenuCardRowView(model: model, storageText: nil, width: 340, layout: .compact).usesFullCard)
         #expect(model.providerDetails.first?.title == "Account balance")
     }
 

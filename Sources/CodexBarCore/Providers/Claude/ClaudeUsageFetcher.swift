@@ -678,6 +678,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 }
                 guard Self.shouldTryDirectCLIUsage(after: error) else { throw error }
                 let ptyError = error
+                ClaudeUsageFetcher.log.debug(
+                    "Claude PTY usage failed; trying direct usage",
+                    metadata: ["error": error.localizedDescription])
                 do {
                     snapshot = try await self.fetcher.loadViaDirectCLI(
                         timeout: Self.directCLIUsageTimeout(for: timeout))
@@ -689,7 +692,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                         ClaudeCLIRateLimitGate.recordRateLimit()
                         throw directError
                     }
-                    guard Self.directCLIErrorShouldReplacePTYError(directError) else { throw ptyError }
+                    guard ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(directError.localizedDescription)
+                    else { throw ptyError }
                     throw directError
                 }
             }
@@ -700,16 +704,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
         private static func directCLIUsageTimeout(for ptyTimeout: TimeInterval) -> TimeInterval {
             min(max(ptyTimeout / 3, 6), 8)
-        }
-
-        private static func directCLIErrorShouldReplacePTYError(_ error: Error) -> Bool {
-            if case let ClaudeStatusProbeError.parseFailed(message) = error {
-                return message.lowercased().contains("subscription")
-            }
-            if case let ClaudeUsageError.parseFailed(message) = error {
-                return message.lowercased().contains("subscription")
-            }
-            return false
         }
 
         private static func shouldTryDirectCLIUsage(after error: Error) -> Bool {

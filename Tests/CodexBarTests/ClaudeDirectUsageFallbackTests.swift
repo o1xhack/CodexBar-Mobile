@@ -112,6 +112,19 @@ struct ClaudeDirectUsageFallbackTests {
     }
 
     @Test
+    func `insights only direct usage keeps original pty failure`() async throws {
+        let fixture = try Self.makeDirectFallbackClaudeCLI(includeInsights: true)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        do {
+            _ = try await fixture.loadUsage()
+            #expect(Bool(false), "Insights cannot replace the PTY error with unavailable limits")
+        } catch let ClaudeStatusProbeError.parseFailed(message) {
+            #expect(message.lowercased().contains("could not load usage data"))
+        }
+        try fixture.expectProbeInvocations()
+    }
+
+    @Test
     func `direct usage timeout keeps original pty failure`() async throws {
         let fixture = try Self.makeDirectTimeoutClaudeCLI()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }
@@ -151,11 +164,15 @@ struct ClaudeDirectUsageFallbackTests {
         try fixture.expectProbeInvocations()
     }
 
-    private static func makeDirectFallbackClaudeCLI() throws -> Fixture {
-        try self.makeClaudeCLI(name: "claude-direct-fallback", scriptBody: """
+    private static func makeDirectFallbackClaudeCLI(includeInsights: Bool = false) throws -> Fixture {
+        let insights = #"""
+        printf '%s\n' "What's contributing to your limits usage?" 'Top MCP servers: Claude Browser 10%'
+        """#
+        return try self.makeClaudeCLI(name: "claude-direct-fallback", scriptBody: """
         if [ "$MODE" = "direct" ]; then
           printf 'direct-usage\\n' >> "$LOG_FILE"
           printf '%s\\n' 'You are currently using your subscription to power your Claude Code usage'
+          \(includeInsights ? insights : "")
           exit 0
         fi
         while IFS= read -r line; do

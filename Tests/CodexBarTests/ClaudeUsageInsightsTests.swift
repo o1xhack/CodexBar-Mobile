@@ -34,11 +34,13 @@ struct ClaudeUsageInsightsTests {
 
     @Test
     func `insights without quotas never become numeric limits`() {
-        #expect(throws: ClaudeStatusProbeError.self) {
+        let error = #expect(throws: ClaudeStatusProbeError.self) {
             try ClaudeStatusProbe.parse(text: """
             You are currently using your subscription to power your Claude Code usage
             \(self.insights)
             """)
         }
+        #expect(error?.localizedDescription ==
+            "Could not parse Claude usage: Claude CLI /usage returned usage insights without quota data.")
     }
 }
