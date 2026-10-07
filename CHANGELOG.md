@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.72.0.1 — 2026-10-06
+
+### Highlights
+
+- New providers: WorkBuddy, Muse (muse.ai), and LithosAI. Claude shows promotional cloud-session credits separately from prepaid credits, LithosAI shows its prepaid balance in the menu bar, and Grok reports purchased credits.
+- Antigravity works again with Antigravity 2.19.1 and saved Google accounts; additional Gemini profile homes can be combined into local history.
+- Safer by default: CodexBar no longer runs binaries from the current directory or relative PATH entries, and Codex discovery refuses unsafe Node environments.
+- Much lighter cost tracking for Claude, Codex, Vertex, Pi, and Grok, and no more high CPU from hidden brand-icon animations.
+- Opt-in reset notifications tell you when a session or weekly window resets. Usage & Spend keeps same-named projects apart and separates independent Codex chats.
+- The iPhone companion (Mobile 2.6) receives the new providers, LithosAI and Grok balances, Claude cloud credits with expiry, and remaining-credit text next to reset times.
+
+### Changed
+
+- Sync upstream v0.71.0, v0.71.1, and v0.72.0 in one fork release, retaining the complete upstream provider, security, cost, notification, sync, and widget changes listed below.
+- Mac fleet iCloud Sync adopts the upstream removed-record recovery, push-registration gate, and atomic remote applies while keeping the fork engine invariants and CloudKit container.
+- Preserve fork CloudKit Production publishing, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.
+
+### Fixed
+
+- iPhone quota alerts keep publishing restored transitions when the Mac shows a reset banner instead, or when Mac notifications are off.
+- Mobile snapshots publish provider balance descriptions, LithosAI prepaid and Grok purchased-credit balances, and detail-row progress and expiry metadata as optional fields older iPhones ignore.
+- Invalidate semantic parser caches for the merged cost scanners while retaining compatible published cache predecessors.
+
 ## 0.70.0.1 — 2026-10-02
 
 ### Highlights
