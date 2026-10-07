@@ -110,6 +110,7 @@ struct UsageCardView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "creditcard")
                         .font(.caption)
+                        .accessibilityHidden(true)
                     Text(ProviderDetailLocalization.localizedValue(
                         balance,
                         providerID: self.providerID ?? ""))

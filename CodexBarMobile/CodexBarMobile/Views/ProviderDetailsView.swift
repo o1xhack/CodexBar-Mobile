@@ -33,38 +33,44 @@ struct ProviderDetailsView: View {
                 }
 
                 ForEach(Array(section.rows.enumerated()), id: \.offset) { index, row in
-                    let presentation = ProviderDetailRowPresentation(
-                        providerID: self.providerID,
-                        row: row,
-                        sectionTitle: section.title)
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text(ProviderDetailLocalization.localized(
-                                row.label,
-                                providerID: self.providerID,
-                                context: ProviderDetailLocalization.rowContext(
+                    // Re-evaluate once a minute so an expiry observed by the Mac flips to Expired
+                    // while the page stays open.
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        let presentation = ProviderDetailRowPresentation(
+                            providerID: self.providerID,
+                            row: row,
+                            sectionTitle: section.title,
+                            now: context.date)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Text(ProviderDetailLocalization.localized(
+                                    row.label,
                                     providerID: self.providerID,
-                                    section: section,
-                                    row: row,
-                                    index: index)))
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 12)
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(presentation.value)
-                                    .fontWeight(.semibold)
-                                    .monospacedDigit()
-                                    .foregroundStyle(presentation.isExpired ? HierarchicalShapeStyle.secondary : .primary)
-                                if let localizedSecondary = presentation.secondaryValue {
-                                    Text(localizedSecondary)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    context: ProviderDetailLocalization.rowContext(
+                                        providerID: self.providerID,
+                                        section: section,
+                                        row: row,
+                                        index: index)))
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 12)
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(presentation.value)
+                                        .fontWeight(.semibold)
+                                        .monospacedDigit()
+                                        .foregroundStyle(presentation.isExpired ? HierarchicalShapeStyle
+                                            .secondary : .primary)
+                                    if let localizedSecondary = presentation.secondaryValue {
+                                        Text(localizedSecondary)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
-                        }
-                        if let fraction = presentation.progressFraction {
-                            ProgressView(value: fraction)
-                                .tint(self.tintColor)
-                                .accessibilityHidden(true)
+                            if let fraction = presentation.progressFraction {
+                                ProgressView(value: fraction)
+                                    .tint(self.tintColor)
+                                    .accessibilityHidden(true)
+                            }
                         }
                     }
                 }

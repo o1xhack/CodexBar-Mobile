@@ -25,7 +25,7 @@ struct V072ProviderPresentationTests {
             usageValue: usageValue)
     }
 
-    @Test func `Claude cloud credits render remaining of total with a bar before expiry`() throws {
+    @Test func `Claude cloud credits render remaining of total with a bar before expiry`() {
         let expiry = self.observed.addingTimeInterval(86400)
         let presentation = ProviderDetailRowPresentation(
             providerID: "claude",
@@ -75,7 +75,11 @@ struct V072ProviderPresentationTests {
     }
 
     @Test func `Old Mac cloud credit rows without an id stay verbatim`() {
-        let row = self.cloudCreditsRow(expiry: self.observed.addingTimeInterval(-60), progress: nil, usageValue: nil, id: nil)
+        let row = self.cloudCreditsRow(
+            expiry: self.observed.addingTimeInterval(-60),
+            progress: nil,
+            usageValue: nil,
+            id: nil)
         let presentation = ProviderDetailRowPresentation(
             providerID: "claude",
             row: row,
@@ -100,7 +104,7 @@ struct V072ProviderPresentationTests {
         }
     }
 
-    @Test func `Generic progress rows draw a clamped bar and other providers ignore the cloud row id`() throws {
+    @Test func `Generic progress rows draw a clamped bar and other providers ignore the cloud row id`() {
         let over = SyncProviderDetailSection.Row(
             label: "Additional tokens", value: "1.2B tokens left", progress: .init(used: 12, total: 10))
         let presentation = ProviderDetailRowPresentation(
@@ -184,8 +188,10 @@ struct V072ProviderPresentationTests {
                 deviceName: device,
                 deviceID: device)
         }
-        let sources = [source(device: "fixture-old", newWriter: false, sync: 0),
-                       source(device: "fixture-new", newWriter: true, sync: 60)]
+        let sources = [
+            source(device: "fixture-old", newWriter: false, sync: 0),
+            source(device: "fixture-new", newWriter: true, sync: 60),
+        ]
         do {
             let opened = ModelContainerFactory.openContainer(at: store)
             #expect(opened.isPersistent)
@@ -207,6 +213,36 @@ struct V072ProviderPresentationTests {
             #expect(merged.primary?.balanceDescription == "3,800 / 5,000 credits left")
             #expect(merged.details.first?.rows.first?.usageValue == 3800)
             #expect(merged.providerAmount?.amount == 42.5)
+        }
+    }
+
+    @Test func `Every localized semantic detail label has four translations`() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        root.deleteLastPathComponent()
+        root.deleteLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("CodexBarWidgetShared/ProviderDetailLocalization.swift"),
+            encoding: .utf8)
+        let start = try #require(source.range(of: "private static let semanticLabels: Set<String> = ["))
+        let end = try #require(source.range(of: "\n    ]", range: start.upperBound..<source.endIndex))
+        let block = source[start.upperBound..<end.lowerBound]
+            .split(separator: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+        let regex = try NSRegularExpression(pattern: #""((?:[^"\\]|\\.)*)""#)
+        let labels = regex.matches(in: block, range: NSRange(block.startIndex..., in: block)).compactMap {
+            Range($0.range(at: 1), in: block).map { String(block[$0]) }
+        }
+        #expect(labels.count > 150)
+        let catalog = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: root
+                .appendingPathComponent("CodexBarMobile/Localizable.xcstrings"))) as? [String: Any])
+        let strings = try #require(catalog["strings"] as? [String: Any])
+        for label in labels {
+            let localizations = (strings[label] as? [String: Any])?["localizations"] as? [String: Any]
+            for language in ["en", "zh-Hans", "zh-Hant", "ja"] {
+                let unit = (localizations?[language] as? [String: Any])?["stringUnit"] as? [String: Any]
+                #expect(unit?["state"] as? String == "translated", "\(label) [\(language)]")
+            }
         }
     }
 }

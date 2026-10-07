@@ -99,11 +99,16 @@ struct ProviderDetailRowPresentation: Equatable {
             isExpired: false)
     }
 
-    private static func expiryDate(_ secondary: String) -> Date? {
-        guard let raw = secondary.split(separator: " ").last else { return nil }
+    private nonisolated(unsafe) static let isoFormatter = ISO8601DateFormatter()
+    private nonisolated(unsafe) static let fractionalISOFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: String(raw)) { return date }
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: String(raw))
+        return formatter
+    }()
+
+    private static func expiryDate(_ secondary: String) -> Date? {
+        guard let raw = secondary.split(separator: " ").last.map(String.init) else { return nil }
+        // ISO8601DateFormatter is thread-safe once configured.
+        return self.isoFormatter.date(from: raw) ?? self.fractionalISOFormatter.date(from: raw)
     }
 }

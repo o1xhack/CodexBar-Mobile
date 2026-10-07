@@ -553,7 +553,19 @@ struct ProviderColorPaletteTests {
             ("workbuddy", UIColor(red: 13 / 255, green: 200 / 255, blue: 166 / 255, alpha: 1)),
         ]
         for (id, color) in expected {
-            #expect(UIColor(ProviderColorPalette.color(for: id)).isApproximately(color), "\(id)")
+            // Mac-tuned accents darken only as far as needed for white Light Mode cards.
+            #expect(
+                UIColor(ProviderColorPalette.color(for: id))
+                    .isApproximately(ProviderColorPalette.darkened(color)),
+                "\(id)")
+            let light = UIColor(ProviderColorPalette.color(for: id))
+                .resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            _ = light.getRed(&r, green: &g, blue: &b, alpha: &a)
+            #expect(
+                ProviderColorPalette.relativeLuminance(red: r, green: g, blue: b)
+                    <= ProviderColorPalette.maximumSyncedLightModeLuminance + 0.001,
+                "\(id)")
         }
     }
 

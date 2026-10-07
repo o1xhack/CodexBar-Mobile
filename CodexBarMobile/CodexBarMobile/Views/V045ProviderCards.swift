@@ -272,6 +272,8 @@ struct ProviderAmountCard: View {
             String(localized: "v045_period_prepaid_balance", defaultValue: "Prepaid balance")
         case "Prepaid credits":
             String(localized: "v072_period_prepaid_credits", defaultValue: "Prepaid credits")
+        case "Purchased credits":
+            String(localized: "v072_period_purchased_credits", defaultValue: "Purchased credits")
         default:
             period
         }

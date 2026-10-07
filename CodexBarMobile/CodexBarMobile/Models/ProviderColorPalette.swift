@@ -109,7 +109,19 @@ enum ProviderColorPalette {
     static func color(for providerIdentifier: String) -> Color {
         self.readable(
             self.brandColor(for: providerIdentifier),
-            adjustsLightMode: self.updatedBrandHex(for: providerIdentifier) != nil)
+            adjustsLightMode: self.updatedBrandHex(for: providerIdentifier) != nil
+                || self.v072BrandHex(for: providerIdentifier) != nil)
+    }
+
+    /// Upstream v0.72 brand tints. Like the v0.70 accents they are tuned for the Mac
+    /// menu, so Light Mode darkens bright values (WorkBuddy teal) for white cards.
+    /// "museai" (muse.ai) must never fall into Muse Code's exact "muse" entry.
+    private static func v072BrandHex(for identifier: String) -> String? {
+        let normalized = identifier.lowercased().replacingOccurrences(of: " ", with: "")
+        if normalized.contains("museai") || normalized.contains("muse.ai") { return "0668E1" }
+        if normalized.contains("lithosai") { return "6B7280" }
+        if normalized.contains("workbuddy") { return "0DC8A6" }
+        return nil
     }
 
     static let upstreamV070BrandTints: [String: String] = [
@@ -157,17 +169,8 @@ enum ProviderColorPalette {
         if normalized.contains("aixy") {
             return Color(red: 0.07, green: 0.21, blue: 0.34)
         }
-        // iOS 2.6.0 — upstream v0.71-v0.72 providers. "museai" (muse.ai) must
-        // never fall into Muse Code's exact "muse" entry below.
-        if normalized.contains("museai") || normalized.contains("muse.ai"),
-           let color = self.color(fromHex: "0668E1")
-        {
-            return color
-        }
-        if normalized.contains("lithosai"), let color = self.color(fromHex: "6B7280") {
-            return color
-        }
-        if normalized.contains("workbuddy"), let color = self.color(fromHex: "0DC8A6") {
+        // iOS 2.6.0 — upstream v0.71-v0.72 providers.
+        if let hex = self.v072BrandHex(for: providerIdentifier), let color = self.color(fromHex: hex) {
             return color
         }
 
