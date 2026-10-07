@@ -134,7 +134,8 @@ struct SyncV072BridgeTests {
             #expect(ProviderDescriptorRegistry.descriptor(for: provider)
                 .presentation.menuCard.showsPrimaryBalanceDescription)
         }
-        #expect(!ProviderDescriptorRegistry.descriptor(for: .codex).presentation.menuCard.showsPrimaryBalanceDescription)
+        #expect(!ProviderDescriptorRegistry.descriptor(for: .codex).presentation.menuCard
+            .showsPrimaryBalanceDescription)
     }
 
     @Test
