@@ -2,7 +2,7 @@ import CodexBarSync
 import Foundation
 
 /// UI view of a merged card's source report: which Mac supplied the data, how old it is, and which
-/// Macs failed to refresh more recently. The merger computes the report while grouping, so it always
+/// Macs currently fail to refresh. The merger computes the report while grouping, so it always
 /// describes exactly the entries that formed the card.
 struct ProviderSourceStatus: Equatable {
     /// Data older than this is called out even without a newer failure.
@@ -18,8 +18,15 @@ struct ProviderSourceStatus: Equatable {
         self.report.sourceCapturedAt
     }
 
-    var newerFailures: [SyncProviderSourceReport.Failure] {
+    /// Each listed failure is that Mac's latest state, newest first.
+    var failures: [SyncProviderSourceReport.Failure] {
         self.report.failures
+    }
+
+    /// The shown data comes from a Mac other than one that is failing.
+    var showsDataFromAnotherMac: Bool {
+        guard let sourceDeviceID = self.report.sourceDeviceID else { return false }
+        return self.failures.contains { $0.deviceID != sourceDeviceID }
     }
 
     var allFailed: Bool {
@@ -43,11 +50,11 @@ struct ProviderSourceStatus: Equatable {
     /// Macs are involved or the shown data is old.
     func needsNotice(at now: Date) -> Bool {
         if self.allFailed { return self.report.deviceCount >= 2 }
-        return !self.newerFailures.isEmpty || self.isStale(at: now)
+        return !self.failures.isEmpty || self.isStale(at: now)
     }
 
-    /// Newer failures make the notice a warning; old data alone is informational.
+    /// Failures make the notice a warning; old data alone is informational.
     var isWarning: Bool {
-        self.allFailed || !self.newerFailures.isEmpty
+        self.allFailed || !self.failures.isEmpty
     }
 }

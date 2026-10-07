@@ -242,9 +242,9 @@ struct ProviderUsageView: View {
             HStack(spacing: 4) {
                 Text(self.provider.lastUpdated.formatted(.relative(presentation: .named)))
                 if let device = self.sourceStatus?.sourceDeviceName,
-                   self.sourceStatus?.newerFailures.isEmpty == false
+                   self.sourceStatus?.showsDataFromAnotherMac == true
                 {
-                    // Another Mac failed more recently; say whose data this is.
+                    // Another Mac is failing; say whose data this is.
                     Image(systemName: "exclamationmark.circle")
                         .foregroundStyle(.orange)
                         .accessibilityHidden(true)

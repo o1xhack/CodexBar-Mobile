@@ -30,11 +30,14 @@ struct ProviderSourceNoticeContent: Equatable {
 
         var lines: [Line] = []
         if let device = status.sourceDeviceName, let captured = status.sourceCapturedAt {
-            self.title = status.newerFailures.isEmpty
-                ? MobileLocalizedString.value("Data may be out of date", defaultValue: "Data may be out of date", locale: locale)
-                : MobileLocalizedString.value(
+            self.title = status.showsDataFromAnotherMac
+                ? MobileLocalizedString.value(
                     "Showing data from another Mac",
                     defaultValue: "Showing data from another Mac",
+                    locale: locale)
+                : MobileLocalizedString.value(
+                    "Data may be out of date",
+                    defaultValue: "Data may be out of date",
                     locale: locale)
             lines.append(Line(text: format("Data from %@, updated %@.", [device, relative(captured)]), detail: nil))
         } else {
@@ -43,7 +46,7 @@ struct ProviderSourceNoticeContent: Equatable {
                 defaultValue: "No Mac could refresh this provider",
                 locale: locale)
         }
-        for failure in status.newerFailures {
+        for failure in status.failures {
             let message = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
             lines.append(Line(
                 text: format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)]),
@@ -55,7 +58,8 @@ struct ProviderSourceNoticeContent: Equatable {
 }
 
 /// Shown at the top of a provider's detail page when its data comes from another Mac, is old,
-/// or another Mac failed to refresh more recently.
+/// or another Mac fails to refresh. Callers insert it only when `ProviderSourceNoticeContent`
+/// exists, so an empty notice never adds stack spacing; the timeline keeps relative times current.
 struct ProviderSourceNoticeView: View {
     let status: ProviderSourceStatus
 

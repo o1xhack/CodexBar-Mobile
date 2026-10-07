@@ -143,9 +143,10 @@ enum ProviderSnapshotMerger {
         // Merging two Macs: a failure without any observation must not replace or sit beside the
         // account another Mac observed. An identity-less failure is absorbed into the provider's
         // only observed account, so its local costs still merge while its error stays explainable.
-        // Ambiguous multi-account cases keep the separate failure entry. Alias collapse of one
+        // Ambiguous multi-account cases and user-unmerged pairs keep the separate failure entry. Alias collapse of one
         // physical Mac passes `false` so that Mac's newest state still wins over its retired ID.
         var absorbedIndices = Set<Int>()
+        var absorbedIdentitiesByRoot: [Int: Set<String>] = [:]
         if prefersObservationsOverFailures {
             var rootsByProvider: [String: [Int]] = [:]
             for (root, indices) in groupedIndices {
@@ -156,15 +157,24 @@ enum ProviderSnapshotMerger {
                     groupedIndices[root, default: []].contains { Self.isPresentableObservation(allProviders[$0]) }
                 }
                 guard observedRoots.count == 1, let target = observedRoots.first else { continue }
+                let legacyIdentifier = "\(providerID):legacy-no-identity"
+                let targetIdentifiers = Set(groupedIndices[target, default: []].flatMap { effectiveIdentifiers[$0] })
+                // The user explicitly separated the identity-less entry from this account.
+                let userSeparated = unmergeLinkages.contains { linkage in
+                    linkage.providerID == providerID
+                        && linkage.linkedIdentifiers.contains(legacyIdentifier)
+                        && !targetIdentifiers.isDisjoint(with: linkage.linkedIdentifiers)
+                }
+                guard !userSeparated else { continue }
                 for root in roots where root != target {
                     let members = groupedIndices[root, default: []]
                     guard members.allSatisfy({
-                        Self.isFailureOnly(allProviders[$0])
-                            && effectiveIdentifiers[$0] == ["\(providerID):legacy-no-identity"]
+                        Self.isFailureOnly(allProviders[$0]) && effectiveIdentifiers[$0] == [legacyIdentifier]
                     }) else { continue }
                     groupedIndices[target, default: []].append(contentsOf: members)
                     groupedIndices[root] = nil
                     absorbedIndices.formUnion(members)
+                    absorbedIdentitiesByRoot[target, default: []].formUnion(members.flatMap { effectiveIdentifiers[$0] })
                 }
             }
         }
@@ -172,7 +182,7 @@ enum ProviderSnapshotMerger {
         var mergedProviders: [(
             provider: ProviderUsageSnapshot, sortIdentity: String,
             publicationTimestamp: Date, quotaSource: SyncProviderQuotaSource)] = []
-        for (_, unsortedIndices) in groupedIndices {
+        for (root, unsortedIndices) in groupedIndices {
             let indices = unsortedIndices.sorted()
             let group = indices.map { allProviders[$0] }
             let sortIdentity = Set(indices.filter { !absorbedIndices.contains($0) }.flatMap { effectiveIdentifiers[$0] })
@@ -209,9 +219,11 @@ enum ProviderSnapshotMerger {
                 provider.sourceReport = Self.sourceReport(
                     group: group,
                     sourcePosition: Self.isFailureOnly(group[sourcePosition]) ? nil : sourcePosition,
+                    sourceCapturedAt: quotaSource.capturedAt ?? group[sourcePosition].lastUpdated,
                     deviceIDs: indices.map { sourceDeviceIDs[$0] },
                     deviceNames: indices.map { sourceDeviceNames[$0] },
-                    reportedAt: indices.map { sourceHistoryTimestamps[$0] })
+                    reportedAt: indices.map { sourceHistoryTimestamps[$0] },
+                    absorbedAccountIdentities: absorbedIdentitiesByRoot[root, default: []].sorted())
             }
             mergedProviders.append((provider, sortIdentity, publication, quotaSource))
         }
@@ -300,18 +312,22 @@ enum ProviderSnapshotMerger {
         return true
     }
 
-    /// Which Mac supplied the shown observation and which newer failures the user should see.
+    /// Which Mac supplied the shown observation and which other entries currently report a failure.
+    /// Each entry is its Mac's latest state, so a failure stays listed until that Mac succeeds;
+    /// comparing timestamps would make the notice flicker as the Macs refresh in turn.
+    /// `sourceCapturedAt` is the shown quota's capture time (Kimi may take quota from another entry).
     static func sourceReport(
         group: [ProviderUsageSnapshot],
         sourcePosition: Int?,
+        sourceCapturedAt shownCapturedAt: Date,
         deviceIDs: [String],
         deviceNames: [String],
-        reportedAt: [Date]) -> SyncProviderSourceReport
+        reportedAt: [Date],
+        absorbedAccountIdentities: [String] = []) -> SyncProviderSourceReport
     {
-        let sourceCapturedAt = sourcePosition.map { group[$0].lastUpdated }
+        let sourceCapturedAt = sourcePosition.map { _ in shownCapturedAt }
         let failures = group.indices.compactMap { position -> SyncProviderSourceReport.Failure? in
             guard position != sourcePosition, group[position].isError else { return nil }
-            if let sourceCapturedAt, reportedAt[position] <= sourceCapturedAt { return nil }
             return SyncProviderSourceReport.Failure(
                 deviceID: deviceIDs[position],
                 deviceName: deviceNames[position],
@@ -324,7 +340,8 @@ enum ProviderSnapshotMerger {
             sourceDeviceName: sourcePosition.map { deviceNames[$0] },
             sourceCapturedAt: sourceCapturedAt,
             failures: failures,
-            deviceCount: Set(deviceIDs).count)
+            deviceCount: Set(deviceIDs).count,
+            absorbedAccountIdentities: absorbedAccountIdentities)
     }
 
     static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {

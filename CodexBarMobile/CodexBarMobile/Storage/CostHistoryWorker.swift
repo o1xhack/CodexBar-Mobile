@@ -92,14 +92,16 @@ actor CostHistoryWorker {
     func aggregate(
         windowDays: Int,
         activeDeviceIDs: Set<String>?,
-        sourceSnapshots: [SyncedUsageSnapshot]) throws -> CostLedgerAggregation
+        sourceSnapshots: [SyncedUsageSnapshot],
+        accountLinks: [CostLedgerAccountLink] = []) throws -> CostLedgerAggregation
     {
         try Task.checkCancellation()
         return try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
             windowDays: windowDays,
             in: self.makeContext(),
             activeDeviceIDs: activeDeviceIDs,
-            sourceSnapshots: sourceSnapshots)
+            sourceSnapshots: sourceSnapshots,
+            accountLinks: accountLinks)
     }
 
     func snapshotTokenActivity(
@@ -120,7 +122,8 @@ actor CostHistoryWorker {
             in: self.makeContext(),
             asOf: referenceDate,
             activeDeviceIDs: CostLedgerDeviceFilter.activeDeviceIDs(for: sourceSnapshots),
-            sourceSnapshots: sourceSnapshots)
+            sourceSnapshots: sourceSnapshots,
+            accountLinks: CostLedgerService.accountLinks(for: providers))
         try Task.checkCancellation()
         return TokenActivity.series(providers: providers, rollups: aggregation.sortedProviderRollups)
     }
@@ -134,7 +137,8 @@ actor CostHistoryWorker {
                 windowDays: request.windowDays,
                 in: context,
                 activeDeviceIDs: request.activeDeviceIDs,
-                sourceSnapshots: request.sourceSnapshots)
+                sourceSnapshots: request.sourceSnapshots,
+                accountLinks: CostLedgerService.accountLinks(for: request.snapshot.providers))
         } else {
             aggregation = nil
         }

@@ -1165,7 +1165,6 @@ extension KeyedDecodingContainer {
     }
 }
 
-/// A single provider's usage snapshot for iCloud sync.
 /// iPhone-local explanation of a merged provider card: which Mac supplied the shown observation and
 /// which Macs reported newer refresh failures. Computed by the iOS merger; Macs never publish it.
 public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
@@ -1191,6 +1190,9 @@ public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
     public let failures: [Failure]
     /// Number of distinct Macs that contributed an entry to this card.
     public let deviceCount: Int
+    /// Identities of identity-less failures folded into this card, so local cost history recorded
+    /// under them still belongs to this card.
+    public let absorbedAccountIdentities: [String]
 
     public var allFailed: Bool {
         self.sourceDeviceID == nil
@@ -1201,16 +1203,19 @@ public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
         sourceDeviceName: String?,
         sourceCapturedAt: Date?,
         failures: [Failure],
-        deviceCount: Int)
+        deviceCount: Int,
+        absorbedAccountIdentities: [String] = [])
     {
         self.sourceDeviceID = sourceDeviceID
         self.sourceDeviceName = sourceDeviceName
         self.sourceCapturedAt = sourceCapturedAt
         self.failures = failures
         self.deviceCount = deviceCount
+        self.absorbedAccountIdentities = absorbedAccountIdentities
     }
 }
 
+/// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// Stable pseudo-account used only to transport provider-level OpenRouter
     /// Management Activity spend. It must not inherit the currently selected
@@ -1256,6 +1261,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let providerIconMonogram: String?
     public let providerIconTintHex: String?
     /// iPhone-local merge explanation; never published by a Mac and nil on per-device snapshots.
+    /// Decoded tolerantly so a locally encoded merged snapshot round-trips; the merger recomputes it.
     public var sourceReport: SyncProviderSourceReport?
 
     /// Mac-side stable identifiers for the logical account this snapshot
@@ -1806,6 +1812,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             maximumCount: SyncProviderDetailSection.maximumSectionsPerSnapshot)
         self.providerIconMonogram = try container.decodeIfPresent(String.self, forKey: .providerIconMonogram)
         self.providerIconTintHex = try container.decodeIfPresent(String.self, forKey: .providerIconTintHex)
+        self.sourceReport = try? container.decodeIfPresent(SyncProviderSourceReport.self, forKey: .sourceReport)
     }
 }
 

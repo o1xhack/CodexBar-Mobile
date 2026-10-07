@@ -1,5 +1,6 @@
 import CodexBarSync
 import Foundation
+import SwiftData
 import Testing
 @testable import CodexBarMobile
 
@@ -77,8 +78,8 @@ struct MultiMacFailureFallbackTests {
 
         let status = try #require(ProviderSourceStatus.resolve(provider: card))
         #expect(status.sourceDeviceName == "Mac Studio")
-        #expect(status.newerFailures.map(\.deviceName) == ["MacBook Pro"])
-        #expect(status.newerFailures.first?.message?.contains("browser permission") == true)
+        #expect(status.failures.map(\.deviceName) == ["MacBook Pro"])
+        #expect(status.failures.first?.message?.contains("browser permission") == true)
         #expect(status.allFailed == false)
         #expect(status.needsNotice(at: self.now))
     }
@@ -115,7 +116,7 @@ struct MultiMacFailureFallbackTests {
         #expect(card.isError == false)
         let status = try #require(ProviderSourceStatus.resolve(provider: card))
         #expect(status.sourceDeviceName == "Mac Studio")
-        #expect(status.newerFailures.map(\.deviceName) == ["MacBook Pro"])
+        #expect(status.failures.map(\.deviceName) == ["MacBook Pro"])
     }
 
     @Test func `when every Mac fails the newest failure is shown`() throws {
@@ -129,7 +130,7 @@ struct MultiMacFailureFallbackTests {
         #expect(card.primary == nil)
         let status = try #require(ProviderSourceStatus.resolve(provider: card))
         #expect(status.allFailed)
-        #expect(Set(status.newerFailures.map(\.deviceName)) == ["Mac Studio", "MacBook Pro"])
+        #expect(Set(status.failures.map(\.deviceName)) == ["Mac Studio", "MacBook Pro"])
         let content = try #require(ProviderSourceNoticeContent(status: status, now: self.now, locale: Locale(identifier: "en")))
         #expect(content.title == "No Mac could refresh this provider")
     }
@@ -147,7 +148,7 @@ struct MultiMacFailureFallbackTests {
         #expect([providers.first].compactMap(\.self).groupedByProvider().first?.accounts.count == 1)
         let account = try #require(providers.first)
         let status = try #require(ProviderSourceStatus.resolve(provider: account))
-        #expect(status.newerFailures.map(\.deviceName) == ["MacBook Pro"])
+        #expect(status.failures.map(\.deviceName) == ["MacBook Pro"])
     }
 
     @Test func `a single Mac failure keeps today's error card`() throws {
@@ -164,17 +165,21 @@ struct MultiMacFailureFallbackTests {
         let status = try #require(ProviderSourceStatus.resolve(provider: card))
         #expect(status.needsNotice(at: self.now) == false)
         #expect(ProviderSourceNoticeContent(status: status, now: self.now) == nil)
-        #expect(status.newerFailures.isEmpty)
+        #expect(status.failures.isEmpty)
     }
 
-    @Test func `older failures than the shown data are not reported`() throws {
-        let studio = self.device("Mac Studio", [self.observation(capturedAt: self.now)], at: self.now)
-        let macbook = self.device("MacBook Pro", [self.failure(at: self.now.addingTimeInterval(-3600))],
-                                  at: self.now.addingTimeInterval(-3600))
-        let card = try #require(try self.merged([studio, macbook]).first)
-        let status = try #require(ProviderSourceStatus.resolve(provider: card))
-        #expect(status.newerFailures.isEmpty)
-        #expect(status.needsNotice(at: self.now) == false)
+    @Test func `a Mac that is still failing stays listed whichever Mac refreshed last`() throws {
+        // Each entry is its Mac's latest state; comparing times would make the notice flicker.
+        for failureAge in [-3600.0, 3600.0] {
+            let studio = self.device("Mac Studio", [self.observation(capturedAt: self.now)], at: self.now)
+            let failedAt = self.now.addingTimeInterval(failureAge)
+            let macbook = self.device("MacBook Pro", [self.failure(at: failedAt)], at: failedAt)
+            let card = try #require(try self.merged([studio, macbook]).first)
+            let status = try #require(ProviderSourceStatus.resolve(provider: card))
+            #expect(status.failures.map(\.deviceName) == ["MacBook Pro"])
+            #expect(status.showsDataFromAnotherMac)
+            #expect(status.needsNotice(at: self.now))
+        }
     }
 
     @Test func `different providers and accounts are unaffected`() throws {
@@ -219,6 +224,10 @@ struct MultiMacFailureFallbackTests {
         #expect(kept["a"] != nil)
         #expect(kept["b"] != nil, "an actively reported error is not a ghost record")
         #expect(kept["c"] == nil, "a silent identity-less record lagging 30 min is still a ghost")
+
+        let lastErrorLongAgo = self.observation(capturedAt: self.now.addingTimeInterval(-8 * 86400), isError: true)
+        let bounded = SnapshotCache.dropOrphansAndStale(["a": fresh, "b": lastErrorLongAgo])
+        #expect(bounded["b"] == nil, "an error kept more than 7 days behind its Mac is a ghost")
     }
 
     private func costSummary(_ cost: Double) -> SyncCostSummary {
@@ -270,16 +279,118 @@ struct MultiMacFailureFallbackTests {
         #expect(withMock.contains { $0.isError }, "a mock account must not absorb the real failure")
     }
 
+    private func collapseAliases(_ snapshots: [SyncedUsageSnapshot]) throws -> SyncedUsageSnapshot {
+        let ids = snapshots.compactMap(\.deviceID)
+        let event = DeviceLifecycleEvent(
+            kind: .alias,
+            primaryDeviceID: ids[0],
+            relatedDeviceIDs: Array(ids.dropFirst()),
+            confirmedFromDeviceID: "fixture-phone")
+        let resolution = DeviceSnapshotResolver.resolveDeviceSnapshots(snapshots, lifecycleEvents: [event])
+        #expect(resolution.activeSnapshots.count == 1)
+        return try #require(resolution.activeSnapshots.first)
+    }
+
     @Test func `one physical Mac's alias collapse keeps its newest failure`() throws {
         let retired = self.device(
             "Mac Studio (old)", [self.observation(capturedAt: self.now.addingTimeInterval(-3 * 86400))],
             at: self.now.addingTimeInterval(-3 * 86400))
         let current = self.device("Mac Studio", [self.failure(at: self.now)], at: self.now)
-        let collapsed = try #require(ProviderSnapshotMerger.mergeSnapshots(
-            [retired, current], sumLocalCostsAcrossDevices: false, prefersObservationsOverFailures: false))
+        let collapsed = try self.collapseAliases([current, retired])
         #expect(collapsed.providers.count == 1)
         #expect(collapsed.providers.first?.isError == true)
         #expect(collapsed.providers.first?.sourceReport == nil)
+        let card = try #require(try self.merged([collapsed]).first)
+        #expect(card.isError)
+    }
+
+    @Test func `a failure absorbed into the same Mac's older account is not called another Mac`() throws {
+        let retired = self.device(
+            "Mac Studio (old)",
+            [self.observation("cursor", capturedAt: self.now.addingTimeInterval(-3 * 86400), email: "x@example.invalid")],
+            at: self.now.addingTimeInterval(-3 * 86400))
+        let current = self.device("Mac Studio", [self.failure("cursor", at: self.now)], at: self.now)
+        let collapsed = try self.collapseAliases([current, retired])
+        let card = try #require(try self.merged([collapsed]).first)
+        let status = try #require(ProviderSourceStatus.resolve(provider: card))
+        #expect(status.failures.count == 1)
+        #expect(status.showsDataFromAnotherMac == false)
+        let content = try #require(ProviderSourceNoticeContent(status: status, now: self.now, locale: Locale(identifier: "en")))
+        #expect(content.title == "Data may be out of date")
+        #expect(content.isWarning)
+    }
+
+    @Test func `an identity-less failure next to several accounts keeps its own error card`() throws {
+        let studio = self.device("Mac Studio", [
+            self.observation("cursor", capturedAt: self.now.addingTimeInterval(-60), email: "a@example.invalid"),
+            self.observation("cursor", capturedAt: self.now.addingTimeInterval(-60), email: "b@example.invalid"),
+        ], at: self.now.addingTimeInterval(-60))
+        let macbook = self.device("MacBook Pro", [self.failure("cursor", at: self.now)], at: self.now)
+        let providers = try self.merged([studio, macbook])
+        #expect(providers.count == 3)
+        #expect(providers.count(where: \.isError) == 1)
+    }
+
+    @Test func `a merged card's source report survives a local encode and decode`() throws {
+        let studio = self.device("Mac Studio", [self.observation(capturedAt: self.now.addingTimeInterval(-600))],
+                                 at: self.now.addingTimeInterval(-600))
+        let macbook = self.device("MacBook Pro", [self.failure(at: self.now)], at: self.now)
+        let card = try #require(try self.merged([studio, macbook]).first)
+        let report = try #require(card.sourceReport)
+        let data = try CloudSyncConstants.makeJSONEncoder().encode(card)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.sourceReport == report)
+        let raw = try CloudSyncConstants.makeJSONEncoder().encode(self.failure(at: self.now))
+        #expect(String(decoding: raw, as: UTF8.self).contains("sourceReport") == false)
+    }
+
+    @Test @MainActor
+    func `an absorbed failure's local costs stay on the card in the cost ledger`() throws {
+        let studioClaude = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+            accountEmail: "fixture@example.invalid", loginMethod: "Max", statusMessage: nil, isError: false,
+            lastUpdated: self.now.addingTimeInterval(-300), costSummary: self.costSummary(10),
+            rateWindows: self.observation(capturedAt: self.now).rateWindows)
+        let macbookFailure = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil, accountEmail: nil,
+            loginMethod: nil, statusMessage: "OAuth token unavailable", isError: true, lastUpdated: self.now,
+            costSummary: self.costSummary(5))
+        let devices = [
+            self.device("Mac Studio", [studioClaude], at: self.now.addingTimeInterval(-300)),
+            self.device("MacBook Pro", [macbookFailure], at: self.now),
+        ]
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots(devices))
+        #expect(merged.providers.count == 1)
+
+        let container = try ModelContainer(
+            for: DailyCostPoint.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let defaults = try #require(UserDefaults(suiteName: "multi-mac-ledger-\(UUID().uuidString)"))
+        for device in devices {
+            for provider in device.providers {
+                try CostLedgerService.upsertFromSnapshot(
+                    provider, deviceID: try #require(device.deviceID), in: context, userDefaults: defaults)
+            }
+        }
+        try context.save()
+        let gmt = try #require(TimeZone(secondsFromGMT: 0))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = gmt
+        let links = CostLedgerService.accountLinks(for: merged.providers)
+        #expect(links.count == 1)
+        let aggregation = try CostLedgerService.aggregate(
+            windowDays: 30, in: context, asOf: self.now, accountLinks: links, readerTimeZone: gmt)
+        #expect(aggregation.providerRollups.count == 1)
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: aggregation, snapshot: merged, now: self.now, calendar: calendar)
+        #expect(insights.providerRows.count == 1)
+        #expect(insights.providerRows.first?.thirtyDayCost == 15)
+
+        let series = TokenActivity.series(
+            providers: merged.providers, rollups: aggregation.sortedProviderRollups, referenceDate: self.now)
+        #expect(series.first?.days.map(\.totalTokens).reduce(0, +) == 20)
     }
 
     @Test func `a confirmed linkage reports the Mac whose data the card shows`() throws {
@@ -302,6 +413,23 @@ struct MultiMacFailureFallbackTests {
         #expect(card.primary?.usedPercent == 12)
         #expect(card.sourceReport?.sourceDeviceName == "MacBook Pro")
         #expect(card.sourceReport?.failures.isEmpty == true)
+    }
+
+    @Test func `a user unmerge keeps the identity-less failure separate`() throws {
+        let studio = self.device(
+            "Mac Studio",
+            [self.observation("cursor", capturedAt: self.now.addingTimeInterval(-60), email: "x@example.invalid")],
+            at: self.now.addingTimeInterval(-60))
+        let macbook = self.device("MacBook Pro", [self.failure("cursor", at: self.now)], at: self.now)
+        let unmerge = ProviderAccountLinkage(
+            providerID: "cursor",
+            linkedIdentifiers: ["cursor:email:x@example.invalid", "cursor:legacy-no-identity"],
+            confirmedAt: self.now,
+            confirmedFromDeviceID: "iphone",
+            unmerge: true)
+        let merged = try #require(ProviderSnapshotMerger.mergeSnapshots([studio, macbook], linkages: [unmerge]))
+        #expect(merged.providers.count == 2)
+        #expect(merged.providers.count(where: \.isError) == 1)
     }
 
     @Test func `old data alone is informational and a lone Mac failure adds no notice`() throws {

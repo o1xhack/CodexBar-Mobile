@@ -1118,6 +1118,7 @@ private struct CostTab: View {
                     $0.cardIdentityKey,
                     $0.accountEmail ?? "",
                     CostLedgerService.accountIdentityKeys(for: $0).sorted().joined(separator: ","),
+                    ($0.sourceReport?.absorbedAccountIdentities ?? []).joined(separator: ","),
                 ].joined(separator: ":")
             }.sorted().joined(separator: ";"),
             self.usageData.providerLinkages.map {
@@ -4635,7 +4636,11 @@ private struct CostDiagnosticsView: View {
             activeDeviceIDs: self.activeDeviceIDsForLedger,
             snapshots: self.usageData.deviceSnapshots,
             clearTombstone: self.cwlBlobSeedClearedAt,
-            currentDayKey: self.ledgerRefreshDayKey)
+            currentDayKey: self.ledgerRefreshDayKey) + "|\(self.ledgerAccountLinks)"
+    }
+
+    private var ledgerAccountLinks: [CostLedgerAccountLink] {
+        CostLedgerService.accountLinks(for: self.usageData.snapshot?.providers ?? [])
     }
 
     @MainActor
@@ -4648,7 +4653,8 @@ private struct CostDiagnosticsView: View {
         let aggregation = try? await CostHistoryWorker.shared.aggregate(
             windowDays: max(1, self.cwlWindowDays),
             activeDeviceIDs: self.activeDeviceIDsForLedger,
-            sourceSnapshots: self.usageData.deviceSnapshots)
+            sourceSnapshots: self.usageData.deviceSnapshots,
+            accountLinks: self.ledgerAccountLinks)
         guard !Task.isCancelled, signature == self.ledgerRefreshSignature else { return }
         self.cachedLedgerAggregation = aggregation
         self.cachedLedgerSignature = signature
