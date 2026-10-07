@@ -1,6 +1,6 @@
 # 实现记录
 
-Status: `in-progress`
+Status: `done`
 
 ## 合并冲突决策（2026-10-06）
 

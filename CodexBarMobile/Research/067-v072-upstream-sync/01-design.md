@@ -1,6 +1,6 @@
 # 合并与数据通道设计
 
-Status: `ready`
+Status: `done`
 
 ## 合并规则
 

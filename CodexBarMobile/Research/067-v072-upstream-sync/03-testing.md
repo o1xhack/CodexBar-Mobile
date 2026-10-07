@@ -1,6 +1,6 @@
 # 本轮测试证据
 
-Status: `in-progress`
+Status: `done`
 
 日志目录：`/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/upstream-v072`（StudioSSD UUID 已校验）。所有测试不触发 Keychain 弹窗，不访问真实 provider 账户或真实 CloudKit。
 
@@ -67,3 +67,25 @@ Status: `in-progress`
 | ios-unit-r1.log | 完整 `CodexBarMobileTests` | 957 Swift Testing / 59 suites + 58 XCTest 全部通过 |
 | frozen-wire-r1.log | `check_frozen_wire.py --old-ref v0.70.0.1-mobile.2.4.0` | PASS: 16 masks, 64 wire reads, 32 real old/new merge processes |
 | ios-focused-r3.log | 审查修复后 V072/Palette/Contrast/V056 | 80 tests / 4 suites 通过 |
+| mac-full-r1.log | `Scripts/test.sh`（HEAD 9b15925e7） | 第 96 组遗漏 mock 计数断言（MockProviderAdvancedScenariosTests 97→100）失败；runner 在首个失败组后停止 → 修正 |
+| mac-full-r2.log | `Scripts/test.sh`（HEAD 67bc90398） | exit 0：1592 selections / 144 组，全部首轮通过，0 重试 0 超时 |
+| mac-focused-r4/r5、mac-multiaccount-r1 | 审查修复（scratch2）：SessionQuotaTransitionIOSPush、SyncV072Bridge、gatekeeper、QuotaWarningPushFire、SessionQuota；`AccountIdentity|MultiAccount|DualZoneReader` | 127 + 25 tests 通过；多账号/多设备门 128 tests / 12 suites 通过 |
+| ios-unit-r2.log | 审查修复后完整 iOS 单测 | 958 Swift Testing + 58/12/9 XCTest 通过 |
+| mac-spend-r3 / mac-spendconc-r2 | Codex 第 2 轮修复（项目行 ID）后 Spend 测试 | 53/53、20/20 通过 |
+| ios-focused-r4.log | Codex 第 1 轮修复（teaser 到期时钟）后 | 16 Swift Testing + 12 XCTest 通过 |
+| mac-full-r3.log | `Scripts/test.sh`（最终 head 000bd2570） | exit 0：1593 selections / 144 组；143 组首轮通过，1 组（OpenAISubscriptionMetadataTests WebKit fixture 超时）整组重试恢复 |
+| ios-unit-r3.log | 最终 head 完整 iOS 单测 | 958 Swift Testing + 58/9 XCTest 通过 |
+| PR #180 | Codex Code Review 3 轮 + `Scripts/check_pr_review_gate.sh 180` | 第 1、2 轮各 1 条 P2 已修复/回复/resolve；第 3 轮 “Didn't find any major issues”（head 000bd2570）；gate 通过，Fast Checks success |
+| Final CI 37589616349 | 合并后 diff-selected Final CI | 全部 job success |
+| mac072-release-phase1-r2.log / mac072-release-finalize.log | `release.sh` phase 1 / `--finalize` | 签名、公证、Draft、公开发布与 appcast 校验均成功（第一次 phase 1 在签名前 lint harness 计时用例失败，重跑通过） |
+
+## Review 记录
+
+| 轮次 | 方式 | 结论 |
+|---|---|---|
+| 1 | 本地独立 review：Mac 合并/桥接 | 无阻塞；1 重要（CHANGELOG 声称 Mac 通知关闭仍推 iOS，与代码不符）→ 修正措辞并补推送顺序测试；建议项（Grok period、阻塞投影余额、CHANGELOG 顺序）已修 |
+| 1 | 本地独立 review：iOS/wire | 无阻塞；1 重要（WorkBuddy "Reserved" 缺翻译）→ 补译文 + 四语言守卫测试；建议项（无障碍、到期刷新、格式化器、浅色模式对比度、译文、审核备注）已修 |
+| 2 | 本地复审修复提交 | 无阻塞、无重要；建议项（注释、阻塞投影测试、Reserved 译文统一、Purchased credits 测试）已修 |
+| PR 1–3 | GitHub Codex Code Review | 2 条 P2 已修；最终 clean，0 unresolved |
+
+最终阻塞问题：0。
