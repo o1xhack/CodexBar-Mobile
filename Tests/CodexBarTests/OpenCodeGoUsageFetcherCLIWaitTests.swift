@@ -15,8 +15,8 @@ struct OpenCodeGoUsageFetcherCLIWaitTests {
         return URLSession(configuration: config)
     }
 
-    @Test
-    func `cli wait policy includes slow but successful zen balance`() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `cli wait policy includes explicitly released zen balance`() async throws {
         defer {
             OpenCodeGoCLIWaitStubURLProtocol.handler = nil
         }
@@ -24,7 +24,6 @@ struct OpenCodeGoUsageFetcherCLIWaitTests {
         OpenCodeGoCLIWaitStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
             if url.path == "/workspace/wrk_TEST123" {
-                Thread.sleep(forTimeInterval: 1)
                 return Self.makeResponse(
                     url: url,
                     body: #"<html><body><h2>現在の残高 $98.76</h2></body></html>"#,
@@ -42,18 +41,49 @@ struct OpenCodeGoUsageFetcherCLIWaitTests {
                 contentType: "text/html")
         }
 
-        let start = ContinuousClock.now
-        let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
-            cookieHeader: "auth=test",
-            timeout: 60,
-            workspaceIDOverride: "wrk_TEST123",
-            waitForZenBalance: true,
-            session: self.makeSession())
-        let elapsed = start.duration(to: ContinuousClock.now)
+        let balanceStarted = AsyncStream.makeStream(of: Void.self)
+        let joinStarted = AsyncStream.makeStream(of: Duration.self)
+        let deadline = AsyncStream.makeStream(of: Void.self)
+        let now = ContinuousClock.now
+        OpenCodeGoCLIWaitStubURLProtocol.onHold = { balanceStarted.continuation.yield(()) }
+        defer { OpenCodeGoCLIWaitStubURLProtocol.onHold = nil }
+        let holdDeadline: @Sendable (Duration) async throws -> Void = { duration in
+            joinStarted.continuation.yield(duration)
+            for await _ in deadline.stream {}
+            try Task.checkCancellation()
+        }
+        let task = Task {
+            defer {
+                balanceStarted.continuation.finish()
+                joinStarted.continuation.finish()
+            }
+            return try await BoundedTaskJoinTiming.$sleep.withValue(holdDeadline) {
+                try await OpenCodeGoUsageFetcher.fetchUsage(
+                    cookieHeader: "auth=test",
+                    timeout: 60,
+                    workspaceIDOverride: "wrk_TEST123",
+                    waitForZenBalance: true,
+                    session: self.makeSession(),
+                    clockNow: { now })
+            }
+        }
+        defer {
+            task.cancel()
+            OpenCodeGoCLIWaitStubURLProtocol.heldResponse.setValue(nil)
+        }
+        for await _ in balanceStarted.stream {
+            break
+        }
+        var join = joinStarted.stream.makeAsyncIterator()
+        // The balance is still held when the CLI chooses its full budget, rather than the app's short grace.
+        #expect(await join.next() == .seconds(5))
+        let deliver = try #require(OpenCodeGoCLIWaitStubURLProtocol.heldResponse.value)
+        OpenCodeGoCLIWaitStubURLProtocol.heldResponse.setValue(nil)
+        deliver()
+        let snapshot = try await task.value
 
         #expect(snapshot.rollingUsagePercent == 17)
         #expect(snapshot.zenBalanceUSD == 98.76)
-        #expect(elapsed >= .milliseconds(900))
     }
 
     @Test
@@ -130,13 +160,19 @@ struct OpenCodeGoUsageFetcherCLIWaitTests {
         defer {
             OpenCodeGoCLIWaitStubURLProtocol.handler = nil
             OpenCodeGoCLIWaitStubURLProtocol.hangPaths = []
-            OpenCodeGoCLIWaitStubURLProtocol.delayedPaths = [:]
         }
 
+        let startedAt = ContinuousClock.now
+        let clock = LockIsolated(startedAt)
+        let clockReads = LockIsolated<[ContinuousClock.Instant]>([])
+        let clockStarted = DispatchSemaphore(value: 0)
         OpenCodeGoCLIWaitStubURLProtocol.hangPaths = ["/workspace/wrk_TEST123"]
-        OpenCodeGoCLIWaitStubURLProtocol.delayedPaths = ["/workspace/wrk_TEST123/go": 2]
         OpenCodeGoCLIWaitStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/workspace/wrk_TEST123/go" {
+                #expect(clockStarted.wait(timeout: .now() + 30) == .success)
+                clock.setValue(startedAt.advanced(by: .seconds(8)))
+            }
             return Self.makeResponse(
                 url: url,
                 body: Self.goUsagePageHTML(
@@ -148,18 +184,32 @@ struct OpenCodeGoUsageFetcherCLIWaitTests {
                 contentType: "text/html")
         }
 
-        let start = ContinuousClock.now
         let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
             cookieHeader: "auth=test",
             timeout: 60,
             workspaceIDOverride: "wrk_TEST123",
             waitForZenBalance: true,
-            session: self.makeSession())
-        let elapsed = start.duration(to: ContinuousClock.now)
+            session: self.makeSession(),
+            clockNow: {
+                let now = clock.value
+                clockReads.setValue(clockReads.value + [now])
+                clockStarted.signal()
+                return now
+            })
 
         #expect(snapshot.rollingUsagePercent == 17)
         #expect(snapshot.zenBalanceUSD == nil)
-        #expect(elapsed < .seconds(6))
+        #expect(clockReads.value == [startedAt, startedAt.advanced(by: .seconds(8))])
+        for (elapsed, expected) in [(0, 5), (2, 3), (5, 0), (8, 0)] {
+            #expect(OpenCodeGoUsageFetcher.optionalZenBalanceJoinTimeout(
+                since: startedAt,
+                waitForZenBalance: true,
+                now: startedAt.advanced(by: .seconds(elapsed))) == .seconds(expected))
+        }
+        #expect(OpenCodeGoUsageFetcher.optionalZenBalanceJoinTimeout(
+            since: startedAt,
+            waitForZenBalance: false,
+            now: startedAt.advanced(by: .seconds(8))) == .milliseconds(250))
     }
 
     private static func goUsagePageHTML(
@@ -223,10 +273,11 @@ private final class OpenCodeGoCLIWaitStubURLProtocol: URLProtocol, @unchecked Se
         set { hangPathsBox.setValue(newValue) }
     }
 
-    private static let delayedPathsBox = LockIsolated<[String: TimeInterval]>([:])
-    static var delayedPaths: [String: TimeInterval] {
-        get { delayedPathsBox.value }
-        set { delayedPathsBox.setValue(newValue) }
+    static let heldResponse = LockIsolated<(() -> Void)?>(nil)
+    private static let onHoldBox = LockIsolated<(() -> Void)?>(nil)
+    static var onHold: (() -> Void)? {
+        get { onHoldBox.value }
+        set { onHoldBox.setValue(newValue) }
     }
 
     override static func canInit(with request: URLRequest) -> Bool {
@@ -245,7 +296,6 @@ private final class OpenCodeGoCLIWaitStubURLProtocol: URLProtocol, @unchecked Se
         if Self.hangPaths.contains(url.path) {
             return
         }
-        let delay = Self.delayedPaths[url.path] ?? 0
         let deliver: () -> Void = { [weak self] in
             guard let self else { return }
             do {
@@ -257,8 +307,9 @@ private final class OpenCodeGoCLIWaitStubURLProtocol: URLProtocol, @unchecked Se
                 self.client?.urlProtocol(self, didFailWithError: error)
             }
         }
-        if delay > 0 {
-            DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
+        if url.path == "/workspace/wrk_TEST123", let onHold = Self.onHold {
+            Self.heldResponse.setValue(deliver)
+            onHold()
         } else {
             deliver()
         }

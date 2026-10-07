@@ -83,9 +83,14 @@ struct CodebuffUsageFetcherTests {
 
     @Test
     func `subscription grace does not wait for transport that ignores cancellation`() async throws {
+        let subscriptionStarted = HeldRequestGate()
+        let releaseSubscription = HeldRequestGate()
+        let subscriptionFinished = HeldRequestGate()
+        defer { Task { await releaseSubscription.open() } }
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             if url.path == "/api/v1/usage" {
+                await subscriptionStarted.wait()
                 let response = try Self.makeResponse(
                     url: url,
                     body: #"{"usage":25,"quota":100,"remainingBalance":75}"#)
@@ -94,33 +99,31 @@ struct CodebuffUsageFetcherTests {
             let response = try Self.makeResponse(
                 url: url,
                 body: #"{"subscription":{"displayName":"Pro","status":"active"}}"#)
-            return await withCheckedContinuation { continuation in
-                DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                    continuation.resume(returning: (response.1, response.0))
-                }
-            }
+            await subscriptionStarted.open()
+            await releaseSubscription.wait()
+            await subscriptionFinished.open()
+            return (response.1, response.0)
         }
 
-        let startedAt = ContinuousClock.now
         let snapshot = try await CodebuffUsageFetcher._fetchUsageForTesting(
             apiKey: "cb-test",
             transport: transport,
             subscriptionGrace: .milliseconds(20))
-        let elapsed = startedAt.duration(to: .now)
 
         #expect(snapshot.creditsUsed == 25)
         #expect(snapshot.tier == nil)
-        #expect(elapsed < .milliseconds(300), "Subscription enrichment delayed usage: \(elapsed)")
-
-        // Let the deliberately cancellation-ignoring test task drain before the test exits.
-        try await Task.sleep(for: .milliseconds(550))
+        #expect(await releaseSubscription.isOpen == false)
+        await releaseSubscription.open()
+        await subscriptionFinished.wait()
     }
 
     @Test
     func `cancellation stops subscription while usage transport ignores cancellation`() async throws {
-        let usageStarted = CodebuffRequestGate()
-        let subscriptionStarted = CodebuffRequestGate()
-        let subscriptionCancelled = CodebuffRequestGate()
+        let releaseUsage = HeldRequestGate()
+        defer { Task { await releaseUsage.open() } }
+        let usageStarted = HeldRequestGate()
+        let subscriptionStarted = HeldRequestGate()
+        let subscriptionCancelled = HeldRequestGate()
         let transport = ProviderHTTPTransportStub { request in
             let url = try #require(request.url)
             if url.path == "/api/v1/usage" {
@@ -128,16 +131,13 @@ struct CodebuffUsageFetcherTests {
                 let response = try Self.makeResponse(
                     url: url,
                     body: #"{"usage":25,"quota":100,"remainingBalance":75}"#)
-                return await withCheckedContinuation { continuation in
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                        continuation.resume(returning: (response.1, response.0))
-                    }
-                }
+                await releaseUsage.wait()
+                return (response.1, response.0)
             }
 
             await subscriptionStarted.open()
             do {
-                try await Task.sleep(for: .seconds(10))
+                try await Task.sleep(for: .seconds(60))
             } catch {
                 await subscriptionCancelled.open()
                 throw error
@@ -155,11 +155,11 @@ struct CodebuffUsageFetcherTests {
 
         await usageStarted.wait()
         await subscriptionStarted.wait()
-        let cancellationStartedAt = ContinuousClock.now
         task.cancel()
 
         await subscriptionCancelled.wait()
-        #expect(cancellationStartedAt.duration(to: .now) < .milliseconds(300))
+        #expect(await releaseUsage.isOpen == false)
+        await releaseUsage.open()
         await #expect(throws: CancellationError.self) {
             try await task.value
         }
@@ -415,12 +415,20 @@ struct CodebuffUsageFetcherTests {
     }
 }
 
-private actor CodebuffRequestGate {
-    private var isOpen = false
+/// A cancellation-ignoring fixture held until the test releases it; the deadline only detects hangs.
+actor HeldRequestGate {
+    private(set) var isOpen = false
     private var continuations: [CheckedContinuation<Void, Never>] = []
 
     func wait() async {
         guard !self.isOpen else { return }
+        let hangGuard = Task {
+            do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            guard !self.isOpen else { return }
+            Issue.record("Held request was not released before the hang guard")
+            self.open()
+        }
+        defer { hangGuard.cancel() }
         await withCheckedContinuation { continuation in
             self.continuations.append(continuation)
         }

@@ -20,6 +20,8 @@ Automatic cookie source tries Cloud first, then NaN when no Cloud session is ava
 parse error, rate limit, or server failure stops the refresh instead of switching accounts. Sessions are cached in
 separate Keychain scopes by requested cookie domain; rejected sessions are conditionally evicted without erasing
 another tenant or a newer session. The Usage Dashboard action follows the tenant of the displayed successful snapshot.
+If browser access is suppressed or denied and neither tenant succeeds, the error explains how to retry permission
+with Refresh in the provider menu or use Manual cookies. Background refreshes never request Keychain permission.
 
 For Manual cookie source, paste the request's `Cookie:` header and choose **Manual cookie tenant**. The header is sent
 only to that tenant, and never falls back to the other one. Cookie Off disables cookie access. Manual mode bypasses

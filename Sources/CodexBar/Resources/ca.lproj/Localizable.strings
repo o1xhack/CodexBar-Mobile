@@ -5,6 +5,10 @@
 "Conversations (%@)" = "Converses (%@)";
 "Fast" = "Ràpid";
 "iCloud Sync" = "Sincronització amb iCloud";
+
+"Independent chat" = "Xat independent";
+"Independent chats" = "Xats independents";
+"Chat %d" = "Xat %d";
 "Projects" = "Projectes";
 "Session %@" = "Sessió %@";
 "Std" = "Est.";
@@ -80,6 +84,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Mitjana (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Evita les sol·licituds del Clauer";
 "Balance" = "Saldo";
+"Cloud credits" = "Crèdits al núvol";
+"Expired" = "Caducat";
 "Battery Saver" = "Estalvi de bateria";
 "Bordered" = "Amb vora";
 "Build" = "Compilació";
@@ -1237,7 +1243,6 @@
 "No %@ utilization data yet." = "Encara no hi ha dades d'utilització de %@.";
 "No available fetch strategy for %@." = "No hi ha cap estratègia d'obtenció disponible per a %@.";
 "No available fetch strategy for minimax." = "No hi ha cap estratègia d'obtenció disponible per a MiniMax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "No s'ha trobat cap sessió de Cursor. Inicieu la sessió a cursor.com amb Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX o Edge Canary. Si feu servir Safari, atorgueu al CodexBar Accés complet al disc a Configuració del Sistema ▸ Privadesa i Seguretat. També podeu iniciar la sessió a Cursor des del menú del CodexBar (Afegiu / canvieu de compte).";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "No s'ha detectat cap IDE de JetBrains amb AI Assistant. Instal·leu un IDE de JetBrains i activeu l'AI Assistant.";
 "No local data found" = "No s'han trobat dades locals";
 "No OpenCode session cookies found in browsers." = "No s'han trobat galetes de sessió d'OpenCode als navegadors.";
@@ -1280,6 +1285,11 @@
 "session_depleted_notification_body" = "Queda un 0%. Es notificarà quan torni a estar disponible.";
 "session_depleted_notification_title" = "Quota de sessió de %@ esgotada";
 "session_restored_notification_body" = "La quota de sessió torna a estar disponible.";
+"limit_reset_notifications_title" = "Avisos de restabliment";
+"limit_reset_notifications_subtitle" = "Indica el proveïdor i la finestra quan es restableix un límit de sessió o setmanal.";
+"limit_reset_notification_title" = "Límit de %1$@ restablert (%2$@)";
+"limit_reset_notification_body" = "Hi ha quota nova disponible.";
+"limit_reset_notification_body_with_account" = "Compte %@. Hi ha quota nova disponible.";
 "session_restored_notification_title" = "Quota de sessió de %@ restablerta";
 "Settings..." = "Configuració...";
 "Source" = "Origen";
@@ -1720,3 +1730,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "La sincronització dels ajustos del Mac és independent de la de l’ús de l’iPhone. Activa-la a cada Mac perquè aparegui aquí. L’historial de costos es conserva localment.";
 
 "Cached data from" = "Dades en memòria cau de";
+"Supported browsers: %@. Use Manual for other browsers." = "Navegadors compatibles: %@. Fes servir Manual per als altres navegadors.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Enganxeu la capçalera Cookie d’una sol·licitud de Chrome a www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reservat";

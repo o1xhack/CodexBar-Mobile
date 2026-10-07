@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-CodexBar currently registers 87 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+CodexBar currently registers 90 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -98,6 +98,7 @@ complete when the available scan window covers fewer days.
 | ElevenLabs | API key from config/env → subscription usage API (`api`). |
 | [Nous Portal](nous.md) | Read-only Hermes login or explicit access token → bundled plugin for monthly credits and top-up balances (`api`). |
 | [Muse Code](muse.md) | Existing CLI device-code login → bundled plugin for reported five-hour and weekly subscription quotas (`oauth`); opt-in `dev.meta.ai` browser-team quota for a user-selected team when the login response omits them (`oauth+web`). |
+| [Muse (muse.ai)](museai.md) | Browser cookies for `muse.ai` or a manual Cookie header → bundled plugin for the muse.ai weekly Free/Power/Maximum allowance (`web`). |
 | [CodeRabbit](coderabbit.md) | One bounded local CLI usage report for review counts and billing state (`cli`); no quota or balance is inferred. |
 | [Replicate](replicate.md) | Native Chrome cookie candidates or a manual header → bundled plugin for monthly spend and optional prepaid credits (`web`). |
 | [TypeSafe](typesafe.md) | Chrome cookies or a manual header → bundled plugin for billing spend and credit balance (`web`). |
@@ -153,6 +154,14 @@ complete when the available scan window covers fewer days.
 | Notion AI | Browser cookies → workspace resolution and the AI usage allowance API (`web`). |
 | [IBM Bob](ibm-bob.md) | API key from config/env → profile and per-team Bobcoin budget APIs (`api`). |
 | [Pi](pi.md) | Local Pi/OMP assistant transcripts → token history and API-rate cost estimates (`local`); no subscription quota. |
+<!-- Generated provider additions: Scripts/regenerate-provider-docs.mjs -->
+
+| Provider | Source |
+|---|---|
+| [LithosAI](lithosai.md) | Chrome or manual console cookies for prepaid USD balance and optional UTC spend. |
+| [WorkBuddy](workbuddy.md) | Chrome or manual www.workbuddy.cn cookies for the monthly credits allowance, plan name, and cycle reset. |
+
+<!-- End generated provider additions -->
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.

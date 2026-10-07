@@ -114,7 +114,7 @@ extension SettingsStore {
                 && descriptor.fetchPlan.sourceModes.isDisjoint(with: nonCLIModes))
         guard requiresCLI else { return true }
         if let binaryLocator = descriptor.cli.binaryLocator {
-            return binaryLocator() != nil
+            return binaryLocator(ProcessInfo.processInfo.environment) != nil
         }
         return ([descriptor.cli.name] + descriptor.cli.aliases).contains { TTYCommandRunner.which($0) != nil }
     }

@@ -21,6 +21,16 @@ read_when:
   - `GET https://opencode.ai/console/api/billing/status` reads the selected workspace's prepaid PAYG Zen balance
     with the same `x-org-id` header. Convert its signed `balanceMicroCents` string to USD by dividing by 100,000,000;
     `availableMicroCents` is a separate credit value and is not substituted for the balance.
+- The base OpenCode provider also uses these Console endpoints when the cookie header contains
+  `__Host-console_session`. It maps Go's five-hour/week meters and subscription end into its existing quota
+  windows. Legacy-only cookies retain the existing server-function path.
+- For base OpenCode workspaces without Go quota, `GET /console/api/orgs/current` must confirm
+  `hasGoSubscription: false` and billing status must confirm `mode: "pay-as-you-go"` before
+  `GET /console/api/usage/summary?range=30d` supplies spend. Its
+  `totalCostMicroCents` is divided by 100,000,000 and displayed as **Last 30 days**. The default summary
+  range is not used, and rolling spend is not presented as calendar-month spend. No Console monthly
+  spending limit has been established, so no spending percentage is published; the Go month quota
+  is not substituted for a spending limit. An optional prepaid balance uses the existing billing mapping.
 - `POST https://opencode.ai/_server` with server function IDs, used for workspaces that have not migrated to the
   console and for the Zen balance:
   - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
@@ -71,8 +81,10 @@ usage is a separate [OpenAI provider](openai.md), not Codex subscription quota.
   to each candidate browser. Other browsers stay on Manual Cookie import until CodexBar has an explicit browser
   selector.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
-- Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL. OpenCode Go also
-  accepts Console `org_…` IDs and `https://opencode.ai/console/...` URLs.
+- Workspace override accepts a raw `wrk_…` or `org_…` ID, a full `https://opencode.ai/workspace/...` URL,
+  or a `https://opencode.ai/console/...` URL. Both web providers pin all usage, billing and fallback requests
+  to the selected workspace. Console reads send `x-org-id` except during discovery; legacy fallback
+  keeps the same workspace ID in its existing requests.
 - Console migration: OpenCode redirects migrated workspaces from `opencode.ai/workspace/<id>` to the console,
   which serves an empty client-rendered shell, so the legacy scraped payload is absent. Web reads try the
   console API first and fall back to the legacy page when a legacy session cookie is present. The two sessions

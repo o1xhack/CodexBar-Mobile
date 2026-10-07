@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Ortalama (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Anahtar Zinciri istemlerini atla";
 "Balance" = "Bakiye";
+"Cloud credits" = "Bulut kredileri";
+"Expired" = "Süresi doldu";
 "Battery Saver" = "Pil tasarrufu";
 "Bordered" = "Kenarlıklı";
 "Build" = "Derleme";
@@ -525,6 +527,11 @@
 "session_depleted_notification_body" = "0% kaldı. Tekrar kullanılabilir olduğunda bildirilecek.";
 "session_restored_notification_title" = "%@ oturumu geri yüklendi";
 "session_restored_notification_body" = "Oturum kotası tekrar kullanılabilir.";
+"limit_reset_notifications_title" = "Sıfırlama bildirimleri";
+"limit_reset_notifications_subtitle" = "Bir oturum veya haftalık limit sıfırlandığında hangi sağlayıcı ve pencere olduğunu bildirir.";
+"limit_reset_notification_title" = "%1$@ %2$@ limiti sıfırlandı";
+"limit_reset_notification_body" = "Yeni kota kullanılabilir.";
+"limit_reset_notification_body_with_account" = "Hesap %@. Yeni kota kullanılabilir.";
 "quota_warning_warn_at" = "Uyarı eşikleri";
 "quota_warning_global_threshold_subtitle" = "Bir sağlayıcı kendi değerini belirlemedikçe oturum ve haftalık pencereler için kalan kota yüzdesi eşiklerini belirler.";
 "quota_warning_sound" = "Bildirim sesi çal";
@@ -847,7 +854,6 @@
 "No local data found" = "Yerel veri bulunamadı";
 "Credits unavailable; keep Codex running to refresh." = "Krediler kullanılamıyor; yenilemek için Codex'i çalışır durumda tutun.";
 "No available fetch strategy for minimax." = "MiniMax için kullanılabilir veri alma stratejisi yok.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Cursor oturumu bulunamadı. Lütfen Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX veya Edge Canary üzerinden cursor.com'da oturum açın. Safari kullanıyorsanız, Sistem Ayarları ▸ Gizlilik ve Güvenlik bölümünde CodexBar'a Tam Disk Erişimi verin. Cursor'a CodexBar menüsünden de oturum açabilirsiniz (Hesap ekle / değiştir).";
 "No OpenCode session cookies found in browsers." = "Tarayıcılarda OpenCode oturum çerezleri bulunamadı.";
 "No available fetch strategy for %@." = "%@ için kullanılabilir veri alma stratejisi yok.";
 "Today" = "Bugün";
@@ -1549,6 +1555,10 @@
 "Cache write" = "Önbellek yazımı";
 "Reasoning" = "Akıl yürütme";
 "Sessions" = "Oturumlar";
+
+"Independent chat" = "Bağımsız sohbet";
+"Independent chats" = "Bağımsız sohbetler";
+"Chat %d" = "Sohbet %d";
 "Projects" = "Projeler";
 "Plan metered" = "Plan kotasıyla ölçülen";
 "List-price equivalent" = "Liste fiyatı karşılığı";
@@ -1720,3 +1730,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac ayar eşzamanlaması iPhone kullanım eşzamanlamasından ayrıdır. Burada görünmesi için her Mac’te etkinleştirin. Maliyet geçmişi yerel kalır.";
 
 "Cached data from" = "Önbelleğe alınan veri tarihi:";
+"Supported browsers: %@. Use Manual for other browsers." = "Desteklenen tarayıcılar: %@. Diğer tarayıcılar için Manuel seçeneğini kullanın.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome’dan www.workbuddy.cn/profile/plans-usage adresine gönderilen isteğin Cookie başlığını yapıştırın.";
+"Reserved" = "Ayrılmış";

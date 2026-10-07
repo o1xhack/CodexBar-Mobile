@@ -132,34 +132,13 @@ enum OpenCodeZenBillingParser {
     }
 
     private static func doubleValue(from value: Any?) -> Double? {
-        let number: Double? = switch value {
-        case is Bool:
-            nil
-        case let number as Double:
-            number
-        case let number as NSNumber:
-            number.doubleValue
-        case let string as String:
-            Double(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        default:
-            nil
-        }
-        guard let number, number.isFinite else { return nil }
-        return number
+        guard !(value is Bool) else { return nil }
+        return OpenCodeWebParsing.doubleValue(from: value)
     }
 
     private static func dateValue(from value: Any?) -> Date? {
-        if let string = value as? String {
-            return ISO8601DateParser.parse(string)
-        }
-        if let number = self.doubleValue(from: value) {
-            if number > 1_000_000_000_000 {
-                return Date(timeIntervalSince1970: number / 1000)
-            }
-            if number > 1_000_000_000 {
-                return Date(timeIntervalSince1970: number)
-            }
-        }
-        return nil
+        if let string = value as? String { return ISO8601DateParser.parse(string) }
+        guard !(value is Bool) else { return nil }
+        return OpenCodeWebParsing.dateValue(from: value)
     }
 }

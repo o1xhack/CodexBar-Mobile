@@ -19,12 +19,6 @@ enum DarwinProcessEnumerator {
             ["agy", "antigravity-cli", "antigravity_cli", "node", "bun"].contains(basename)
     }
 
-    /// Parses the `KERN_PROCARGS2` payload without consuming the environment
-    /// strings that follow argv.
-    static func parseProcArgs2(_ data: Data) -> String? {
-        self.parseProcArgs2Arguments(data)?.joined(separator: " ")
-    }
-
     /// Returns the original argv from a `KERN_PROCARGS2` payload. Keeping the
     /// boundaries matters for flags whose values contain whitespace.
     static func parseProcArgs2Arguments(_ data: Data) -> [String]? {
@@ -137,13 +131,7 @@ extension DarwinProcessEnumerator {
         guard let data = self.procArgs2Data(pid: pid),
               let layout = self.parseProcArgs2Layout(data)
         else { return nil }
-        let process = AgentProcessRecord(
-            pid: pid,
-            ppid: 0,
-            startedAt: nil,
-            command: layout.arguments.joined(separator: " "),
-            arguments: layout.arguments)
-        let environment = AgentPSOutputParser.piDialect(for: process) == nil
+        let environment = AgentPSOutputParser.piDialect(arguments: layout.arguments) == nil
             ? nil
             : self.parseProcArgs2Environment(data)
         return (layout.arguments, environment)

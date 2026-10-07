@@ -291,6 +291,10 @@ struct GrokAccountContextTests {
         try Data("""
         {"totalTokensBeforeCompaction":40,"contextTokensUsed":2,"primaryModelId":"example-model"}
         """.utf8).write(to: session.appendingPathComponent("signals.json"))
+        let artifact = session.appendingPathComponent("artifacts/nested-session")
+        try FileManager.default.createDirectory(at: artifact, withIntermediateDirectories: true)
+        try Data(#"{"contextTokensUsed":900,"primaryModelId":"artifact-model"}"#.utf8)
+            .write(to: artifact.appendingPathComponent("signals.json"))
         var web = GrokWebFetchStrategy()
         web.remainingResetsLookup = { _, _, _ in .empty }
         let oauth = GrokOAuthFetchStrategy(
@@ -313,6 +317,8 @@ struct GrokAccountContextTests {
         let history = try #require(result.usage.costUsage)
         #expect(history.last30DaysTokens == 42)
         #expect(history.daily.map(\.totalTokens) == [42])
+        #expect(history.daily.map(\.requestCount) == [1])
+        #expect(history.daily.map(\.modelsUsed) == [["example-model"]])
         #expect(history.last30DaysCostUSD == nil)
         #expect(history.costProvenance == .unknown)
         let model = SpendDashboardModel.build(

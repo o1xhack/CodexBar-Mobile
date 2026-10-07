@@ -3,11 +3,14 @@ import Foundation
 
 @MainActor
 extension UsageStore {
+    /// Returns a restored notice for the caller to forward to the account-scoped reset detector.
+    @discardableResult
     func handleSessionQuotaTransition(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
+        accountDiscriminator: String? = nil,
         codexOwnerKey: CodexSessionQuotaOwnerKey? = nil,
-        now: Date = Date())
+        now: Date = Date()) -> Bool
     {
         // Session quota notifications are tied to the primary session window. Copilot free plans can
         // expose only chat quota, so allow Copilot to fall back to secondary for transition tracking.
@@ -22,17 +25,17 @@ extension UsageStore {
         if provider == .codex, !detectionEnabled {
             self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
             self.sessionQuotaLogger.debug("Codex session notifications disabled; cleared notification baseline")
-            return
+            return false
         }
         if provider == .codex, codexOwnerKey == nil {
             self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
             self.sessionQuotaLogger.debug("missing Codex session owner; cleared notification baseline")
-            return
+            return false
         }
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
             if provider == .codex {
                 if let previous = self.sessionQuotaTransitionStates[.codex] {
-                    if previous.codexOwnerKey != codexOwnerKey {
+                    if previous.accountDiscriminator != codexOwnerKey?.rawValue {
                         self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
                     } else {
                         self.sessionQuotaTransitionStates[.codex] = previous.advancingObservationWatermark(
@@ -45,9 +48,9 @@ extension UsageStore {
             } else {
                 self.clearSessionQuotaTransitionState(provider: provider)
             }
-            return
+            return false
         }
-        guard !sessionWindow.window.isSyntheticPlaceholder else { return }
+        guard !sessionWindow.window.isSyntheticPlaceholder else { return false }
         let currentRemaining = sessionWindow.window.remainingPercent
         let currentSource = sessionWindow.source
         let currentResetBoundary = sessionWindow.window.resetsAt
@@ -56,10 +59,13 @@ extension UsageStore {
            !requirement.admits(observedAt: snapshot.updatedAt)
         {
             self.sessionQuotaLogger.debug("ignored stale session observation while awaiting a fresh Codex baseline")
-            return
+            return false
         }
         let previousState = self.sessionQuotaTransitionStates[provider.instanceID]
         let forceBaseline = provider == .codex && self.codexSessionQuotaBaselineRequirement != nil
+        let notificationAccount = codexOwnerKey?.rawValue
+            ?? accountDiscriminator
+            ?? Self.planUtilizationIdentityAccountKey(provider: provider, snapshot: snapshot)
         let evaluation = SessionQuotaTransitionReducer.evaluate(
             previous: previousState,
             observation: SessionQuotaTransitionObservation(
@@ -69,7 +75,7 @@ extension UsageStore {
                 resetBoundary: currentResetBoundary,
                 observedAt: snapshot.updatedAt,
                 evaluationTime: now,
-                codexOwnerKey: codexOwnerKey),
+                accountDiscriminator: notificationAccount),
             notificationsEnabled: detectionEnabled,
             forceBaseline: forceBaseline)
         self.sessionQuotaTransitionStates[provider.instanceID] = evaluation.state
@@ -110,43 +116,44 @@ extension UsageStore {
             self.sessionQuotaLogger.info(
                 "transition \(String(describing: transition)): provider=\(providerText) " +
                     "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
-            self.publishSessionQuotaTransition(
-                transition,
-                provider: provider,
-                sessionWindow: sessionWindow,
-                snapshot: snapshot,
-                notificationsEnabled: notificationsEnabled)
+            self.publishSessionQuotaTransitionToiOS(transition, provider: provider, snapshot: snapshot)
+            // The account-scoped reset detector arbitrates restored and reset banners together.
+            if transition == .restored, notificationsEnabled, self.settings.limitResetNotificationsEnabled {
+                return true
+            }
+            self.postSessionQuotaTransitionIfEnabled(transition, provider: provider)
+            if transition == .depleted {
+                self.emitQuotaReachedHook(provider: provider, sessionWindow: sessionWindow, snapshot: snapshot)
+            }
         }
+        return false
     }
 
-    /// Posts the OS notification (only when enabled) and emits the quota_reached hook on depletion.
-    private func publishSessionQuotaTransition(
+    func postSessionQuotaTransitionIfEnabled(_ transition: SessionQuotaTransition, provider: UsageProvider) {
+        guard self.settings.sessionQuotaNotificationsEnabled else { return }
+        self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+    }
+
+    /// Writes the CloudKit quota transition for iPhone alerts.
+    ///
+    /// iOS push is intentionally independent of the Mac notification gate and of the Mac's
+    /// reset-banner arbitration: a user may disable local notifications, or receive a reset
+    /// banner on the Mac instead of a restored banner, while still expecting the iPhone alert.
+    private func publishSessionQuotaTransitionToiOS(
         _ transition: SessionQuotaTransition,
         provider: UsageProvider,
-        sessionWindow: (window: RateWindow, source: SessionQuotaWindowSource),
-        snapshot: UsageSnapshot,
-        notificationsEnabled: Bool)
+        snapshot: UsageSnapshot)
     {
-        if notificationsEnabled {
-            self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+        guard self.settings.notificationPushToiOSEnabled else { return }
+        let accountDisplayName: String? = if self.settings.hidePersonalInfo {
+            nil
+        } else {
+            snapshot.accountEmail(for: provider)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        // iOS push is intentionally independent of the Mac notification gate.
-        // A user may disable local notifications while still receiving the
-        // CloudKit alert on their iPhone.
-        if self.settings.notificationPushToiOSEnabled {
-            let accountDisplayName: String? = if self.settings.hidePersonalInfo {
-                nil
-            } else {
-                snapshot.accountEmail(for: provider)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            self.quotaTransitionWriter.write(
-                transition: transition,
-                provider: provider,
-                accountDisplayName: accountDisplayName?.isEmpty == false ? accountDisplayName : nil)
-        }
-        if transition == .depleted {
-            self.emitQuotaReachedHook(provider: provider, sessionWindow: sessionWindow, snapshot: snapshot)
-        }
+        self.quotaTransitionWriter.write(
+            transition: transition,
+            provider: provider,
+            accountDisplayName: accountDisplayName?.isEmpty == false ? accountDisplayName : nil)
     }
 }

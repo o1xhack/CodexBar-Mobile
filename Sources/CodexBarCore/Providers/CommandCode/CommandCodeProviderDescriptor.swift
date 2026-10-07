@@ -138,7 +138,9 @@ struct CommandCodeWebFetchStrategy: ProviderFetchStrategy {
 
     private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
         guard context.settings?.commandcode?.cookieSource == .manual else { return nil }
-        return CookieHeaderNormalizer.normalize(context.settings?.commandcode?.manualCookieHeader)
+        let normalized = CookieHeaderNormalizer.normalize(context.settings?.commandcode?.manualCookieHeader)
+        guard let header = normalized, !header.contains("="), !header.contains(";") else { return normalized }
+        return CommandCodeCookieHeader.override(from: header)?.headerValue
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

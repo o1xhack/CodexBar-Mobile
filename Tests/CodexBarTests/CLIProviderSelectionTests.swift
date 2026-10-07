@@ -28,6 +28,9 @@ struct CLIProviderSelectionTests {
             "|aixy|",
             "|raycast|",
             "|xkiro|",
+            "|museai|",
+            "|lithosai|",
+            "|workbuddy|",
             "|both|",
             "|all]",
         ]

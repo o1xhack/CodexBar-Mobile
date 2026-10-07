@@ -107,6 +107,70 @@ struct SpendDashboardPartialCostTests {
         #expect(group.models.last?.totalCost == nil)
     }
 
+    @Test(arguments: [0, 1])
+    func `unpriced model rows survive only proven zero token days without model rows`(unattributedTokens: Int) throws {
+        let emptyDay = CostUsageDailyReport.Entry(
+            date: "2026-07-16",
+            inputTokens: unattributedTokens,
+            outputTokens: 0,
+            totalTokens: unattributedTokens,
+            requestCount: 1,
+            costUSD: nil,
+            modelsUsed: nil,
+            modelBreakdowns: [],
+            unpricedRequestCount: 1,
+            estimatedRequestCount: 0)
+        let snapshot = Self.snapshot(
+            entries: [
+                Self.entry(day: "2026-07-15", cost: nil, tokens: 40, model: "fixture-unpriced"),
+                emptyDay,
+            ],
+            last30DaysTokens: 40 + unattributedTokens,
+            last30DaysCostUSD: nil)
+        let group = try Self.group(inputs: [
+            .init(provider: .antigravity, displayName: "Antigravity", snapshot: snapshot),
+        ])
+
+        #expect(group.totalTokens == 40 + unattributedTokens)
+        #expect(group.totalCost == nil)
+        #expect(group.modelHistoryCompleteness == .incomplete)
+        #expect(group.models.map(\.modelName) == (unattributedTokens == 0 ? ["fixture-unpriced"] : []))
+        if unattributedTokens == 0 {
+            #expect(group.models.first?.totalTokens == 40)
+            #expect(group.models.first?.totalCost == nil)
+        }
+    }
+
+    @Test
+    func `Antigravity zero token request without a model adds no unknown row and keeps models complete`() throws {
+        // The reader counts the request on the entry but emits no breakdown for it, at zero cost.
+        let entry = CostUsageDailyReport.Entry(
+            date: "2026-07-15",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 60,
+            requestCount: 2,
+            costUSD: 2,
+            modelsUsed: nil,
+            modelBreakdowns: [.init(modelName: "fixture-model-a", costUSD: 2, totalTokens: 60, requestCount: 1)],
+            unpricedRequestCount: 0,
+            estimatedRequestCount: 2)
+        let snapshot = Self.snapshot(
+            entries: [entry],
+            last30DaysTokens: 60,
+            last30DaysCostUSD: 2,
+            costProvenance: .listPriceEstimate)
+        let group = try Self.group(inputs: [
+            .init(provider: .antigravity, displayName: "Antigravity", snapshot: snapshot),
+        ])
+
+        #expect(group.totalCost == 2)
+        #expect(!group.hasPartialCost)
+        #expect(group.modelHistoryCompleteness == .complete)
+        #expect(group.incompleteModelProviders.isEmpty)
+        #expect(group.models.map(\.modelName) == ["fixture-model-a"])
+    }
+
     @Test
     func `a truncated Antigravity scan marks cost and tokens as lower bounds`() throws {
         let entry = CostUsageDailyReport.Entry(

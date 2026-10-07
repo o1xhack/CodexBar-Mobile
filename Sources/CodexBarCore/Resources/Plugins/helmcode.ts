@@ -140,7 +140,7 @@ defineProvider({
     }
     if (rejected) throw ctx.fail.authenticationExpired("Helmcode dashboard session expired. Sign in again.");
     throw ctx.fail.missingCredential(
-      "Sign in to cloud.helmcode.com or cloud.nan.builders in Chrome, or paste a Cookie header.",
+      `Sign in to cloud.helmcode.com or cloud.nan.builders. Supported browsers: ${ctx.browser.supportedBrowsers}. Or paste a Cookie header.`,
     );
   },
 });

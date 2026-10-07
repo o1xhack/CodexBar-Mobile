@@ -5,7 +5,7 @@ import FoundationNetworking
 import Testing
 @testable import CodexBarCore
 
-@Suite(.serialized)
+@Suite(.serialized, CostUsageClaudeCacheFixtures())
 struct CostUsageClaudeKimiAliasTests {
     private static let aliases = ["k3[1m]", "kimi-coding/k3[1m]", "kimi-for-coding/k3[1m]"]
 
@@ -122,58 +122,56 @@ struct CostUsageClaudeKimiAliasTests {
 
     @Test
     func `fresh unknown alias reprices on warm and cold loads without rewriting transcripts or cache`() throws {
-        try CostUsageClaudeCacheIO.withRetainedArtifactMemoForTesting {
-            let fixture = try AliasFixture(model: "k3[1m]", refreshMinIntervalSeconds: 3600)
-            defer { fixture.environment.cleanup() }
-            #expect(try ModelsDevCache.save(
-                catalog: Self.catalog([:]), fetchedAt: fixture.day, cacheRoot: fixture.environment.cacheRoot))
-            let first = try #require(fixture.report().data.first?.modelBreakdowns?.first)
-            #expect(first.costUSD == nil)
-            let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(
-                provider: .claude,
-                cacheRoot: fixture.environment.cacheRoot)
-            let cacheBefore = try Data(contentsOf: cacheURL)
-            #expect(try ModelsDevCache.save(
-                catalog: Self.catalog(["kimi-for-coding": ["k3": Self.rates]]),
-                fetchedAt: fixture.day.addingTimeInterval(1),
-                cacheRoot: fixture.environment.cacheRoot))
+        let fixture = try AliasFixture(model: "k3[1m]", refreshMinIntervalSeconds: 3600)
+        defer { fixture.environment.cleanup() }
+        #expect(try ModelsDevCache.save(
+            catalog: Self.catalog([:]), fetchedAt: fixture.day, cacheRoot: fixture.environment.cacheRoot))
+        let first = try #require(fixture.report().data.first?.modelBreakdowns?.first)
+        #expect(first.costUSD == nil)
+        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(
+            provider: .claude,
+            cacheRoot: fixture.environment.cacheRoot)
+        let cacheBefore = try Data(contentsOf: cacheURL)
+        #expect(try ModelsDevCache.save(
+            catalog: Self.catalog(["kimi-for-coding": ["k3": Self.rates]]),
+            fetchedAt: fixture.day.addingTimeInterval(1),
+            cacheRoot: fixture.environment.cacheRoot))
 
-            for cold in [false, true] {
-                if cold {
-                    CostUsageScanner.evictClaudeReportMemoForTesting(
-                        provider: .claude,
-                        cacheRoot: fixture.environment.cacheRoot)
-                }
-                let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
-                let report = CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) { fixture.report() }
-                let row = try #require(report.data.first?.modelBreakdowns?.first)
-                #expect(row.modelName == "k3[1m]")
-                #expect(row.totalTokens == 160)
-                #expect(try abs(#require(row.costUSD) - 0.000385) < 1e-12)
-                let metrics = recorder.snapshot()
-                #expect(metrics.cacheDecodes == 0)
-                #expect(metrics.transcriptParses == 0)
-                #expect(metrics.cacheEncodes == 0)
-                #expect(metrics.repricedRows == (cold ? 0 : 1))
-                #expect(try Data(contentsOf: cacheURL) == cacheBefore)
+        for cold in [false, true] {
+            if cold {
+                CostUsageScanner.evictClaudeReportMemoForTesting(
+                    provider: .claude,
+                    cacheRoot: fixture.environment.cacheRoot)
             }
-            CostUsageScanner.evictClaudeReportMemoForTesting(
-                provider: .claude, cacheRoot: fixture.environment.cacheRoot)
-            CostUsageScanner.evictPersistedClaudeReportMemoForTesting(
-                provider: .claude, cacheRoot: fixture.environment.cacheRoot)
-            CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: cacheURL)
-            let coldRecorder = CostUsageScanner.ClaudeScanWorkRecorder()
-            let coldReport = CostUsageScanner.withClaudeScanWorkRecorderForTesting(coldRecorder) { fixture.report() }
-            let coldRow = try #require(coldReport.data.first?.modelBreakdowns?.first)
-            #expect(coldRow.modelName == "k3[1m]")
-            #expect(coldRow.totalTokens == 160)
-            #expect(try abs(#require(coldRow.costUSD) - 0.000385) < 1e-12)
-            let coldMetrics = coldRecorder.snapshot()
-            #expect(coldMetrics.cacheDecodes == 1)
-            #expect(coldMetrics.transcriptParses == 0)
-            #expect(coldMetrics.cacheEncodes == 0)
+            let recorder = CostUsageScanner.ClaudeScanWorkRecorder()
+            let report = CostUsageScanner.withClaudeScanWorkRecorderForTesting(recorder) { fixture.report() }
+            let row = try #require(report.data.first?.modelBreakdowns?.first)
+            #expect(row.modelName == "k3[1m]")
+            #expect(row.totalTokens == 160)
+            #expect(try abs(#require(row.costUSD) - 0.000385) < 1e-12)
+            let metrics = recorder.snapshot()
+            #expect(metrics.cacheDecodes == 0)
+            #expect(metrics.transcriptParses == 0)
+            #expect(metrics.cacheEncodes == 0)
+            #expect(metrics.repricedRows == (cold ? 0 : 1))
             #expect(try Data(contentsOf: cacheURL) == cacheBefore)
         }
+        CostUsageScanner.evictClaudeReportMemoForTesting(
+            provider: .claude, cacheRoot: fixture.environment.cacheRoot)
+        CostUsageScanner.evictPersistedClaudeReportMemoForTesting(
+            provider: .claude, cacheRoot: fixture.environment.cacheRoot)
+        CostUsageClaudeCacheIO.evictArtifactMemoForTesting(at: cacheURL)
+        let coldRecorder = CostUsageScanner.ClaudeScanWorkRecorder()
+        let coldReport = CostUsageScanner.withClaudeScanWorkRecorderForTesting(coldRecorder) { fixture.report() }
+        let coldRow = try #require(coldReport.data.first?.modelBreakdowns?.first)
+        #expect(coldRow.modelName == "k3[1m]")
+        #expect(coldRow.totalTokens == 160)
+        #expect(try abs(#require(coldRow.costUSD) - 0.000385) < 1e-12)
+        let coldMetrics = coldRecorder.snapshot()
+        #expect(coldMetrics.cacheDecodes == 1)
+        #expect(coldMetrics.transcriptParses == 0)
+        #expect(coldMetrics.cacheEncodes == 0)
+        #expect(try Data(contentsOf: cacheURL) == cacheBefore)
     }
 
     @Test(arguments: [199_950, 199_951])

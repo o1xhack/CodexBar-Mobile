@@ -92,5 +92,8 @@ enum ProviderImplementationManifest {
         PluginAPIKeyProviderImplementation(spec: VercelProviderDescriptor.spec),
         PluginAPIKeyProviderImplementation(spec: LLMManProviderDescriptor.spec),
         PluginAPIKeyProviderImplementation(spec: XKiroProviderDescriptor.spec),
+        PluginCookieProviderImplementation(spec: MuseAIProviderDescriptor.spec),
+        PluginCookieProviderImplementation(spec: LithosAIProviderDescriptor.spec),
+        PluginCookieProviderImplementation(spec: WorkBuddyProviderDescriptor.spec),
     ]
 }

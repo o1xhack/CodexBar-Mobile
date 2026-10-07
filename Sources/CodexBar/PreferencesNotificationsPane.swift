@@ -31,6 +31,12 @@ struct NotificationsPane: View {
                         subtitle: L("predictive_pace_warnings_subtitle"))
                 }
 
+                Toggle(isOn: self.$settings.limitResetNotificationsEnabled) {
+                    SettingsRowLabel(
+                        L("limit_reset_notifications_title"),
+                        subtitle: L("limit_reset_notifications_subtitle"))
+                }
+
                 let warningSettingsVisibility = QuotaWarningSettingsVisibility(
                     thresholdWarningsEnabled: self.settings.quotaWarningNotificationsEnabled,
                     predictiveWarningsEnabled: self.settings.predictivePaceWarningNotificationsEnabled)

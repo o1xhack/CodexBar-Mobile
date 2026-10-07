@@ -434,6 +434,20 @@
     "workspaceOrder": null
   },
   {
+    "availability": [true, true, true],
+    "cliResolution": {"MUSEAI": ["museai"]},
+    "enterpriseHost": false,
+    "environmentAvailability": [[true, true], [true, true], [true, true], [true, true]],
+    "fields": ["secure"],
+    "id": "museai",
+    "projectToken": "",
+    "projections": {},
+    "sourceModes": ["auto", "web"],
+    "strategies": ["museai.js"],
+    "supportsTokenCost": false,
+    "workspaceOrder": null
+  },
+  {
     "availability": [false, false, true],
     "cliResolution": {"HUGGINGFACE": ["huggingface"], "HF": ["huggingface"]},
     "enterpriseHost": false,

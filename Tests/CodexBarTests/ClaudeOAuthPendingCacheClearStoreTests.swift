@@ -5,6 +5,71 @@ import Testing
 @Suite(.serialized)
 struct ClaudeOAuthPendingCacheClearStoreTests {
     @Test
+    func `new unlocked invalidation rejects a completed transaction`() throws {
+        let domain = "ClaudeOAuthFallbackCommitTests.\(UUID().uuidString)"
+        let key = "pending"
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer {
+            defaults.removePersistentDomain(forName: domain)
+            defaults.synchronize()
+            try? FileManager.default.removeItem(at: root)
+        }
+        let store = ClaudeOAuthPendingCacheClearUserDefaultsStore(
+            domain: domain, key: key, lockURL: root.appendingPathComponent("cache.lock"))
+        store.markPending(profileIdentifier: "profile")
+        let fallbackKey = key + ".unlocked-profile.profile"
+        let committed = store.withCacheTransaction(profileIdentifier: "profile") { pending in
+            pending = false
+            defaults.set("newer-invalidation", forKey: fallbackKey)
+            defaults.synchronize()
+        }
+        #expect(!committed)
+        #expect(store.isPending(profileIdentifier: "profile"))
+        #expect(defaults.string(forKey: fallbackKey) == "newer-invalidation")
+    }
+
+    @Test(arguments: [false, true])
+    func `failed write generation survives reload and changes on invalidation`(legacy: Bool) throws {
+        let domain = "ClaudeOAuthWriteGenerationTests.\(UUID().uuidString)"
+        let key = "pending"
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer {
+            defaults.removePersistentDomain(forName: domain)
+            defaults.synchronize()
+            try? FileManager.default.removeItem(at: root)
+        }
+        if legacy {
+            defaults.set(true, forKey: key)
+            defaults.synchronize()
+        }
+        let first = ClaudeOAuthPendingCacheClearUserDefaultsStore(
+            domain: domain, key: key, lockURL: root.appendingPathComponent("cache.lock"))
+        let second = ClaudeOAuthPendingCacheClearUserDefaultsStore(
+            domain: domain, key: key, lockURL: root.appendingPathComponent("cache.lock"))
+        first.withCacheTransaction(profileIdentifier: "profile", includingGeneration: { pending, cleanup, recheck, id in
+            #expect(id == nil)
+            pending = true
+            cleanup = false
+            recheck = false
+            id = "fixture-write-generation"
+        })
+        second.withCacheTransaction(profileIdentifier: "profile", includingGeneration: { pending, _, _, id in
+            #expect(pending)
+            #expect(id == "fixture-write-generation")
+            id = nil
+        })
+        first.withCacheTransaction(profileIdentifier: "profile", includingGeneration: { pending, _, _, id in
+            #expect(pending)
+            #expect(id != nil)
+            #expect(id != "fixture-write-generation")
+            pending = false
+        })
+        #expect(!second.isPending)
+    }
+
+    @Test
     func `legacy ownership recheck persists for only its invalidated profile`() throws {
         let domain = "ClaudeOAuthPendingLegacyRecheckTests.\(UUID().uuidString)"
         let key = "pending"

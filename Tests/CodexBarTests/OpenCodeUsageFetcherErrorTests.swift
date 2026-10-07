@@ -4,6 +4,56 @@ import Testing
 
 @Suite(.serialized)
 struct OpenCodeUsageFetcherErrorTests {
+    @Test(arguments: [false, true])
+    func `legacy billing cancellation is not replaced with the subscription error`(cancelledURL: Bool) async {
+        let transport = ProviderHTTPTransportHandler { request in
+            if request.value(forHTTPHeaderField: "X-Server-Id") ==
+                "c83b78a614689c38ebee981f9b39a8b377716db85c1fd7dbab604adc02d3313d"
+            {
+                if cancelledURL { throw URLError(.cancelled) }
+                throw CancellationError()
+            }
+            let url = try #require(request.url)
+            let (response, data) = Self.makeResponse(
+                url: url, body: "null", statusCode: 200, contentType: "application/json")
+            return (data, response)
+        }
+        await #expect(throws: CancellationError.self) {
+            try await OpenCodeUsageFetcher.fetchUsage(
+                cookieHeader: "auth=synthetic", timeout: 2, workspaceIDOverride: "wrk_TEST123", session: transport)
+        }
+    }
+
+    @Test
+    func `migrated workspace reads Console instead of the signed out legacy endpoint`() async throws {
+        defer { OpenCodeStubURLProtocol.handler = nil }
+        let now = Date(timeIntervalSince1970: 1_790_640_000)
+        OpenCodeStubURLProtocol.handler = { request in
+            let url = try #require(request.url)
+            let body: String
+            switch url.path {
+            case "/console/api/orgs":
+                body = #"[{"id":"wrk_MIGRATED","name":"Synthetic"}]"#
+            case "/console/api/go/status":
+                #expect(request.value(forHTTPHeaderField: "x-org-id") == "wrk_MIGRATED")
+                body = """
+                {"access":{"meters":{
+                  "fiveHour":{"usedMicroCents":"89062297","limitMicroCents":"1200000000",
+                    "resetsAt":"2026-09-30T01:31:21Z"},
+                  "week":{"usedMicroCents":"703325271","limitMicroCents":"3000000000",
+                    "resetsAt":"2026-10-05T00:00:00Z"}}}}
+                """
+            default:
+                body = #"new Error('actor of type "public" is not associated with an account')"#
+            }
+            return Self.makeResponse(url: url, body: body, statusCode: 200, contentType: "application/json")
+        }
+        let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
+            cookieHeader: "__Host-console_session=synthetic", timeout: 2, now: now, session: self.makeSession())
+        #expect(abs(snapshot.rollingUsagePercent - 7.421858083333333) < 0.000001)
+        #expect(abs(snapshot.weeklyUsagePercent - 23.4441757) < 0.000001)
+    }
+
     private func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [OpenCodeStubURLProtocol.self]

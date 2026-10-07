@@ -765,7 +765,7 @@ public struct CursorStatusProbe: Sendable {
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         sessionStore: CursorSessionStore = .shared)
     {
         #if os(macOS)
@@ -791,15 +791,6 @@ public struct CursorStatusProbe: Sendable {
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             conditionalMutationCoordinator: .shared)
-        #else
-        self.init(
-            baseURL: baseURL,
-            timeout: timeout,
-            browserDetection: browserDetection,
-            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
-            sessionStore: sessionStore,
-            conditionalMutationCoordinator: .shared)
         #endif
     }
 
@@ -807,7 +798,7 @@ public struct CursorStatusProbe: Sendable {
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator)
     {
@@ -834,15 +825,6 @@ public struct CursorStatusProbe: Sendable {
             appAuthStore: CursorAppAuthStore(),
             sessionStore: sessionStore,
             conditionalMutationCoordinator: conditionalMutationCoordinator)
-        #else
-        self.init(
-            baseURL: baseURL,
-            timeout: timeout,
-            browserDetection: browserDetection,
-            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
-            urlSession: urlSession,
-            sessionStore: sessionStore,
-            conditionalMutationCoordinator: conditionalMutationCoordinator)
         #endif
     }
 
@@ -852,7 +834,7 @@ public struct CursorStatusProbe: Sendable {
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
         browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         appAuthStore: any CursorAppAuthSessionProviding,
         sessionStore: CursorSessionStore = .shared,
         persistAppAuthSession: @escaping @Sendable (CursorAppAuthSession) async -> Void = { _ in },
@@ -862,31 +844,13 @@ public struct CursorStatusProbe: Sendable {
         self.timeout = timeout
         self.browserDetection = browserDetection
         self.browserCookieImportOrder = browserCookieImportOrder
-        self.urlSession = urlSession
+        self.urlSession = urlSession ?? ProviderHTTPClient.shared
         self.sessionStore = sessionStore
         self.appAuthStore = appAuthStore
         self.persistAppAuthSession = persistAppAuthSession
         self.conditionalMutationCoordinator = conditionalMutationCoordinator
     }
 
-    #elseif !os(Linux)
-    init(
-        baseURL: URL = URL(string: "https://cursor.com")!,
-        timeout: TimeInterval = 15.0,
-        browserDetection: BrowserDetection,
-        browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
-        sessionStore: CursorSessionStore = .shared,
-        conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
-    {
-        self.baseURL = baseURL
-        self.timeout = timeout
-        self.browserDetection = browserDetection
-        self.browserCookieImportOrder = browserCookieImportOrder
-        self.urlSession = urlSession
-        self.sessionStore = sessionStore
-        self.conditionalMutationCoordinator = conditionalMutationCoordinator
-    }
     #endif
 
     /// Fetch Cursor usage with manual cookie header (for debugging).

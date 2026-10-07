@@ -15,7 +15,7 @@ final class AntigravityCostScreenshotTests: XCTestCase {
         let fixture = try AntigravityLocalFixture()
         try fixture.database(blobs: [AntigravityLocalFixture.blob(
             model: "claude-sonnet-4-6",
-            system: 0,
+            modelID: 0,
             input: 400_000,
             output: 50000,
             cacheRead: 100_000,

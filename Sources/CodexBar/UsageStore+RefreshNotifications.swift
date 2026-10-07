@@ -62,7 +62,7 @@ extension UsageStore {
         provider: UsageProvider,
         result: ProviderFetchResult,
         snapshot: UsageSnapshot,
-        context: ProviderRefreshOutcomeContext) -> String?
+        context: ProviderRefreshOutcomeContext) -> (account: String?, sessionRestored: Bool)
     {
         self.handleCredentialOutcome(
             provider: provider,
@@ -78,9 +78,10 @@ extension UsageStore {
             accountDiscriminator: warningAccounts.quota,
             hookAccountDiscriminator: warningAccounts.source,
             requiresKnownAccount: warningAccounts.requiresKnownAccount)
-        self.handleSessionQuotaTransition(
+        let sessionRestored = self.handleSessionQuotaTransition(
             provider: provider,
             snapshot: snapshot,
+            accountDiscriminator: warningAccounts.quota,
             // Provider-specific by design: session and credit reset notices require the validated Codex owner.
             codexOwnerKey: provider == .codex ? context.codexSessionQuotaOwnerKey : nil)
         self.handlePredictivePaceWarningTransitions(
@@ -91,6 +92,6 @@ extension UsageStore {
         if provider == .codex {
             self.handleCodexResetCreditNotifications(snapshot: snapshot)
         }
-        return warningAccounts.source
+        return (warningAccounts.source, sessionRestored)
     }
 }

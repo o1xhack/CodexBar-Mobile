@@ -137,10 +137,16 @@ check_codex_parser_hash() {
 
 check_provider_manifests() {
   "${ROOT_DIR}/Scripts/regenerate-provider-manifests.sh" --check
+  node "${ROOT_DIR}/Scripts/regenerate-provider-docs.mjs" --check
 }
 
 check_plugin_javascript() {
   "${ROOT_DIR}/Scripts/regenerate-plugin-js.sh" --check
+}
+
+check_package_resolved() {
+  node --test "${ROOT_DIR}/Scripts/test_package_resolved.mjs"
+  node "${ROOT_DIR}/Scripts/check-package-resolved.mjs"
 }
 
 check_package_product_paths() {
@@ -200,6 +206,7 @@ check_mimo_usage_script() {
 }
 
 check_swift_test_sharding() {
+  python3 "${ROOT_DIR}/Scripts/test_direct_swift_test_groups.py"
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
 
@@ -255,6 +262,7 @@ check_llms_index() {
 }
 
 run_portable_checks() {
+  check_package_resolved
   check_codex_parser_hash
   check_provider_manifests
   check_plugin_javascript

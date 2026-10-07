@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "평균 (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "키체인 프롬프트 방지";
 "Balance" = "잔액";
+"Cloud credits" = "클라우드 크레딧";
+"Expired" = "만료됨";
 "Battery Saver" = "배터리 절약";
 "Bordered" = "테두리 있음";
 "Build" = "빌드";
@@ -537,6 +539,11 @@
 "session_depleted_notification_body" = "0% 남음. 다시 사용할 수 있게 되면 알립니다.";
 "session_restored_notification_title" = "%@ 세션 복원됨";
 "session_restored_notification_body" = "세션 할당량을 다시 사용할 수 있습니다.";
+"limit_reset_notifications_title" = "재설정 알림";
+"limit_reset_notifications_subtitle" = "세션 또는 주간 한도가 재설정되면 어떤 공급자의 어떤 한도인지 알려줍니다.";
+"limit_reset_notification_title" = "%1$@ %2$@ 한도 재설정됨";
+"limit_reset_notification_body" = "새 할당량을 사용할 수 있습니다.";
+"limit_reset_notification_body_with_account" = "계정 %@. 새 할당량을 사용할 수 있습니다.";
 "quota_warning_warn_at" = "경고 기준";
 "quota_warning_global_threshold_subtitle" = "공급자가 재정의하지 않는 한 세션 및 주간 범위의 잔여 백분율입니다.";
 "quota_warning_sound" = "알림 소리 재생";
@@ -817,7 +824,6 @@
 "No local data found" = "로컬 데이터를 찾을 수 없음";
 "Credits unavailable; keep Codex running to refresh." = "크레딧을 사용할 수 없습니다. 새로 고치려면 Codex를 계속 실행하세요.";
 "No available fetch strategy for minimax." = "minimax에 사용할 수 있는 가져오기 전략이 없습니다.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Cursor 세션을 찾을 수 없습니다. Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX 또는 Edge Canary에서 cursor.com에 로그인하세요. Safari를 사용하는 경우 시스템 설정 ▸ 개인정보 보호 및 보안에서 CodexBar에 전체 디스크 접근 권한을 부여하세요. CodexBar 메뉴(계정 추가/전환)에서 Cursor에 로그인할 수도 있습니다.";
 "No OpenCode session cookies found in browsers." = "브라우저에서 OpenCode 세션 쿠키를 찾을 수 없습니다.";
 "No available fetch strategy for %@." = "%@에 사용할 수 있는 가져오기 전략이 없습니다.";
 "Today" = "오늘";
@@ -1591,6 +1597,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "독립 채팅";
+"Independent chats" = "독립 채팅";
+"Chat %d" = "채팅 %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1686,3 +1696,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Mac 설정 동기화는 iPhone 사용량 동기화와 별개입니다. 각 Mac에서 켜면 여기에 표시됩니다. 비용 기록은 로컬에 저장됩니다.";
 
 "Cached data from" = "캐시 데이터 시각:";
+"Supported browsers: %@. Use Manual for other browsers." = "지원되는 브라우저: %@. 다른 브라우저는 수동 모드를 사용하세요.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome에서 www.workbuddy.cn/profile/plans-usage로 보낸 요청의 Cookie 헤더를 붙여넣으세요.";
+"Reserved" = "보류됨";

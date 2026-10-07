@@ -89,6 +89,8 @@ public struct ClaudeStatusProbe: Sendable {
     #if DEBUG
     public typealias FetchOverride = @Sendable (String, TimeInterval, Bool) async throws -> ClaudeStatusSnapshot
     @TaskLocal static var fetchOverride: FetchOverride?
+    /// Stands in for CodexBar's dedicated probe directory, so tests never use the real Application Support folder.
+    @TaskLocal static var dedicatedProbeDirectoryOverrideForTesting: URL?
     #endif
 
     public init(
@@ -202,7 +204,11 @@ extension ClaudeStatusProbe {
     // MARK: - Parsing helpers
 
     private static func cleanCapture(_ text: String) -> String {
-        ClaudeCLIScreen.render(text, preservePlainReports: true)
+        // Insights contain arbitrary tool names and percentages, not account or quota fields.
+        let rendered = ClaudeCLIScreen.render(text, preservePlainReports: true)
+        let marker = "What's contributing to your limits usage?"
+        guard let insights = rendered.range(of: marker, options: .caseInsensitive) else { return rendered }
+        return String(rendered[..<insights.lowerBound])
     }
 
     private struct LabelSearchContext {
@@ -1244,7 +1250,7 @@ extension ClaudeStatusProbe {
     private static func extractLoginMethod(text: String) -> String? {
         guard !text.isEmpty else { return nil }
         if let explicit = self.extractFirst(pattern: #"(?i)login\s+method:\s*(.+)"#, text: text) {
-            return ClaudePlan.cliCompatibilityLoginMethod(self.cleanPlan(explicit))
+            return ClaudePlan.cliCompatibilityLoginMethod(UsageFormatter.cleanPlanName(explicit))
         }
         // Capture any "Claude <...>" phrase (e.g., Max/Pro/Ultra/Team) to avoid future plan-name churn.
         // Strip any leading ANSI that may have survived (rare) before matching.
@@ -1259,9 +1265,8 @@ extension ClaudeStatusProbe {
                 guard let match,
                       match.numberOfRanges >= 2,
                       let r = Range(match.range(at: 1), in: text) else { return }
-                let raw = String(text[r])
-                let val = ClaudePlan.cliCompatibilityLoginMethod(Self.cleanPlan(raw)) ?? Self.cleanPlan(raw)
-                candidates.append(val)
+                let cleaned = UsageFormatter.cleanPlanName(String(text[r]))
+                candidates.append(ClaudePlan.cliCompatibilityLoginMethod(cleaned) ?? cleaned)
             }
         }
         if let plan = candidates.first(where: { cand in
@@ -1271,11 +1276,6 @@ extension ClaudeStatusProbe {
             return plan
         }
         return nil
-    }
-
-    /// Strips ANSI and stray bracketed codes like "[22m" that can survive CLI output.
-    private static func cleanPlan(_ text: String) -> String {
-        UsageFormatter.cleanPlanName(text)
     }
 
     private static func dumpIfNeeded(enabled: Bool, reason: String, usage: String, status: String?) {
@@ -1398,10 +1398,8 @@ extension ClaudeStatusProbe {
 
     static func probeWorkingDirectoryURL() -> URL {
         let fm = FileManager.default
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
-        let dir = base
-            .appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent("ClaudeProbe", isDirectory: true)
+        let dir = self.dedicatedProbeWorkingDirectoryURL()
+        guard self.isDedicatedProbeWorkingDirectory(dir) else { return fm.temporaryDirectory }
         do {
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir
@@ -1410,8 +1408,34 @@ extension ClaudeStatusProbe {
         }
     }
 
+    /// CodexBar's own probe directory. `probeWorkingDirectoryURL()` falls back to the shared temporary directory when
+    /// it cannot be created; only this directory may have Claude's workspace trust accepted on the user's behalf.
+    static func dedicatedProbeWorkingDirectoryURL() -> URL {
+        #if DEBUG
+        if let override = self.dedicatedProbeDirectoryOverrideForTesting {
+            return override
+        }
+        #endif
+        let fm = FileManager.default
+        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
+        return base
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .appendingPathComponent("ClaudeProbe", isDirectory: true)
+    }
+
+    static func isDedicatedProbeWorkingDirectory(_ directory: URL) -> Bool {
+        let expected = self.dedicatedProbeWorkingDirectoryURL().standardizedFileURL
+        let parent = expected.deletingLastPathComponent()
+        let unredirected = parent.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appendingPathComponent(parent.lastPathComponent, isDirectory: true)
+            .appendingPathComponent(expected.lastPathComponent, isDirectory: true)
+        return directory.standardizedFileURL.path == expected.path
+            && expected.resolvingSymlinksInPath().path == unredirected.path
+    }
+
     static func preparedProbeWorkingDirectoryURL() -> URL {
         let directory = self.probeWorkingDirectoryURL()
+        guard self.isDedicatedProbeWorkingDirectory(directory) else { return directory }
         do {
             try self.prepareProbeWorkingDirectory(at: directory)
         } catch {
@@ -1456,14 +1480,7 @@ extension ClaudeStatusProbe {
         timeout: TimeInterval,
         environment: [String: String]) async throws -> String
     {
-        let stopOnSubstrings = subcommand == "/usage"
-            ? [
-                "Failed to load usage data",
-                "failed to load usage data",
-                "Failedto loadusagedata",
-                "failedtoloadusagedata",
-            ]
-            : []
+        let stopOnSubstrings = subcommand == "/usage" ? ["Failed to load usage data"] : []
         let idleTimeout: TimeInterval? = subcommand == "/usage" ? nil : 3.0
         let sendEnterEvery: TimeInterval? = subcommand == "/usage" ? 0.8 : nil
         let stopWhenNormalized: (@Sendable (String) -> Bool)? = subcommand == "/usage"
@@ -1499,8 +1516,11 @@ extension ClaudeStatusProbe {
     }
 
     private static func usageCaptureHasSessionValue(_ normalizedText: String) -> Bool {
-        guard let labelRange = normalizedText.range(of: "currentsession") else { return false }
-        let tail = normalizedText[labelRange.upperBound...]
+        let insightsStart = normalizedText.range(of: "what'scontributingtoyourlimitsusage?")?.lowerBound
+            ?? normalizedText.endIndex
+        let quotaText = normalizedText[..<insightsStart]
+        guard let labelRange = quotaText.range(of: "currentsession") else { return false }
+        let tail = quotaText[labelRange.upperBound...]
         return tail.range(of: #"[0-9]{1,3}(?:\.[0-9]+)?%"#, options: .regularExpression) != nil
     }
 

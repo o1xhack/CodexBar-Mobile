@@ -204,6 +204,7 @@ extension UsageStore {
         shouldUpdatePreferredAccountKey: Bool = true,
         shouldAdoptUnscopedHistory: Bool = true,
         codexLimitResetOwnerKey: CodexLimitResetOwnerKey? = nil,
+        sessionRestoredNotificationPending: Bool = false,
         now: Date = Date())
         async
     {
@@ -242,6 +243,9 @@ extension UsageStore {
         }
         if provider == .claude, isClaudeOAuthSample, detectorAccountKey == nil {
             // Persisting without a high-entropy owner would merge unrelated OAuth accounts into `unscoped`.
+            if sessionRestoredNotificationPending { self.postSessionQuotaTransitionIfEnabled(
+                .restored,
+                provider: provider) }
             return
         }
         let detectorContext = LimitResetDetectionContext(
@@ -250,7 +254,8 @@ extension UsageStore {
             snapshot: snapshot,
             accountKey: detectorAccountKey,
             capturedAt: now,
-            codexLimitResetOwnerKey: codexLimitResetOwnerKey)
+            codexLimitResetOwnerKey: codexLimitResetOwnerKey,
+            sessionRestoredNotificationPending: sessionRestoredNotificationPending)
         await MainActor.run {
             self.postLimitResetCelebrationsIfNeeded(
                 context: detectorContext,

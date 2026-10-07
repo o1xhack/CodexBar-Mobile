@@ -33,20 +33,11 @@ struct ProviderSettingsToggleRowView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                let actions = self.toggle.actions.filter { $0.isVisible?() ?? true }
-                if !actions.isEmpty {
-                    HStack(spacing: 10) {
-                        ForEach(actions) { action in
-                            Button(L(action.title)) {
-                                Task { @MainActor in
-                                    await action.perform()
-                                }
-                            }
-                            .applyProviderSettingsButtonStyle(action.style)
-                            .controlSize(.small)
-                        }
-                    }
+                ForEach(self.toggle.inlineFields.filter { $0.isVisible?() ?? true }) { field in
+                    ProviderSettingsFieldRowView(field: field, inline: true)
                 }
+
+                ProviderSettingsButtonsView(actions: self.toggle.actions)
             }
         }
         .disabled(!isEnabled)
@@ -60,6 +51,29 @@ struct ProviderSettingsToggleRowView: View {
             guard self.toggle.binding.wrappedValue else { return }
             guard let onAppear = self.toggle.onAppearWhenEnabled else { return }
             await onAppear()
+        }
+    }
+}
+
+@MainActor
+private struct ProviderSettingsButtonsView: View {
+    let actions: [ProviderSettingsActionDescriptor]
+    var spacing: CGFloat = 10
+
+    var body: some View {
+        let visible = self.actions.filter { $0.isVisible?() ?? true }
+        if !visible.isEmpty {
+            HStack(spacing: self.spacing) {
+                ForEach(visible) { action in
+                    Button(L(action.title)) {
+                        Task { @MainActor in
+                            await action.perform()
+                        }
+                    }
+                    .applyProviderSettingsButtonStyle(action.style)
+                    .controlSize(.small)
+                }
+            }
         }
     }
 }
@@ -82,16 +96,7 @@ struct ProviderSettingsPickerRowView: View {
                         .truncationMode(.tail)
                 }
 
-                let visibleActions = self.picker.trailingActions.filter { $0.isVisible?() ?? true }
-                ForEach(visibleActions) { action in
-                    Button(L(action.title)) {
-                        Task { @MainActor in
-                            await action.perform()
-                        }
-                    }
-                    .applyProviderSettingsButtonStyle(action.style)
-                    .controlSize(.small)
-                }
+                ProviderSettingsButtonsView(actions: self.picker.trailingActions, spacing: 8)
 
                 Picker("", selection: self.picker.binding) {
                     ForEach(self.picker.options) { option in
@@ -123,26 +128,27 @@ struct ProviderSettingsPickerRowView: View {
 @MainActor
 struct ProviderSettingsFieldRowView: View {
     let field: ProviderSettingsFieldDescriptor
+    var inline = false
 
     var body: some View {
+        if self.inline {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L(self.field.title))
+                self.fieldView.textFieldStyle(.roundedBorder)
+                ProviderSettingsButtonsView(actions: self.field.actions)
+                self.footerView
+            }
+        } else {
+            self.section.textFieldStyle(.plain)
+        }
+    }
+
+    private var section: some View {
         let trimmedTitle = self.field.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        Section {
+        return Section {
             self.fieldView
 
-            let actions = self.field.actions.filter { $0.isVisible?() ?? true }
-            if !actions.isEmpty {
-                HStack(spacing: 10) {
-                    ForEach(actions) { action in
-                        Button(L(action.title)) {
-                            Task { @MainActor in
-                                await action.perform()
-                            }
-                        }
-                        .applyProviderSettingsButtonStyle(action.style)
-                        .controlSize(.small)
-                    }
-                }
-            }
+            ProviderSettingsButtonsView(actions: self.field.actions)
         } header: {
             if !trimmedTitle.isEmpty {
                 Text(L(trimmedTitle))
@@ -167,7 +173,6 @@ struct ProviderSettingsFieldRowView: View {
             }
         }
         .labelsHidden()
-        .textFieldStyle(.plain)
     }
 
     @ViewBuilder
@@ -205,20 +210,7 @@ struct ProviderSettingsActionsRowView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            let actions = self.descriptor.actions.filter { $0.isVisible?() ?? true }
-            if !actions.isEmpty {
-                HStack(spacing: 10) {
-                    ForEach(actions) { action in
-                        Button(L(action.title)) {
-                            Task { @MainActor in
-                                await action.perform()
-                            }
-                        }
-                        .applyProviderSettingsButtonStyle(action.style)
-                        .controlSize(.small)
-                    }
-                }
-            }
+            ProviderSettingsButtonsView(actions: self.descriptor.actions)
         }
     }
 }

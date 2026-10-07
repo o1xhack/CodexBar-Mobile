@@ -1010,3 +1010,22 @@ extension CookieHeaderCacheTests {
     }
 }
 #endif
+
+extension CookieHeaderCacheTests {
+    @Test
+    func `a validated nonpersistent refresh commits no mutations and cannot be committed twice`() {
+        self.withIsolatedCookieCache {
+            CookieHeaderCache.store(provider: .lithosai, cookieHeader: "session=old", sourceLabel: "Fixture")
+            guard let gate = CookieHeaderCache.beginRefreshReadSuppression(provider: .lithosai) else {
+                Issue.record("Expected a refresh transaction")
+                return
+            }
+            defer { CookieHeaderCache.endRefreshReadSuppression(gate) }
+            CookieHeaderCache.markNonpersistentRefreshValidated(provider: .lithosai)
+            #expect(CookieHeaderCache.commitRefreshReadSuppression(gate) == CookieRefreshCommitSummary(
+                stagedCount: 0, committedCount: 0, failedCount: 0))
+            #expect(CookieHeaderCache.load(provider: .lithosai)?.cookieHeader == "session=old")
+            #expect(CookieHeaderCache.commitRefreshReadSuppression(gate).failedCount == 1)
+        }
+    }
+}

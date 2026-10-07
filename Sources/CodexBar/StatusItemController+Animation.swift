@@ -39,48 +39,38 @@ extension StatusItemController {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
-        // Stacked rows render exclusively through the layout-token path, which — like the loading
-        // animation `needsMenuBarIconAnimation()` already excludes stacked mode from — never consumes
-        // blinkAmounts/wiggleAmounts/tiltAmounts. Starting the blink task here would just wake and redraw
-        // on a timer for a frame that can never show it.
-        if self.stackedMergeIconProvidersIfActive() != nil {
+        guard self.isBlinkingAllowed(), !self.needsMenuBarIconAnimation(), !self.blinkingProviders().isEmpty else {
             self.stopBlinking()
             return
         }
-        // During the loading animation, blink ticks can overwrite the animated menu bar icon and cause flicker.
-        if self.needsMenuBarIconAnimation() {
-            self.stopBlinking()
-            return
-        }
-
-        let blinkingEnabled = self.isBlinkingAllowed()
-        // Use display list so merged-mode visibility stays consistent with shouldMergeIcons.
-        let displayProviders = self.store.enabledProvidersForDisplay()
-        let anyEnabled = !displayProviders.isEmpty || self.store.debugForceAnimation
-        let anyVisible = UsageProvider.allCases.contains { self.isVisible($0) }
-        let mergeIcons = self.shouldMergeIcons
-        let shouldBlink = mergeIcons ? anyEnabled : anyVisible
-        if blinkingEnabled, shouldBlink {
-            if self.blinkTask == nil {
-                self.seedBlinkStatesIfNeeded()
-                self.blinkTask = Task { [weak self] in
-                    while !Task.isCancelled {
-                        let delay = await MainActor.run {
-                            self?.blinkTickSleepDuration(now: Date())
-                                ?? Self.blinkIdleFallbackInterval
-                        }
-                        try? await Task.sleep(for: delay)
-                        await MainActor.run { self?.tickBlink() }
-                    }
-                }
+        guard self.blinkTask == nil else { return }
+        self.seedBlinkStatesIfNeeded()
+        let sleep = self.blinkSleep
+        self.blinkTask = Task { [weak self] in
+            while !Task.isCancelled, let delay = self?.blinkTickSleepDuration() {
+                do { try await sleep(delay) } catch { return }
+                guard !Task.isCancelled else { return }
+                self?.tickBlink()
             }
-        } else {
-            self.stopBlinking()
+        }
+    }
+
+    private func blinkingProviders() -> [UsageProvider] {
+        guard self.stackedMergeIconProvidersIfActive() == nil else { return [] }
+        let merged = self.shouldMergeIcons
+        let providers = merged ? [self.primaryProviderForUnifiedIcon()] : UsageProvider.allCases.filter(self.isVisible)
+        return providers.filter { provider in
+            guard !merged || self.isEnabled(provider),
+                  !self.shouldAnimate(provider: provider, mergeIcons: merged) else { return false }
+            // Stored layouts stay static even without an SVG; only legacy rendering falls back to a critter.
+            return !self.settings.menuBarShowsBrandIconWithPercent
+                || (self.renderedMenuBarLayoutResolution(for: provider).usesLegacyRendering
+                    && self.brandIcon(provider) == nil)
         }
     }
 
     private func seedBlinkStatesIfNeeded() {
-        let now = Date()
+        let now = self.blinkNow()
         for provider in UsageProvider.allCases where self.blinkStates[provider.instanceID] == nil {
             self.blinkStates[provider.instanceID] = BlinkState(
                 nextBlink: now.addingTimeInterval(BlinkState.randomDelay()))
@@ -88,7 +78,8 @@ extension StatusItemController {
     }
 
     private func stopBlinking() {
-        self.blinkTask?.cancel()
+        guard let task = self.blinkTask else { return }
+        task.cancel()
         self.blinkTask = nil
         self.blinkAmounts.removeAll()
         let phase: Double? = self.activeLoadingAnimationPhase()
@@ -101,15 +92,11 @@ extension StatusItemController {
         }
     }
 
-    private func blinkTickSleepDuration(now: Date) -> Duration {
-        let mergeIcons = self.shouldMergeIcons
+    private func blinkTickSleepDuration() -> Duration {
+        let now = self.blinkNow()
         var nextWakeAt: Date?
 
-        for provider in UsageProvider.allCases {
-            let shouldRender = mergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
-            guard shouldRender, !self.shouldAnimate(provider: provider, mergeIcons: mergeIcons)
-            else { continue }
-
+        for provider in self.blinkingProviders() {
             let state =
                 self
                     .blinkStates[provider.instanceID]
@@ -119,13 +106,7 @@ extension StatusItemController {
             }
 
             let candidate: Date = state.pendingSecondStart ?? state.nextBlink
-            if let current = nextWakeAt {
-                if candidate < current {
-                    nextWakeAt = candidate
-                }
-            } else {
-                nextWakeAt = candidate
-            }
+            nextWakeAt = min(candidate, nextWakeAt ?? candidate)
         }
 
         guard let nextWakeAt else { return Self.blinkIdleFallbackInterval }
@@ -136,7 +117,8 @@ extension StatusItemController {
         return .seconds(delay)
     }
 
-    private func tickBlink(now: Date = .init()) {
+    private func tickBlink(now: Date? = nil) {
+        let now = now ?? self.blinkNow()
         guard self.isBlinkingAllowed(at: now) else {
             self.stopBlinking()
             return
@@ -148,14 +130,7 @@ extension StatusItemController {
         // Cache merge state once per tick to avoid repeated enabled-provider lookups.
         let mergeIcons = self.shouldMergeIcons
 
-        for provider in UsageProvider.allCases {
-            let shouldRender = mergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
-            guard shouldRender, !self.shouldAnimate(provider: provider, mergeIcons: mergeIcons)
-            else {
-                self.clearMotion(for: provider)
-                continue
-            }
-
+        for provider in self.blinkingProviders() {
             var state =
                 self
                     .blinkStates[provider.instanceID]
@@ -252,11 +227,11 @@ extension StatusItemController {
         }
     }
 
-    private func isBlinkingAllowed(at date: Date = .init()) -> Bool {
+    private func isBlinkingAllowed(at date: Date? = nil) -> Bool {
         if self.settings.randomBlinkEnabled {
             return true
         }
-        if let until = self.blinkForceUntil, until > date {
+        if let until = self.blinkForceUntil, until > (date ?? self.blinkNow()) {
             return true
         }
         self.blinkForceUntil = nil
@@ -342,7 +317,7 @@ extension StatusItemController {
 
         let statusIndicator = self.store.statusIndicator(for: primaryProvider)
         if showBrandPercent,
-           let brand = ProviderBrandIcon.image(for: primaryProvider)
+           let brand = self.brandIcon(primaryProvider)
         {
             let displayText = self.menuBarDisplayText(for: primaryProvider, snapshot: snapshot)
             let displayedImage = warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand
@@ -455,7 +430,7 @@ extension StatusItemController {
         guard let wasCached = self.applyStoredMenuBarLayoutIfNeeded(
             provider: provider,
             snapshot: snapshot,
-            icon: ProviderBrandIcon.image(for: provider),
+            icon: self.brandIcon(provider),
             warningFlash: warningFlash,
             statusItem: self.statusItem)
         else { return nil }
@@ -521,7 +496,7 @@ extension StatusItemController {
            let wasCached = self.applyStoredMenuBarLayoutIfNeeded(
                provider: provider,
                snapshot: snapshot,
-               icon: ProviderBrandIcon.image(for: provider),
+               icon: self.brandIcon(provider),
                warningFlash: warningFlash,
                statusItem: statusItem)
         {
@@ -530,7 +505,7 @@ extension StatusItemController {
         }
 
         if showBrandPercent,
-           let brand = ProviderBrandIcon.image(for: provider)
+           let brand = self.brandIcon(provider)
         {
             let displayText = self.menuBarDisplayText(for: provider, snapshot: snapshot)
             let displayedImage = warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand
@@ -1330,14 +1305,12 @@ extension StatusItemController {
     }
 
     private func forceBlinkNow() {
-        let now = Date()
+        guard !self.blinkingProviders().isEmpty else { return }
+        let now = self.blinkNow()
         self.blinkForceUntil = now.addingTimeInterval(0.6)
         self.seedBlinkStatesIfNeeded()
 
-        for provider in UsageProvider.allCases {
-            let shouldBlink =
-                self.shouldMergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
-            guard shouldBlink, !self.shouldAnimate(provider: provider) else { continue }
+        for provider in self.blinkingProviders() {
             var state =
                 self
                     .blinkStates[provider.instanceID]

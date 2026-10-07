@@ -80,6 +80,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Rata-rata (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Hindari permintaan Keychain";
 "Balance" = "Saldo";
+"Cloud credits" = "Kredit cloud";
+"Expired" = "Kedaluwarsa";
 "Battery Saver" = "Penghemat Baterai";
 "Bordered" = "Berbingkai";
 "Build" = "Build";
@@ -527,6 +529,11 @@
 "session_depleted_notification_body" = "0% tersisa. Akan memberi tahu saat tersedia kembali.";
 "session_restored_notification_title" = "Sesi %@ pulih";
 "session_restored_notification_body" = "Kuota sesi tersedia kembali.";
+"limit_reset_notifications_title" = "Notifikasi reset";
+"limit_reset_notifications_subtitle" = "Memberi tahu penyedia dan jendela yang direset saat batas sesi atau mingguan direset.";
+"limit_reset_notification_title" = "Batas %2$@ %1$@ direset";
+"limit_reset_notification_body" = "Kuota baru tersedia.";
+"limit_reset_notification_body_with_account" = "Akun %@. Kuota baru tersedia.";
 "quota_warning_warn_at" = "Peringatkan pada";
 "quota_warning_global_threshold_subtitle" = "Persentase sisa untuk jendela sesi dan mingguan kecuali penyedia menimpanya.";
 "quota_warning_sound" = "Mainkan suara notifikasi";
@@ -853,7 +860,6 @@
 "No local data found" = "Tidak ada data lokal ditemukan";
 "Credits unavailable; keep Codex running to refresh." = "Kredit tidak tersedia; biarkan Codex berjalan untuk menyegarkan.";
 "No available fetch strategy for minimax." = "Tidak ada strategi pengambilan tersedia untuk minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Sesi Cursor tidak ditemukan. Silakan masuk ke cursor.com di Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, atau Edge Canary. Jika Anda menggunakan Safari, berikan CodexBar Akses Disk Penuh di Pengaturan Sistem ▸ Privasi & Keamanan. Anda juga dapat masuk ke Cursor dari menu CodexBar (Tambah / beralih akun).";
 "No OpenCode session cookies found in browsers." = "Cookie sesi OpenCode tidak ditemukan di browser.";
 "No available fetch strategy for %@." = "Tidak ada strategi pengambilan tersedia untuk %@.";
 "Today" = "Hari ini";
@@ -1625,6 +1631,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Obrolan mandiri";
+"Independent chats" = "Obrolan mandiri";
+"Chat %d" = "Obrolan %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1720,3 +1730,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Sinkronisasi pengaturan Mac terpisah dari sinkronisasi penggunaan iPhone. Aktifkan di setiap Mac agar muncul di sini. Riwayat biaya tetap lokal.";
 
 "Cached data from" = "Data tersimpan dari";
+"Supported browsers: %@. Use Manual for other browsers." = "Browser yang didukung: %@. Gunakan Manual untuk browser lain.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Tempel header Cookie dari permintaan Chrome ke www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Dicadangkan";

@@ -7,6 +7,30 @@ import Testing
 
 @Suite(.serialized)
 struct CursorAppAuthLinuxTests {
+    @Test
+    func `repeated app auth refreshes ignore cookies left in the process HTTP session`() async throws {
+        let fixture = try Self.makeDatabase(utf16: false)
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let url = try #require(URL(string: "https://cursor-isolation.invalid"))
+        let staleCookie = try #require(HTTPCookie(properties: [
+            .domain: "cursor-isolation.invalid", .path: "/", .name: "WorkosCursorSessionToken", .value: "stale",
+        ]))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CursorCookieIsolationProtocol.self]
+        let cookieStorage = try #require(configuration.httpCookieStorage)
+        let probe = CursorStatusProbe(
+            baseURL: url,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: CursorStatusProbe.makeHTTPClient(configuration: configuration),
+            appAuthStore: CursorAppAuthStore(dbPath: fixture.database.path))
+        for _ in 0..<3 {
+            let snapshot = try await probe.fetch(allowCachedSessions: false)
+            #expect(snapshot.planPercentUsed == 30)
+            // Simulate Set-Cookie from an earlier response in a long-lived serve process.
+            cookieStorage.setCookie(staleCookie)
+        }
+    }
+
     @Test(arguments: ["/custom/config", "", "relative/config", "~/custom"])
     func `app database path honors only absolute XDG config homes`(configHome: String) {
         let path = CursorAppAuthStore.resolveDefaultDBPath(
@@ -60,7 +84,7 @@ struct CursorAppAuthLinuxTests {
             provider: .cursor,
             cookieHeader: cachedHeader,
             sourceLabel: "Browser")
-        let appAuth = CountingAppAuth(session: CursorAppAuthSession(accessToken: try Self.makeToken()))
+        let appAuth = try CountingAppAuth(session: CursorAppAuthSession(accessToken: Self.makeToken()))
         let probe = CursorStatusProbe(
             browserDetection: BrowserDetection(cacheTTL: 0),
             appAuthStore: appAuth)
@@ -142,7 +166,7 @@ struct CursorAppAuthLinuxTests {
 
     @Test
     func `explicit web mode ignores a persisted app session`() async throws {
-        let appSession = CursorAppAuthSession(accessToken: try Self.makeToken())
+        let appSession = try CursorAppAuthSession(accessToken: Self.makeToken())
         let appCookie = try appSession.makeCookie()
         await CursorSessionStore.shared.setCookies([appCookie])
 
@@ -174,7 +198,7 @@ struct CursorAppAuthLinuxTests {
             provider: .cursor,
             cookieHeader: cachedHeader,
             sourceLabel: "Browser")
-        let appAuth = CountingAppAuth(session: CursorAppAuthSession(accessToken: try Self.makeToken()))
+        let appAuth = try CountingAppAuth(session: CursorAppAuthSession(accessToken: Self.makeToken()))
         let probe = CursorStatusProbe(
             browserDetection: BrowserDetection(cacheTTL: 0),
             appAuthStore: appAuth)
@@ -239,12 +263,16 @@ struct CursorAppAuthLinuxTests {
                 Issue.record("Unexpected endpoint: \(url.path)")
                 throw URLError(.unsupportedURL)
             }
-            let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil))
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: nil))
             return (Data(body.utf8), response)
         }
     }
 
-    private static func makeToken(expiresAt: Double = 4102444800) throws -> String {
+    private static func makeToken(expiresAt: Double = 4_102_444_800) throws -> String {
         let data = try JSONSerialization.data(withJSONObject: ["sub": "auth0|test-user", "exp": expiresAt])
         let payload = data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
@@ -261,7 +289,8 @@ struct CursorAppAuthLinuxTests {
         var db: OpaquePointer?
         try #require(sqlite3_open(database.path, &db) == SQLITE_OK)
         defer { sqlite3_close(db) }
-        try #require(sqlite3_exec(db, "CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value BLOB)", nil, nil, nil) == SQLITE_OK)
+        try #require(sqlite3_exec(db, "CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value BLOB)", nil, nil, nil) ==
+            SQLITE_OK)
         var statement: OpaquePointer?
         try #require(sqlite3_prepare_v2(
             db, "INSERT INTO ItemTable VALUES ('cursorAuth/accessToken', ?)", -1, &statement, nil) == SQLITE_OK)
@@ -287,6 +316,27 @@ private struct UnexpectedAppAuth: CursorAppAuthSessionProviding {
         Issue.record("App credentials must not be read")
         return nil
     }
+}
+
+private final class CursorCookieIsolationProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == "cursor-isolation.invalid"
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let authenticated = self.request.value(forHTTPHeaderField: "Cookie")?.contains("test-user%3A%3A") == true
+        let body = self.request.url?.path == "/api/usage-summary"
+            ? #"{"individualUsage":{"plan":{"totalPercentUsed":30,"used":1500,"limit":5000}}}"# : "{}"
+        let response = HTTPURLResponse(
+            url: self.request.url!, statusCode: authenticated ? 200 : 401, httpVersion: nil, headerFields: nil)!
+        self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        self.client?.urlProtocol(self, didLoad: Data(body.utf8))
+        self.client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 private final class CountingAppAuth: CursorAppAuthSessionProviding, @unchecked Sendable {

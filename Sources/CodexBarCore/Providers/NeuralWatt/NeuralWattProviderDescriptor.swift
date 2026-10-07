@@ -15,7 +15,6 @@ public enum NeuralWattProviderDescriptor {
         subscriptionDashboardURL: "https://portal.neuralwatt.com/dashboard",
         color: ProviderColor(hex: 0xD55934),
         confetti: [0xD55934, 0x17243A, 0xFFFFFF],
-        widgetColor: ProviderColor(hex: 0x38D98C),
         noDataMessage: "Neuralwatt token cost history is not available via the quota API.",
         environmentKey: NeuralWattSettingsReader.apiKeyEnvironmentKey,
         missingCredentialMessage: { _ in NeuralWattProviderDescriptor.missingCredentialMessage },

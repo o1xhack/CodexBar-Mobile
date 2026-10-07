@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Trung bình (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Tránh Keychain lời nhắc";
 "Balance" = "Số dư";
+"Cloud credits" = "Tín dụng đám mây";
+"Expired" = "Đã hết hạn";
 "Battery Saver" = "Trình tiết kiệm pin";
 "Bordered" = "Có viền";
 "Build" = "Xây dựng";
@@ -537,6 +539,11 @@
 "session_depleted_notification_body" = "còn lại 0%. Sẽ thông báo khi có lại.";
 "session_restored_notification_title" = "%@ phiên đã được khôi phục";
 "session_restored_notification_body" = "Phiên Hạn mức đã có sẵn trở lại.";
+"limit_reset_notifications_title" = "Thông báo đặt lại";
+"limit_reset_notifications_subtitle" = "Cho biết nhà cung cấp và khung nào được đặt lại khi giới hạn phiên hoặc hàng tuần được đặt lại.";
+"limit_reset_notification_title" = "%1$@: giới hạn %2$@ đã được đặt lại";
+"limit_reset_notification_body" = "Hạn mức mới đã sẵn sàng.";
+"limit_reset_notification_body_with_account" = "Tài khoản %@. Hạn mức mới đã sẵn sàng.";
 "quota_warning_warn_at" = "Cảnh báo ở";
 "quota_warning_global_threshold_subtitle" = "Tỷ lệ phần trăm còn lại cho phiên và thời lượng hàng tuần trừ khi Nhà cung cấp ghi đè chúng.";
 "quota_warning_sound" = "Phát âm thanh thông báo";
@@ -841,7 +848,6 @@
 "No local data found" = "Không tìm thấy dữ liệu cục bộ";
 "Credits unavailable; keep Codex running to refresh." = "Không có tín dụng; giữ Codex chạy để làm mới.";
 "No available fetch strategy for minimax." = "Không có chiến lược tìm nạp nào cho minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Không tìm thấy phiên Con trỏ. Vui lòng đăng nhập vào con trỏ.com bằng Safari , Chrome , Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chrome, Helium, Vivaldi, Yandex Browser, Firefox , Zen, Colibri, Sidekick, Opera, Opera GX hoặc Edge Canary. Nếu bạn sử dụng Safari , hãy cấp cho CodexBar Quyền truy cập toàn bộ đĩa trong Hệ thống Cài đặt ▸ Quyền riêng tư & Bảo mật. Bạn cũng có thể đăng nhập vào Cursor từ menu CodexBar (Thêm/chuyển đổi tài khoản).";
 "No OpenCode session cookies found in browsers." = "Không tìm thấy cookie phiên OpenCode trong trình duyệt.";
 "No available fetch strategy for %@." = "Không có chiến lược tìm nạp nào cho %@ .";
 "Today" = "Hôm nay";
@@ -1622,6 +1628,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Cuộc trò chuyện độc lập";
+"Independent chats" = "Các cuộc trò chuyện độc lập";
+"Chat %d" = "Cuộc trò chuyện %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1718,3 +1728,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Đồng bộ cài đặt Mac tách biệt với đồng bộ mức sử dụng iPhone. Bật trên từng Mac để hiển thị tại đây. Lịch sử chi phí vẫn được lưu cục bộ.";
 
 "Cached data from" = "Dữ liệu lưu đệm từ";
+"Supported browsers: %@. Use Manual for other browsers." = "Trình duyệt được hỗ trợ: %@. Dùng chế độ Thủ công cho các trình duyệt khác.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Dán tiêu đề Cookie từ yêu cầu Chrome tới www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Đã giữ lại";

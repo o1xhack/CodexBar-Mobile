@@ -5,6 +5,31 @@ import Testing
 
 struct WidgetSnapshotTests {
     @Test
+    func `widget cost summaries omit project names and paths`() throws {
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 100,
+            sessionCostUSD: 1,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 1,
+            daily: [],
+            projects: [.init(
+                name: "Private project",
+                path: "/private/work/project",
+                totalTokens: 100,
+                totalCostUSD: 1,
+                daily: [],
+                modelBreakdowns: nil)],
+            updatedAt: Date(timeIntervalSince1970: 0))
+        let summary = try #require(UsageStore.widgetTokenUsageSummary(from: snapshot, provider: .codex))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        let encoded = try #require(String(data: encoder.encode(summary), encoding: .utf8))
+        #expect(summary.sessionTokens == 100)
+        #expect(!encoded.contains("Private project"))
+        #expect(!encoded.contains("/private/work/project"))
+    }
+
+    @Test
     func `widget token fallback keeps positive totals and rejects overflow`() {
         for (tokens, expected) in [
             ([Int?](), Int?.none),

@@ -96,6 +96,15 @@ public struct GrokUsageSnapshot: Sendable {
             primary: primary,
             secondary: nil,
             tertiary: nil,
+            providerCost: self.webBilling?.prepaidBalanceUSD.map { balance in
+                ProviderCostSnapshot(
+                    used: 0,
+                    limit: 0,
+                    currencyCode: "USD",
+                    balance: balance,
+                    balanceUpdatedAt: self.updatedAt,
+                    updatedAt: self.updatedAt)
+            },
             costUsage: self.localSummary?.toCostUsageTokenSnapshot(
                 historyDays: GrokLocalSessionScanner.defaultLookbackDays),
             details: details,

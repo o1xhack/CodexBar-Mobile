@@ -9,19 +9,60 @@ import Foundation
 
 protocol ClaudeOAuthPendingCacheClearStore: Sendable {
     var isPending: Bool { get }
-
-    func markPending()
-    func withCacheTransaction(_ operation: (inout Bool) -> Void)
-
     func isPending(profileIdentifier: String) -> Bool
     func markPending(profileIdentifier: String)
-    func withCacheTransaction(profileIdentifier: String, _ operation: (inout Bool) -> Void)
+    /// False means the generation was not committed; discard any tentative result.
+    @discardableResult
     func withCacheTransaction(
         profileIdentifier: String,
-        includingLegacyCleanup operation: (inout Bool, inout Bool) -> Void)
+        includingGeneration operation: (inout Bool, inout Bool, inout Bool, inout String?) -> Void) -> Bool
+}
+
+extension ClaudeOAuthPendingCacheClearStore {
+    @discardableResult
+    func withCacheTransaction(profileIdentifier: String, _ operation: (inout Bool) -> Void) -> Bool {
+        self.withCacheTransaction(
+            profileIdentifier: profileIdentifier,
+            includingLegacyCleanup: { profilePending, legacyCleanupPending in
+                var pending = profilePending || legacyCleanupPending
+                operation(&pending)
+                if pending {
+                    if !profilePending, !legacyCleanupPending {
+                        profilePending = true
+                    }
+                } else {
+                    profilePending = false
+                    legacyCleanupPending = false
+                }
+            })
+    }
+
+    @discardableResult
     func withCacheTransaction(
         profileIdentifier: String,
-        includingLegacyState operation: (inout Bool, inout Bool, inout Bool) -> Void)
+        includingLegacyCleanup operation: (inout Bool, inout Bool) -> Void) -> Bool
+    {
+        self.withCacheTransaction(
+            profileIdentifier: profileIdentifier,
+            includingLegacyState: { profilePending, legacyCleanupPending, legacyRecheckPending in
+                operation(&profilePending, &legacyCleanupPending)
+                if legacyCleanupPending {
+                    legacyRecheckPending = false
+                }
+            })
+    }
+
+    @discardableResult
+    func withCacheTransaction(
+        profileIdentifier: String,
+        includingLegacyState operation: (inout Bool, inout Bool, inout Bool) -> Void) -> Bool
+    {
+        self.withCacheTransaction(
+            profileIdentifier: profileIdentifier,
+            includingGeneration: { pending, cleanup, recheck, _ in
+                operation(&pending, &cleanup, &recheck)
+            })
+    }
 }
 
 final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCacheClearStore, @unchecked Sendable {
@@ -61,36 +102,6 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
         } catch {
             Self.log.error("Claude OAuth cache tombstone lock failed: \(error.localizedDescription)")
             return true
-        }
-    }
-
-    func markPending() {
-        do {
-            try self.withInterprocessLock {
-                self.writeGeneration(UUID().uuidString)
-            }
-        } catch {
-            // A surviving tombstone is safer than allowing a stale cache read. If the lock itself is unavailable,
-            // write a fresh generation but never clear one through the unlocked fallback path.
-            Self.log.error("Claude OAuth cache tombstone lock failed: \(error.localizedDescription)")
-            self.writeGeneration(UUID().uuidString)
-        }
-    }
-
-    func withCacheTransaction(_ operation: (inout Bool) -> Void) {
-        do {
-            try self.withInterprocessLock {
-                let initialGeneration = self.currentGeneration()
-                var pending = initialGeneration != nil
-                operation(&pending)
-                self.persist(
-                    pending: pending,
-                    initialGeneration: initialGeneration)
-            }
-        } catch {
-            Self.log.error("Claude OAuth cache transaction lock failed: \(error.localizedDescription)")
-            // Fail closed: without the shared lock, do not touch the cache and leave a fresh invalidation marker.
-            self.writeGeneration(UUID().uuidString)
         }
     }
 
@@ -137,43 +148,13 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
         }
     }
 
-    func withCacheTransaction(profileIdentifier: String, _ operation: (inout Bool) -> Void) {
-        self.withCacheTransaction(
-            profileIdentifier: profileIdentifier,
-            includingLegacyCleanup: { profilePending, legacyCleanupPending in
-                var pending = profilePending || legacyCleanupPending
-                operation(&pending)
-                if pending {
-                    if !profilePending, !legacyCleanupPending {
-                        profilePending = true
-                    }
-                } else {
-                    profilePending = false
-                    legacyCleanupPending = false
-                }
-            })
-    }
-
+    @discardableResult
     func withCacheTransaction(
         profileIdentifier: String,
-        includingLegacyCleanup operation: (inout Bool, inout Bool) -> Void)
-    {
-        self.withCacheTransaction(
-            profileIdentifier: profileIdentifier,
-            includingLegacyState: { profilePending, legacyCleanupPending, legacyRecheckPending in
-                operation(&profilePending, &legacyCleanupPending)
-                if legacyCleanupPending {
-                    legacyRecheckPending = false
-                }
-            })
-    }
-
-    func withCacheTransaction(
-        profileIdentifier: String,
-        includingLegacyState operation: (inout Bool, inout Bool, inout Bool) -> Void)
+        includingGeneration operation: (inout Bool, inout Bool, inout Bool, inout String?) -> Void) -> Bool
     {
         do {
-            try self.withInterprocessLock {
+            return try self.withInterprocessLock {
                 let initialFallbackGeneration = self.unlockedProfileFallbackGeneration(
                     profileIdentifier: profileIdentifier)
                 switch self.currentState() {
@@ -190,10 +171,12 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
                     var legacyCleanupPending = hadUnscopedPending ||
                         generations[legacyCleanupIdentifier] != nil
                     var legacyRecheckPending = generations[legacyRecheckIdentifier] != nil
-                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending)
+                    var generation = hadUnscopedPending || initialFallbackGeneration != nil
+                        ? nil : generations[profileIdentifier]
+                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending, &generation)
                     generations[Self.legacyProfileIdentifier] = nil
                     if profilePending {
-                        generations[profileIdentifier] = generations[profileIdentifier] ?? UUID().uuidString
+                        generations[profileIdentifier] = generation ?? UUID().uuidString
                     } else {
                         generations[profileIdentifier] = nil
                     }
@@ -209,6 +192,8 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
                     } else {
                         generations[legacyRecheckIdentifier] = nil
                     }
+                    guard self.unlockedProfileFallbackGeneration(profileIdentifier: profileIdentifier)
+                        == initialFallbackGeneration else { return false }
                     let persisted = self.persist(
                         generations: generations,
                         initialGenerations: initialGenerations)
@@ -217,6 +202,8 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
                             initialFallbackGeneration,
                             profileIdentifier: profileIdentifier)
                     }
+                    return persisted && self
+                        .unlockedProfileFallbackGeneration(profileIdentifier: profileIdentifier) == nil
                 case let .legacy(initialGeneration):
                     // V1 did not distinguish profile invalidation from legacy-key cleanup. The first
                     // profile-owned transaction claims both responsibilities and persists any retry
@@ -224,29 +211,36 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
                     var profilePending = true
                     var legacyCleanupPending = true
                     var legacyRecheckPending = false
-                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending)
-                    guard self.currentGeneration() == initialGeneration else { return }
+                    var generation: String?
+                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending, &generation)
+                    guard self.currentGeneration() == initialGeneration else { return false }
                     self.writeProfileGenerations(self.pendingGenerations(
                         profileIdentifier: profileIdentifier,
                         profilePending: profilePending,
                         legacyCleanupPending: legacyCleanupPending,
-                        legacyRecheckPending: legacyRecheckPending))
+                        legacyRecheckPending: legacyRecheckPending,
+                        profileGeneration: generation))
                     self.consumeUnlockedProfileFallbackGeneration(
                         initialFallbackGeneration,
                         profileIdentifier: profileIdentifier)
+                    return self.unlockedProfileFallbackGeneration(profileIdentifier: profileIdentifier) == nil
                 case .none:
                     var profilePending = initialFallbackGeneration != nil
                     var legacyCleanupPending = false
                     var legacyRecheckPending = false
-                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending)
+                    var generation: String?
+                    operation(&profilePending, &legacyCleanupPending, &legacyRecheckPending, &generation)
+                    guard case .none = self.currentState() else { return false }
                     self.writeProfileGenerations(self.pendingGenerations(
                         profileIdentifier: profileIdentifier,
                         profilePending: profilePending,
                         legacyCleanupPending: legacyCleanupPending,
-                        legacyRecheckPending: legacyRecheckPending))
+                        legacyRecheckPending: legacyRecheckPending,
+                        profileGeneration: generation))
                     self.consumeUnlockedProfileFallbackGeneration(
                         initialFallbackGeneration,
                         profileIdentifier: profileIdentifier)
+                    return self.unlockedProfileFallbackGeneration(profileIdentifier: profileIdentifier) == nil
                 }
             }
         } catch {
@@ -255,25 +249,8 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
             self.writeUnlockedProfileFallbackGeneration(
                 UUID().uuidString,
                 profileIdentifier: profileIdentifier)
+            return false
         }
-    }
-
-    private func persist(
-        pending: Bool,
-        initialGeneration: String?)
-    {
-        let currentGeneration = self.currentGeneration()
-        if pending {
-            if currentGeneration == nil {
-                self.writeGeneration(UUID().uuidString)
-            }
-            return
-        }
-
-        // Compare the observed generation before removal. This is defensive against writers that do not yet honor
-        // the lock, while the lock serializes all current app and bundled-CLI cache mutations.
-        guard currentGeneration == initialGeneration else { return }
-        self.writeGeneration(nil)
     }
 
     private func currentGeneration() -> String? {
@@ -330,11 +307,12 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
         profileIdentifier: String,
         profilePending: Bool,
         legacyCleanupPending: Bool,
-        legacyRecheckPending: Bool) -> [String: String]
+        legacyRecheckPending: Bool,
+        profileGeneration: String?) -> [String: String]
     {
         var generations: [String: String] = [:]
         if profilePending {
-            generations[profileIdentifier] = UUID().uuidString
+            generations[profileIdentifier] = profileGeneration ?? UUID().uuidString
         }
         if legacyCleanupPending {
             generations[Self.legacyCleanupIdentifier(profileIdentifier: profileIdentifier)] = UUID().uuidString
@@ -393,16 +371,6 @@ final class ClaudeOAuthPendingCacheClearUserDefaultsStore: ClaudeOAuthPendingCac
             userDefaults.set(generation, forKey: fallbackKey)
         } else {
             userDefaults.removeObject(forKey: fallbackKey)
-        }
-        userDefaults.synchronize()
-    }
-
-    private func writeGeneration(_ generation: String?) {
-        let userDefaults = self.userDefaults
-        if let generation {
-            userDefaults.set(generation, forKey: self.key)
-        } else {
-            userDefaults.removeObject(forKey: self.key)
         }
         userDefaults.synchronize()
     }

@@ -289,26 +289,8 @@ public final class BrowserDetection: Sendable {
     }
 
     private func requiresProfileValidation(_ browser: Browser) -> Bool {
-        // Chromium-based browsers should have Default/ or Profile*/ subdirectories
-        if browser == .safari {
-            return false
-        }
-
-        if browser == .helium {
-            // Helium doesn't use the Default/Profile* pattern
-            return false
-        }
-
-        if browser.usesGeckoProfileStore {
-            // Firefox should have at least one *.default* directory
-            return true
-        }
-
-        if browser.usesChromiumProfileStore {
-            return true
-        }
-
-        return false
+        // Helium does not use the Default/Profile* pattern; Gecko uses *.default* directories.
+        browser != .helium && (browser.usesGeckoProfileStore || browser.usesChromiumProfileStore)
     }
 
     private func hasValidProfileDirectory(for browser: Browser, at profilePath: String) -> Bool {

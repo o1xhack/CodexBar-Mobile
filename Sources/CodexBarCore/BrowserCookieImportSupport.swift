@@ -4,7 +4,15 @@ import SweetCookieKit
 #endif
 
 /// Shared browser policies and traversal; providers retain session validation, caching, and logging.
-enum BrowserCookieImportSupport {
+public enum BrowserCookieImportSupport {
+    public static func browserNames(for provider: UsageProvider?) -> String {
+        #if os(macOS)
+        self.importOrder(for: provider).map(\.displayName).joined(separator: ", ")
+        #else
+        "none on this platform"
+        #endif
+    }
+
     /// Keep deliberate Chrome-only policies explicit without duplicating platform guards in descriptors.
     static func chromeOnly(reason _: StaticString) -> BrowserCookieImportOrder? {
         #if os(macOS)
@@ -15,6 +23,10 @@ enum BrowserCookieImportSupport {
     }
 
     #if os(macOS)
+    static func importOrder(for provider: UsageProvider?) -> [Browser] {
+        provider.map { ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder } ?? [.chrome]
+    }
+
     static func collectSessions<Session>(
         from browsers: [Browser],
         missingError: (any Error)?,

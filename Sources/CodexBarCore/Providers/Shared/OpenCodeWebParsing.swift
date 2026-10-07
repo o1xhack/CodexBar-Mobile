@@ -131,11 +131,7 @@ enum OpenCodeWebParsing {
             if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
                 return self.dateValue(from: number)
             }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let parsed = formatter.date(from: string) {
-                return parsed
-            }
+            return ISO8601DateParser.parse(string)
         }
         return nil
     }

@@ -627,13 +627,13 @@ struct CloudSyncSettingsTests {
             recordName: PreferencesSyncPayload.recordName, zoneID: CloudSyncEngine.zoneID))
         record["payload"] = try CanonicalSyncJSON.string(PreferencesSyncPayload(preferences: remote)) as CKRecordValue
         await engine.applyFetchedRecords([record])
-        await engine.localUserPreferencesDidChange(fixture.store.syncedPreferences)
+        engine.localUserPreferencesDidChange(fixture.store.syncedPreferences)
         #expect(!persistence.load().preferencesDirty)
 
         var document = PreferencesDocument()
         try document.set("hidePersonalInfo", !remote.hidePersonalInfo)
         try fixture.store.importPreferences(document)
-        await engine.localUserPreferencesDidChange(fixture.store.syncedPreferences)
+        engine.localUserPreferencesDidChange(fixture.store.syncedPreferences)
         #expect(persistence.load().preferencesDirty)
     }
 
@@ -656,7 +656,7 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
-    func `local provider edit queues exactly that provider`() async throws {
+    func `local provider edit queues exactly that provider`() throws {
         let fixture = try self.makeFixture("dirty-provider")
         let persistence = self.makePersistence("dirty-provider")
         let initial = fixture.store.configSnapshot
@@ -672,7 +672,7 @@ struct CloudSyncSettingsTests {
         claude.extrasEnabled = !(claude.extrasEnabled ?? false)
         updated.setProviderConfig(claude)
 
-        await engine.localUserConfigurationDidChange(updated)
+        engine.localUserConfigurationDidChange(updated)
 
         let envelope = persistence.load()
         let recordNames = CloudSyncDirtyState.configurationRecordNamesToQueue(
@@ -744,7 +744,7 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
-    func `machine local provider edit does not become dirty`() async throws {
+    func `machine local provider edit does not become dirty`() throws {
         let fixture = try self.makeFixture("machine-local-provider")
         let persistence = self.makePersistence("machine-local-provider")
         let initial = fixture.store.configSnapshot
@@ -760,7 +760,7 @@ struct CloudSyncSettingsTests {
         claude.claudeSwapExecutablePath = "/machine-only/claude-swap"
         updated.setProviderConfig(claude)
 
-        await engine.localUserConfigurationDidChange(updated)
+        engine.localUserConfigurationDidChange(updated)
 
         #expect(persistence.load().dirtyProviders.isEmpty)
     }

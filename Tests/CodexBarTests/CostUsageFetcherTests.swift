@@ -1149,12 +1149,22 @@ extension CostUsageFetcherTests {
 
 extension CostUsageFetcherTests {
     @Test
-    func `codex conversations carry thread names and project folders`() async throws {
+    func `codex conversations carry thread names and saved project names`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
         let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
         let projectPath = env.root.appendingPathComponent("work/example-project", isDirectory: true).path
+        var database: OpaquePointer?
+        #expect(sqlite3_open(env.codexHomeRoot.appendingPathComponent("state_5.sqlite").path, &database) == SQLITE_OK)
+        defer { sqlite3_close(database) }
+        let sql = """
+        CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT);
+        CREATE TABLE project_roots (project_id TEXT, path TEXT);
+        INSERT INTO projects VALUES ('project', 'Saved Workspace');
+        INSERT INTO project_roots VALUES ('project', '\(projectPath)');
+        """
+        #expect(sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK)
         for sessionID in ["named-session", "unnamed-session"] {
             _ = try env.writeCodexSessionFile(
                 day: day,
@@ -1193,8 +1203,40 @@ extension CostUsageFetcherTests {
         let unnamed = try #require(snapshot.sessions.first(where: { $0.sessionID == "unnamed-session" }))
         #expect(named.title == "Fix the icon")
         #expect(unnamed.title == nil)
-        #expect(named.projectName == "example-project")
+        #expect(named.projectName == "Saved Workspace")
+        #expect(snapshot.projects.map(\.name) == ["Saved Workspace"])
         #expect(named.projectPath.map { URL(fileURLWithPath: $0).lastPathComponent } == "example-project")
+
+        let cached = try #require(await CostUsageFetcher.loadCachedCodexTokenSnapshot(
+            now: day,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options,
+            piScannerOptions: piOptions))
+        #expect(cached.projects.map(\.name) == ["Saved Workspace"])
+        #expect(cached.sessions.allSatisfy { $0.projectName == "Saved Workspace" })
+        #expect(cached.sessions == snapshot.sessions)
+        #expect(cached.projects == snapshot.projects)
+
+        #expect(sqlite3_exec(database, "UPDATE projects SET name = 'Renamed Workspace'", nil, nil, nil) == SQLITE_OK)
+        let renamed = try #require(await CostUsageFetcher.loadCachedCodexTokenSnapshot(
+            now: day,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options,
+            piScannerOptions: piOptions))
+        var expectedProjects = cached.projects
+        for index in expectedProjects.indices {
+            expectedProjects[index].name = "Renamed Workspace"
+        }
+        var expectedSessions = cached.sessions
+        for index in expectedSessions.indices {
+            expectedSessions[index].projectName = "Renamed Workspace"
+        }
+        #expect(renamed.projects == expectedProjects)
+        #expect(renamed.sessions == expectedSessions)
+        #expect(renamed.daily == cached.daily)
+        #expect(renamed.updatedAt == cached.updatedAt)
     }
 
     @Test
@@ -1221,6 +1263,10 @@ extension CostUsageFetcherTests {
             let sql = """
             CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT);
             INSERT INTO threads VALUES ('\(sessionID)', 'Title for \(sessionID)');
+            CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT);
+            CREATE TABLE project_roots (project_id TEXT, path TEXT);
+            INSERT INTO projects VALUES ('project', 'Saved Worktree Project');
+            INSERT INTO project_roots VALUES ('project', '\(cwd.path)');
             """
             #expect(sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK)
             _ = try env.writeCodexSessionFile(
@@ -1257,10 +1303,24 @@ extension CostUsageFetcherTests {
         #expect(snapshot.sessions.count == 2)
         for session in snapshot.sessions {
             #expect(session.title == "Title for \(session.sessionID)")
+            #expect(session.projectName == "Saved Worktree Project")
             #expect(session.projectPath.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
                 == project.resolvingSymlinksInPath().path)
             #expect(session.totalTokens == 110)
         }
+        #expect(snapshot.projects.map(\.name) == ["Saved Worktree Project"])
+        let cachedResult = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: day,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: .init(
+                codexSessionsRoot: env.codexSessionsRoot,
+                cacheRoot: env.cacheRoot,
+                codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite")),
+            environment: ["CODEX_SQLITE_HOME": "local-state"])
+        let cached = try #require(cachedResult?.snapshot)
+        #expect(cached.projects.map(\.name) == ["Saved Worktree Project"])
+        #expect(cached.sessions.allSatisfy { $0.projectName == "Saved Worktree Project" })
     }
 
     @Test
@@ -1277,7 +1337,7 @@ extension CostUsageFetcherTests {
             modelBreakdowns: [])
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("not-a-codex-home", isDirectory: true)
 
-        #expect(CostUsageFetcher.codexSessionsWithThreadTitles([session], sessionsRoot: root) == [session])
-        #expect(CostUsageFetcher.codexSessionsWithThreadTitles([session], sessionsRoot: nil) == [session])
+        #expect(CostUsageFetcher.codexBreakdownsWithMetadata([session], sessionsRoot: root).sessions == [session])
+        #expect(CostUsageFetcher.codexBreakdownsWithMetadata([session], sessionsRoot: nil).sessions == [session])
     }
 }

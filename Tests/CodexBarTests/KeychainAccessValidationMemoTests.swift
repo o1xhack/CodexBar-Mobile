@@ -83,18 +83,29 @@ struct KeychainAccessValidationMemoTests {
         }
     }
 
-    @Test
-    func `stalled signature validation returns inconclusive without holding refresh locks`() throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `stalled signature validation returns inconclusive while native work remains blocked`() throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let memo = Memo()
-        let started = Date()
+        let completed = LockIsolated(false)
+        let release = DispatchSemaphore(value: 0)
+        let finished = DispatchSemaphore(value: 0)
+        defer {
+            release.signal()
+            #expect(finished.wait(timeout: .now() + 30) == .success)
+        }
         let result = memo.validate(trustedApplication: Self.trust, path: fixture.helper.path) {
-            Thread.sleep(forTimeInterval: 5)
+            defer {
+                completed.setValue(true)
+                finished.signal()
+            }
+            #expect(release.wait(timeout: .now() + 60) == .success)
             return errSecSuccess
         }
         #expect(result == nil)
-        #expect(Date().timeIntervalSince(started) < 4.5)
+        // Success cannot arrive until cleanup releases the native validation.
+        #expect(!completed.value)
     }
 
     @Test

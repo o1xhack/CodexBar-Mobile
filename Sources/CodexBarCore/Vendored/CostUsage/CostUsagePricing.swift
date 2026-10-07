@@ -76,7 +76,7 @@ enum CostUsagePricing {
         let cacheReadInputCostPerTokenAboveThreshold: Double?
     }
 
-    private struct ClaudeCostTokens {
+    struct ClaudeCostTokens {
         let input: Int
         let cacheRead: Int
         let cacheCreation: Int
@@ -523,7 +523,9 @@ enum CostUsagePricing {
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
     /// Version 15: v0.58 merged scanners use one catalog snapshot for amount and estimate provenance.
-    static let parserLogicVersion = 18
+    /// Version 19: v0.71.0-v0.72.0 merged Codex resumed-session recovery, Claude transcript-window reuse,
+    /// Pi cache-write pricing, and Grok scan scope changes.
+    static let parserLogicVersion = 19
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -1016,7 +1018,7 @@ enum CostUsagePricing {
             + Double(max(0, tokens.output)) * outputRate
     }
 
-    private static func claudeCostUSD(pricing: ModelsDevPricingInfo, tokens: ClaudeCostTokens) -> Double {
+    static func claudeCostUSD(pricing: ModelsDevPricingInfo, tokens: ClaudeCostTokens) -> Double {
         // Provider-specific by design: OpenAI's threshold also applies to usage recorded by Claude Code.
         let bundledThreshold = pricing.providerID == self.codexModelsDevProviderID
             ? self.codex[self.normalizeCodexModel(pricing.modelID)]?.thresholdTokens

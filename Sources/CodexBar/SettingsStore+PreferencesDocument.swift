@@ -5,6 +5,7 @@ extension SettingsStore {
     func exportPreferences() throws -> PreferencesDocument {
         var document = PreferencesDocument()
         try document.include(self.syncedPreferences)
+        try document.set("limitResetNotificationsEnabled", self.limitResetNotificationsEnabled)
         try document.set("mergeIcons", self.mergeIcons)
         try document.set("mergeIconsStacked", self.mergeIconsStacked)
         try document.set("switcherShowsIcons", self.switcherShowsIcons)
@@ -28,6 +29,9 @@ extension SettingsStore {
         let consent = self.adaptiveActivityScanConsent
         self.applySyncedPreferences(synced)
         if self.adaptiveActivityScanConsent != consent { self.adaptiveActivityScanConsent = consent }
+        if let value: Bool = try document.value("limitResetNotificationsEnabled") {
+            self.limitResetNotificationsEnabled = value
+        }
         if let value: Bool = try document.value("mergeIcons") { self.mergeIcons = value }
         if let value: Bool = try document.value("mergeIconsStacked") { self.mergeIconsStacked = value }
         if let value: Bool = try document.value("switcherShowsIcons") { self.switcherShowsIcons = value }

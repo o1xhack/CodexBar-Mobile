@@ -6,44 +6,14 @@ struct DeepSeekUsageFetcherTests {
     private struct TimeoutError: Error {}
 
     private actor SummaryCancellationProbe {
-        private var started = false
-        private var cancelled = false
-        private var startedWaiters: [CheckedContinuation<Void, Never>] = []
-        private var cancelledWaiters: [CheckedContinuation<Void, Never>] = []
+        private let started = HeldRequestGate()
+        private let cancelled = HeldRequestGate()
 
-        func markStarted() {
-            self.started = true
-            for waiter in self.startedWaiters {
-                waiter.resume()
-            }
-            self.startedWaiters.removeAll()
-        }
-
-        func waitUntilStarted() async {
-            if self.started { return }
-            await withCheckedContinuation { continuation in
-                self.startedWaiters.append(continuation)
-            }
-        }
-
-        func markCancelled() {
-            self.cancelled = true
-            for waiter in self.cancelledWaiters {
-                waiter.resume()
-            }
-            self.cancelledWaiters.removeAll()
-        }
-
-        func waitUntilCancelled() async {
-            if self.cancelled { return }
-            await withCheckedContinuation { continuation in
-                self.cancelledWaiters.append(continuation)
-            }
-        }
-
-        func wasCancelled() -> Bool {
-            self.cancelled
-        }
+        func markStarted() async { await self.started.open() }
+        func waitUntilStarted() async { await self.started.wait() }
+        func markCancelled() async { await self.cancelled.open() }
+        func waitUntilCancelled() async { await self.cancelled.wait() }
+        func wasCancelled() async -> Bool { await self.cancelled.isOpen }
     }
 
     private actor ConcurrentFetchGate {
@@ -95,10 +65,7 @@ struct DeepSeekUsageFetcherTests {
     }
 
     private static func waitForCancellation(_ probe: SummaryCancellationProbe) async -> Bool {
-        for _ in 0..<100 {
-            if await probe.wasCancelled() { return true }
-            try? await Task.sleep(for: .milliseconds(20))
-        }
+        await probe.waitUntilCancelled()
         return await probe.wasCancelled()
     }
 
@@ -475,7 +442,7 @@ struct DeepSeekUsageFetcherTests {
     @Test
     func `usage amount and cost fetch concurrently`() async throws {
         let gate = ConcurrentFetchGate()
-        let payloads = try await Self.withTimeout(.seconds(1)) {
+        let payloads = try await Self.withTimeout(.seconds(60)) {
             try await DeepSeekUsageFetcher._fetchUsagePayloadsForTesting(
                 fetchAmount: {
                     await gate.arriveAndWait()
@@ -494,7 +461,7 @@ struct DeepSeekUsageFetcherTests {
     @Test
     func `balance returns promptly when optional usage summary is slow`() async throws {
         let probe = SummaryCancellationProbe()
-        let snapshot = try await Self.withTimeout(.seconds(10)) {
+        let snapshot = try await Self.withTimeout(.seconds(60)) {
             try await DeepSeekUsageFetcher._fetchUsageForTesting(
                 apiKey: "test-key",
                 platformToken: "platform-token",
@@ -522,30 +489,31 @@ struct DeepSeekUsageFetcherTests {
 
     @Test
     func `balance grace does not wait for optional summary that ignores cancellation`() async throws {
-        let startedAt = ContinuousClock.now
+        let summaryStarted = HeldRequestGate()
+        let releaseSummary = HeldRequestGate()
+        let summaryFinished = HeldRequestGate()
+        defer { Task { await releaseSummary.open() } }
         let snapshot = try await DeepSeekUsageFetcher._fetchUsageForTesting(
             apiKey: "test-key",
             platformToken: "platform-token",
             includeOptionalUsage: true,
             optionalSummaryJoinGrace: .milliseconds(20),
             fetchBalanceData: { _ in
-                Data(Self.sampleBalanceJSON.utf8)
+                await summaryStarted.wait()
+                return Data(Self.sampleBalanceJSON.utf8)
             },
             fetchSummary: { _ in
-                await withCheckedContinuation { continuation in
-                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                        continuation.resume(returning: Self.sampleSummary())
-                    }
-                }
+                await summaryStarted.open()
+                await releaseSummary.wait()
+                await summaryFinished.open()
+                return Self.sampleSummary()
             })
-        let elapsed = startedAt.duration(to: .now)
 
         #expect(snapshot.totalBalance == 50.0)
         #expect(snapshot.usageSummary == nil)
-        #expect(elapsed < .milliseconds(300), "Optional summary delayed balance: \(elapsed)")
-
-        // Let the deliberately cancellation-ignoring test task drain before the test exits.
-        try await Task.sleep(for: .milliseconds(550))
+        #expect(await releaseSummary.isOpen == false)
+        await releaseSummary.open()
+        await summaryFinished.wait()
     }
 
     @Test
@@ -702,7 +670,7 @@ struct DeepSeekUsageFetcherTests {
         task.cancel()
 
         do {
-            _ = try await Self.withTimeout(.seconds(10)) {
+            _ = try await Self.withTimeout(.seconds(60)) {
                 try await task.value
             }
             Issue.record("Expected cancellation")
@@ -713,7 +681,9 @@ struct DeepSeekUsageFetcherTests {
 
     @Test
     func `parent cancellation stops summary while balance transport ignores cancellation`() async throws {
-        let balanceStarted = AsyncStream<Void>.makeStream(of: Void.self)
+        let balanceStarted = HeldRequestGate()
+        let releaseBalance = HeldRequestGate()
+        defer { Task { await releaseBalance.open() } }
         let probe = SummaryCancellationProbe()
         let task = Task {
             try await DeepSeekUsageFetcher._fetchUsageForTesting(
@@ -722,12 +692,9 @@ struct DeepSeekUsageFetcherTests {
                 includeOptionalUsage: true,
                 optionalSummaryJoinGrace: .seconds(30),
                 fetchBalanceData: { _ in
-                    balanceStarted.continuation.yield(())
-                    return await withCheckedContinuation { continuation in
-                        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
-                            continuation.resume(returning: Data(Self.sampleBalanceJSON.utf8))
-                        }
-                    }
+                    await balanceStarted.open()
+                    await releaseBalance.wait()
+                    return Data(Self.sampleBalanceJSON.utf8)
                 },
                 fetchSummary: { _ in
                     await probe.markStarted()
@@ -741,14 +708,13 @@ struct DeepSeekUsageFetcherTests {
                 })
         }
 
-        var balanceIterator = balanceStarted.stream.makeAsyncIterator()
-        _ = await balanceIterator.next()
+        await balanceStarted.wait()
         await probe.waitUntilStarted()
-        let cancellationStartedAt = ContinuousClock.now
         task.cancel()
 
         await probe.waitUntilCancelled()
-        #expect(cancellationStartedAt.duration(to: .now) < .milliseconds(300))
+        #expect(await releaseBalance.isOpen == false)
+        await releaseBalance.open()
         await #expect(throws: CancellationError.self) {
             try await task.value
         }

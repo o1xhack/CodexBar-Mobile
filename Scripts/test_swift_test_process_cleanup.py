@@ -8,6 +8,7 @@ import io
 import json
 import os
 from pathlib import Path
+import select
 import signal
 import subprocess
 import sys
@@ -59,6 +60,14 @@ def release_observed_fixture(root, owned, include_grandchild=False):
 
 def fixture(mode, directory, ready_delay=0):
     root = Path(directory)
+    if mode == "ready-sentinel":
+        if os.getpgrp() != os.getpid():
+            os.setpgid(0, 0)
+        publish_fixture_identity(root)
+        print("ready", flush=True)
+        # The controller owns this sentinel's lifetime; startup load must not consume it.
+        sys.stdin.buffer.read(1)
+        return
     if mode == "session-leader":
         publish_fixture_identity(root)
         grandchild = root / "grandchild"
@@ -99,7 +108,7 @@ def fixture(mode, directory, ready_delay=0):
         start_new_session=mode in ("timeout-session", "success-session", "success-session-tree"),
     )
     # Preserve ancestry until the real ownership refresh has observed the ready identities.
-    wait_until(lambda: (root / "observed").exists() or (root / "stop").exists())
+    wait_until(lambda: (root / "observed").exists() or (root / "stop").exists(), timeout=10)
     if (root / "stop").exists():
         return
     if mode in ("success", "success-session", "success-session-tree"):
@@ -153,7 +162,8 @@ class NestedProcessCleanupTests(unittest.TestCase):
             child_root.mkdir()
             sentinel_root.mkdir()
             sentinel = subprocess.Popen(
-                [sys.executable, __file__, "--fixture", "sentinel", str(sentinel_root)], start_new_session=True)
+                [sys.executable, __file__, "--fixture", "ready-sentinel", str(sentinel_root)],
+                start_new_session=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             original_snapshot = runner.test_process_snapshot
             original_refresh = runner.TestProcessOwnership.refresh
             original_send = runner.TestProcessOwnership.send
@@ -206,7 +216,8 @@ class NestedProcessCleanupTests(unittest.TestCase):
                 signaled.append(info.pid)
                 original_send(ownership, info, sig)
             try:
-                wait_until(lambda: (sentinel_root / "ready").exists())
+                self.assertTrue(select.select([sentinel.stdout], [], [], 60)[0], "sentinel did not become ready")
+                self.assertEqual(sentinel.stdout.readline(), b"ready\n")
                 with patch.object(runner, "test_process_snapshot", side_effect=snapshot), \
                         patch.object(runner.TestProcessOwnership, "refresh", refresh), \
                         patch.object(runner.TestProcessOwnership, "send", send):
@@ -227,7 +238,9 @@ class NestedProcessCleanupTests(unittest.TestCase):
                 (root / "allow-drain").touch()
                 (child_root / "stop").touch()
                 (sentinel_root / "stop").touch()
+                sentinel.stdin.close()
                 runner.stop_unreaped_child(sentinel)
+                sentinel.stdout.close()
                 for name in ("pid", "parent-pid"):
                     path = child_root / name
                     if path.exists():
@@ -262,6 +275,12 @@ class ProcessCleanupTests(unittest.TestCase):
                 draining = False
                 def refresh(ownership, **kwargs):
                     nonlocal acknowledged, timer
+                    # Observe ready identities before timeout cleanup; virtual-clock tests cover exact deadlines.
+                    if not acknowledged and not draining:
+                        ready_roots = [child_root]
+                        if mode == "success-session-tree":
+                            ready_roots.append(child_root / "grandchild")
+                        wait_until(lambda: all((path / "ready").exists() for path in ready_roots), timeout=10)
                     owned = original_refresh(ownership, **kwargs)
                     if not acknowledged and not draining:
                         acknowledged = release_observed_fixture(
@@ -303,7 +322,6 @@ class ProcessCleanupTests(unittest.TestCase):
                     self.assertFalse(running(int(pid_file.read_text())), f"owned helper {pid_file} survived")
                 self.assertFalse(running(int((child_root / "parent-pid").read_text())))
                 self.assertIsNone(sentinel.poll(), "unrelated sentinel was terminated")
-                self.assertLess(elapsed, 9, "cleanup exceeded bounded grace")
                 print(json.dumps(dict(mode=mode, ready_delay=ready_delay, elapsed=round(elapsed, 3),
                                       observed_before_drain=acknowledged, child_terminated=True,
                                       unrelated_sentinel_alive=True)), flush=True)

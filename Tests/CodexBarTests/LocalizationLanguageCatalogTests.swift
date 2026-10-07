@@ -3,6 +3,24 @@ import Testing
 @testable import CodexBar
 
 struct LocalizationLanguageCatalogTests {
+    @Test
+    func `supported browser guidance is translated with one browser list placeholder`() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+        for url in catalogs {
+            let catalog = try #require(NSDictionary(contentsOf: url.appendingPathComponent("Localizable.strings"))
+                as? [String: String])
+            let key = "Supported browsers: %@. Use Manual for other browsers."
+            let phrase = try #require(catalog[key], "Missing phrase in \(url.lastPathComponent)")
+            #expect(phrase.components(separatedBy: "%@").count == 2)
+            #expect(phrase.count(where: { $0 == "%" }) == 1)
+            if url.lastPathComponent != "en.lproj" { #expect(phrase != key) }
+        }
+    }
+
     private let languageKeys = [
         "language_system",
         "language_english",

@@ -193,6 +193,7 @@ public enum ClaudeWebAPIFetcher {
         public let extraRateWindows: [NamedRateWindow]
         public fileprivate(set) var extraUsageCost: ProviderCostSnapshot?
         public let resetCredits: ClaudeRateLimitResetCreditsSnapshot?
+        public let cloudCredits: ClaudeCloudCreditsSnapshot?
         public fileprivate(set) var accountOrganization: String?
         public fileprivate(set) var accountOrganizationID: String?
         public fileprivate(set) var accountEmail: String?
@@ -217,7 +218,8 @@ public enum ClaudeWebAPIFetcher {
             accountEmail: String?,
             loginMethod: String?,
             hasLiveSessionWindow: Bool = true,
-            resetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil)
+            resetCredits: ClaudeRateLimitResetCreditsSnapshot? = nil,
+            cloudCredits: ClaudeCloudCreditsSnapshot? = nil)
         {
             self.sessionPercentUsed = sessionPercentUsed
             self.sessionResetsAt = sessionResetsAt
@@ -232,6 +234,7 @@ public enum ClaudeWebAPIFetcher {
             self.loginMethod = loginMethod
             self.hasLiveSessionWindow = hasLiveSessionWindow
             self.resetCredits = resetCredits
+            self.cloudCredits = cloudCredits
         }
     }
 
@@ -263,7 +266,6 @@ extension ClaudeWebAPIFetcher {
     // MARK: - Public API
 
     #if os(macOS)
-
     /// Attempts to fetch Claude usage data using cookies extracted from browsers.
     /// Tries browser cookies using the standard import order.
     public static func fetchUsage(
@@ -283,6 +285,7 @@ extension ClaudeWebAPIFetcher {
                 logger: logger)
         }
     }
+    #endif
 
     public static func fetchUsage(
         cookieHeader: String,
@@ -408,6 +411,7 @@ extension ClaudeWebAPIFetcher {
         return usage
     }
 
+    #if os(macOS)
     /// Probes a list of endpoints using the current claude.ai session cookies.
     /// - Parameters:
     ///   - endpoints: Absolute URLs or "/api/..." paths. Supports "{orgId}" placeholder.
@@ -478,7 +482,9 @@ extension ClaudeWebAPIFetcher {
 
         return results
     }
+    #endif
 
+    #if os(macOS)
     /// Checks if we can find a Claude session key in browser cookies without making API calls.
     public static func hasSessionKey(browserDetection: BrowserDetection, logger: ((String) -> Void)? = nil) -> Bool {
         if let cached = CookieHeaderCache.load(provider: .claude),
@@ -493,18 +499,21 @@ extension ClaudeWebAPIFetcher {
             return false
         }
     }
+    #endif
 
     public static func hasSessionKey(cookieHeader: String?) -> Bool {
         guard let cookieHeader else { return false }
         return (try? self.sessionKeyInfo(cookieHeader: cookieHeader)) != nil
     }
 
+    #if os(macOS)
     public static func sessionKeyInfo(
         browserDetection: BrowserDetection,
         logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo
     {
         try self.extractSessionKeyInfo(browserDetection: browserDetection, logger: logger)
     }
+    #endif
 
     public static func sessionKeyInfo(cookieHeader: String) throws -> SessionKeyInfo {
         let pairs = CookieHeaderNormalizer.pairs(from: cookieHeader)
@@ -519,6 +528,7 @@ extension ClaudeWebAPIFetcher {
 
     // MARK: - Session Key Extraction
 
+    #if os(macOS)
     private static func extractSessionKeyInfo(
         browserDetection: BrowserDetection,
         logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo
@@ -567,6 +577,7 @@ extension ClaudeWebAPIFetcher {
             throw FetchError.noSessionKeyFound
         }
     }
+    #endif
 
     private static func findSessionKey(in cookies: [(name: String, value: String)]) -> String? {
         for cookie in cookies where cookie.name == "sessionKey" {
@@ -746,7 +757,8 @@ extension ClaudeWebAPIFetcher {
             accountEmail: nil,
             loginMethod: nil,
             hasLiveSessionWindow: hasLiveSessionWindow,
-            resetCredits: resetCredits)
+            resetCredits: resetCredits,
+            cloudCredits: ClaudeCloudCreditsSnapshot.parse(json["iguana_necktie"]))
     }
 
     /// Anything unreadable in the `cedar_ember` block yields no inventory and leaves the usage windows intact.
@@ -1046,9 +1058,11 @@ extension ClaudeWebAPIFetcher {
         walk(json, path: "")
         return results
     }
+}
 
-    #else
-
+#if !os(macOS)
+extension ClaudeWebAPIFetcher {
+    /// Browser cookie import is unavailable off macOS; the manual-cookie path is supported.
     public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
         throw FetchError.notSupportedOnThisPlatform
     }
@@ -1068,34 +1082,6 @@ extension ClaudeWebAPIFetcher {
         throw FetchError.notSupportedOnThisPlatform
     }
 
-    public static func fetchUsage(
-        cookieHeader: String,
-        targetOrganizationID: String? = nil,
-        includeUsageDetails: Bool = true,
-        includePrepaidBalance: Bool = true,
-        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
-    {
-        _ = cookieHeader
-        _ = targetOrganizationID
-        _ = includeUsageDetails
-        _ = includePrepaidBalance
-        _ = logger
-        throw FetchError.notSupportedOnThisPlatform
-    }
-
-    public static func fetchUsage(
-        using sessionKeyInfo: SessionKeyInfo,
-        targetOrganizationID: String? = nil,
-        includeUsageDetails: Bool = true,
-        includePrepaidBalance: Bool = true,
-        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
-    {
-        _ = targetOrganizationID
-        _ = includeUsageDetails
-        _ = includePrepaidBalance
-        throw FetchError.notSupportedOnThisPlatform
-    }
-
     public static func probeEndpoints(
         _ endpoints: [String],
         includePreview: Bool = false,
@@ -1110,23 +1096,11 @@ extension ClaudeWebAPIFetcher {
         return false
     }
 
-    public static func hasSessionKey(cookieHeader: String?) -> Bool {
-        guard let cookieHeader else { return false }
-        for pair in CookieHeaderNormalizer.pairs(from: cookieHeader) where pair.name == "sessionKey" {
-            let value = pair.value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if value.hasPrefix("sk-ant-") {
-                return true
-            }
-        }
-        return false
-    }
-
     public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
         throw FetchError.notSupportedOnThisPlatform
     }
-
-    #endif
 }
+#endif
 
 extension ClaudeWebAPIFetcher {
     private static func persistSessionKeyIfNeeded(

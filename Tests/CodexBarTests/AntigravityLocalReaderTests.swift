@@ -13,7 +13,7 @@ struct AntigravityLocalReaderTests {
     @Test
     func `literal synthetic schema example has independently calculated counts and time`() async throws {
         // Handwritten bytes, not a round-trip through the fixture encoder.
-        // Pinned upstream fields: input 11 + 100, cache 50, text 30, thinking 7 = 198.
+        // Pinned upstream fields: model ID 11 (excluded), input 100, cache 50, reasoning 30, output 7 = 187.
         let bytes: [UInt8] = [
             0x0A, 0x1B, 0x22, 0x0A, 0x08, 0x0B, 0x10, 0x64, 0x28, 0x32, 0x48, 0x1E, 0x50, 0x07,
             0x4A, 0x0D, 0x22, 0x0B, 0x08, 0xC0, 0xCD, 0xC0, 0xD4, 0x06, 0x10, 0x80, 0xE5, 0x9A, 0x77,
@@ -23,11 +23,11 @@ struct AntigravityLocalReaderTests {
         let report = try fixture.report()
         #expect(report.coverage == .complete)
         #expect(report.report.data.first?.date == "2026-08-27")
-        #expect(report.report.data.first?.inputTokens == 111)
-        #expect(report.report.data.first?.outputTokens == 30)
-        #expect(report.report.data.first?.reasoningTokens == 7)
+        #expect(report.report.data.first?.inputTokens == 100)
+        #expect(report.report.data.first?.outputTokens == 7)
+        #expect(report.report.data.first?.reasoningTokens == 30)
         #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "unknown")
-        #expect(try await fixture.snapshot().last30DaysTokens == 198)
+        #expect(try await fixture.snapshot().last30DaysTokens == 187)
     }
 
     @Test
@@ -76,12 +76,12 @@ struct AntigravityLocalReaderTests {
         ])
         let report = try fixture.report()
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 792) // 4 × (11 + 100 + 30 + 50 + 7)
+        #expect(report.report.summary?.totalTokens == 748) // 4 × (100 + 30 + 50 + 7)
         #expect(report.report.data.first?.requestCount == 4)
         #expect(report.report.data.first?.modelBreakdowns?.first?.requestCount == 4)
         let snapshot = try await fixture.snapshot()
-        #expect(snapshot.last30DaysTokens == 792)
-        #expect(snapshot.sessionTokens == 792)
+        #expect(snapshot.last30DaysTokens == 748)
+        #expect(snapshot.sessionTokens == 748)
         #expect(snapshot.historyCoverageIsEstablished)
         #expect(snapshot.last30DaysCostUSD == nil)
         #expect(snapshot.sessionCostUSD == nil)
@@ -118,11 +118,11 @@ struct AntigravityLocalReaderTests {
         ])
 
         let snapshot = try await fixture.snapshot()
-        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
-        #expect(snapshot.sessionCostUSD == expected)
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
+        #expect(abs((snapshot.sessionCostUSD ?? .nan) - expected) < 1e-9)
         #expect(snapshot.costProvenance == .listPriceEstimate)
-        #expect(snapshot.daily.first?.modelBreakdowns?.first?.costUSD == expected)
+        #expect(abs((snapshot.daily.first?.modelBreakdowns?.first?.costUSD ?? .nan) - expected) < 1e-9)
         #expect(snapshot.daily.first?.modelBreakdowns?.last?.costUSD == nil)
         #expect(snapshot.summary(forLastDays: 30, calendar: Fixture.calendar).coverage
             == CostUsageCoverageCounts(unpriced: 1, estimated: 1))
@@ -152,8 +152,8 @@ struct AntigravityLocalReaderTests {
         try fixture.database(blobs: [Fixture.blob(model: "gemini-fixture-a-tiered")])
 
         let snapshot = try await fixture.snapshot()
-        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
         // The recorded variant keeps its own identity in the breakdown; only pricing falls back.
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-fixture-a-tiered")
 
@@ -179,7 +179,7 @@ struct AntigravityLocalReaderTests {
         try fixture.database(blobs: [
             Fixture.blob(
                 model: model,
-                system: 0,
+                modelID: 0,
                 input: 250_000,
                 output: 0,
                 cacheRead: 0,
@@ -187,7 +187,7 @@ struct AntigravityLocalReaderTests {
                 seconds: 1_771_588_800),
             Fixture.blob(
                 model: model,
-                system: 0,
+                modelID: 0,
                 input: 250_000,
                 output: 0,
                 cacheRead: 0,
@@ -213,7 +213,7 @@ struct AntigravityLocalReaderTests {
         #expect(result.report.data.isEmpty == false)
 
         let snapshot = try await fixture.snapshot()
-        #expect(snapshot.last30DaysTokens == 198)
+        #expect(snapshot.last30DaysTokens == 187)
         // Rows stay usable, but the scan may not claim days it never reached.
         #expect(snapshot.historyCoverageIsEstablished == false)
         #expect(snapshot.historyScanIsPartial)
@@ -249,19 +249,19 @@ struct AntigravityLocalReaderTests {
         try fixture.jsonl([Fixture.cacheUsage])
         #expect(try await fixture.snapshot().last30DaysTokens == 180)
         try fixture.database(blobs: [Fixture.blob(), Fixture.blob()])
-        #expect(try await fixture.snapshot().last30DaysTokens == 396)
+        #expect(try await fixture.snapshot().last30DaysTokens == 374)
         let invalid = try fixture.database("broken")
         try Data("broken".utf8).write(to: invalid)
         let report = try fixture.report()
         #expect(report.coverage == .partial)
-        #expect(report.report.summary?.totalTokens == 396)
+        #expect(report.report.summary?.totalTokens == 374)
         let snapshot = try await fixture.snapshot()
         // Rows read before the broken database are kept as an explicitly partial lower bound
         // rather than discarded; coverage still may not be claimed.
         #expect(!snapshot.historyCoverageIsEstablished)
         #expect(snapshot.historyScanIsPartial)
         #expect(snapshot.daily.isEmpty == false)
-        #expect(snapshot.last30DaysTokens == 396)
+        #expect(snapshot.last30DaysTokens == 374)
     }
 
     @Test
@@ -279,7 +279,7 @@ struct AntigravityLocalReaderTests {
         try FileManager.default.createDirectory(at: conversations, withIntermediateDirectories: true)
         try FileManager.default.moveItem(at: original, to: conversations.appendingPathComponent("session-a.db"))
         environment["GEMINI_CLI_HOME"] = gemini.path
-        #expect(try await fixture.snapshot(environment: environment).last30DaysTokens == 198)
+        #expect(try await fixture.snapshot(environment: environment).last30DaysTokens == 187)
     }
 
     @Test
@@ -294,7 +294,7 @@ struct AntigravityLocalReaderTests {
         try fixture.database("healthy", rootIndex: 1, blobs: [Fixture.blob()])
         let report = try fixture.report()
         #expect(report.coverage == .partial)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
     }
 
     @Test
@@ -308,7 +308,7 @@ struct AntigravityLocalReaderTests {
         try fixture.database("session-b", rootIndex: 2, blobs: [Fixture.blob(response: "same")])
         let report = try fixture.report()
         #expect(report.coverage == .complete)
-        #expect(report.report.summary?.totalTokens == 792)
+        #expect(report.report.summary?.totalTokens == 748)
         #expect(report.report.data.first?.requestCount == 4)
     }
 
@@ -319,7 +319,7 @@ struct AntigravityLocalReaderTests {
         try fixture.database(rootIndex: 1, blobs: [Fixture.blob(response: "response")])
         let report = try fixture.report()
         #expect(report.coverage == .partial)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
         try fixture.database(rootIndex: 2, blobs: [Fixture.blob(input: 200, response: "response")])
         #expect(try fixture.report().coverage == .partial)
     }
@@ -329,21 +329,21 @@ struct AntigravityLocalReaderTests {
         let fixture = try Fixture()
         try fixture.database(blobs: [
             Fixture.blob(
-                system: 0,
+                modelID: 0,
                 input: UInt64(Int.max - 1),
                 output: 0,
                 cacheRead: 0,
                 reasoning: 0,
                 seconds: 1_787_745_600),
             Fixture.blob(
-                system: 0,
+                modelID: 0,
                 input: 2,
                 output: 0,
                 cacheRead: 0,
                 reasoning: 0,
                 response: "retry",
                 seconds: 1_787_745_600),
-            Fixture.blob(system: 0, input: 7, output: 0, cacheRead: 0, reasoning: 0, response: "retry"),
+            Fixture.blob(modelID: 0, input: 7, output: 0, cacheRead: 0, reasoning: 0, response: "retry"),
         ])
         let report = try fixture.report()
         #expect(report.coverage == .partial)
@@ -389,7 +389,7 @@ struct AntigravityLocalReaderTests {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: root.path) }
         let report = try fixture.report()
         #expect(report.coverage == .partial)
-        #expect(report.report.summary?.totalTokens == 198)
+        #expect(report.report.summary?.totalTokens == 187)
     }
 
     @Test
@@ -410,18 +410,19 @@ struct AntigravityLocalReaderTests {
 
     @Test
     func `repeated known messages merge scalar fields after validating every occurrence`() throws {
-        let usage = Fixture.message(4, Fixture.varint(1, 11))
-            + Fixture.message(4, Fixture.varint(2, 100))
+        let usage = Fixture.message(4, Fixture.varint(1, 1298) + Fixture.varint(2, 100))
+            + Fixture.message(4, Fixture.varint(5, 50))
         let time = Fixture.message(9, Fixture.message(4, Fixture.varint(1, 1_787_832_000)))
             + Fixture.message(9, Fixture.message(4, Fixture.varint(2, 123_000_000)))
         let bytes = Fixture.message(1, usage) + Fixture.message(1, time)
         let turn = try #require(try AntigravityProtoReader.parseTurn(bytes))
-        #expect(turn.usage?.systemPrompt == 11)
+        #expect(turn.usage?.modelID == 1298)
         #expect(turn.usage?.newInput == 100)
+        #expect(turn.usage?.cacheRead == 50)
         #expect(turn.timestampMs == 1_787_832_000_123)
         let fixture = try Fixture()
         try fixture.database(blobs: [bytes])
-        #expect(try fixture.report().report.summary?.totalTokens == 111)
+        #expect(try fixture.report().report.summary?.totalTokens == 150)
     }
 
     @Test(arguments: malformedBlobs)
@@ -449,7 +450,7 @@ struct AntigravityLocalReaderTests {
             Fixture.blob(seconds: nil) + Fixture.message(
                 1,
                 Fixture.message(9, Fixture.message(10, [1, 2, 3, 4, 5, 6, 7, 8]))),
-            Fixture.blob(system: UInt64(Int.max), input: 1),
+            Fixture.blob(input: UInt64(Int.max)),
         ]
     }
 
@@ -514,18 +515,18 @@ struct AntigravityLocalReaderTests {
         try FileManager.default.moveItem(at: original.deletingLastPathComponent(), to: external)
         try FileManager.default.createSymbolicLink(
             at: original.deletingLastPathComponent(), withDestinationURL: external)
-        #expect(try await fixture.snapshot().last30DaysTokens == 198)
+        #expect(try await fixture.snapshot().last30DaysTokens == 187)
         let linkedFile = fixture.root.appendingPathComponent("owned-session-data")
         try FileManager.default.moveItem(at: external.appendingPathComponent("session-a.db"), to: linkedFile)
         try FileManager.default.createSymbolicLink(
             at: external.appendingPathComponent("session-a.db"), withDestinationURL: linkedFile)
-        #expect(try await fixture.snapshot().last30DaysTokens == 198)
+        #expect(try await fixture.snapshot().last30DaysTokens == 187)
         let linkedGemini = fixture.root.appendingPathComponent("linked-gemini")
         try FileManager.default.createSymbolicLink(
             at: linkedGemini, withDestinationURL: fixture.root.appendingPathComponent(".gemini"))
         var linkedEnvironment = fixture.environment
         linkedEnvironment["GEMINI_CLI_HOME"] = linkedGemini.path
-        #expect(try await fixture.snapshot(environment: linkedEnvironment).last30DaysTokens == 198)
+        #expect(try await fixture.snapshot(environment: linkedEnvironment).last30DaysTokens == 187)
 
         let cache = try Fixture()
         let cacheFile = try cache.jsonl([Fixture.cacheUsage])
@@ -599,11 +600,11 @@ struct AntigravityLocalReaderTests {
         let report = try fixture.report()
         #expect(report.coverage == .complete)
         #expect(report.report.data.first?.date == "2026-08-27")
-        #expect(report.report.data.first?.inputTokens == 111)
+        #expect(report.report.data.first?.inputTokens == 100)
         #expect(report.report.data.first?.outputTokens == 30)
         #expect(report.report.data.first?.reasoningTokens == 7)
         #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "gemini-3.7-flash")
-        #expect(try await fixture.snapshot().last30DaysTokens == 198)
+        #expect(try await fixture.snapshot().last30DaysTokens == 187)
     }
 
     @Test
@@ -626,7 +627,7 @@ struct AntigravityLocalReaderTests {
         #expect(report.coverage == .complete)
         #expect(report.report.data.map(\.date) == ["2026-08-27", "2026-08-28"])
         #expect(report.report.data.map(\.requestCount) == [1, 1])
-        #expect(report.report.data.map(\.inputTokens) == [111, 211])
+        #expect(report.report.data.map(\.inputTokens) == [100, 200])
     }
 
     @Test
@@ -789,7 +790,7 @@ struct AntigravityLocalReaderTests {
 
         #expect(report.coverage == .complete)
         #expect(report.report.data.map(\.date) == ["2026-08-27", "2026-08-28"])
-        #expect(report.report.data.map(\.inputTokens) == [111, 211])
+        #expect(report.report.data.map(\.inputTokens) == [100, 200])
     }
 
     @Test
@@ -817,7 +818,7 @@ struct AntigravityLocalReaderTests {
         #expect(source.events.map(\.turn.timestampMs) == [1_787_875_260_000, 1_787_875_140_250])
         #expect(report.coverage == .partial)
         #expect(report.report.data.map(\.date) == ["2026-08-28"])
-        #expect(report.report.data.map(\.inputTokens) == [111])
+        #expect(report.report.data.map(\.inputTokens) == [100])
     }
 
     @Test
@@ -883,7 +884,7 @@ struct AntigravityLocalReaderTests {
         #expect(report.coverage == .complete)
         #expect(report.report.data.first?.date == "2026-08-27")
         #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "claude-opus-4-6-thinking")
-        #expect(try await fixture.snapshot().last30DaysTokens == 198)
+        #expect(try await fixture.snapshot().last30DaysTokens == 187)
     }
 
     @Test
@@ -924,8 +925,8 @@ extension AntigravityLocalReaderTests {
         try fixture.database(blobs: [Fixture.blob(model: "gemini-pro-default")])
 
         let snapshot = try await fixture.snapshot()
-        let expected = 111e-6 + 50 * 0.2e-6 + 37 * 2e-6
-        #expect(snapshot.last30DaysCostUSD == expected)
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
         // The recorded alias keeps its own identity in the breakdown; only pricing resolves.
         #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-pro-default")
 
@@ -939,5 +940,173 @@ extension AntigravityLocalReaderTests {
             #expect(AntigravityLocalReader.pricingBaseModelID(for: alias) == "gemini-3.1-pro-preview")
         }
         #expect(AntigravityLocalReader.pricingBaseModelID(for: "Gemini-Pro-Default") == "gemini-3.1-pro-preview")
+    }
+
+    @Test
+    func `model enum ID in usage field 1 does not count as input tokens`() throws {
+        let fixture = try Fixture()
+        try fixture.database(blobs: [
+            Fixture.blob(modelID: 1318, input: 40, output: 0, cacheRead: 0, reasoning: 0),
+        ])
+        let report = try fixture.report()
+        #expect(report.coverage == .complete)
+        #expect(report.report.data.first?.inputTokens == 40)
+        #expect(report.report.data.first?.totalTokens == 40)
+
+        // A row whose usage carries nothing but the model enum ID still parses as one valid,
+        // fully zero-token event instead of being treated as malformed or excluded.
+        let zeroFixture = try Fixture()
+        try zeroFixture.database(blobs: [
+            Fixture.blob(modelID: 1318, input: 0, output: 0, cacheRead: 0, reasoning: 0),
+        ])
+        let zeroReport = try zeroFixture.report()
+        #expect(zeroReport.coverage == .complete)
+        #expect(zeroReport.report.data.first?.inputTokens == 0)
+        #expect(zeroReport.report.data.first?.totalTokens == 0)
+        #expect(zeroReport.report.data.first?.requestCount == 1)
+    }
+
+    @Test
+    func `zero token request without a model counts but adds no unknown row`() throws {
+        let fixture = try Fixture()
+        try fixture.database(blobs: [
+            Fixture.blob(model: nil, label: nil, input: 0, output: 0, cacheRead: 0, reasoning: 0),
+        ])
+        let result = try fixture.report()
+        let entry = try #require(result.report.data.first)
+        #expect(result.coverage == .complete)
+        #expect(entry.requestCount == 1)
+        #expect(entry.totalTokens == 0)
+        #expect(entry.modelBreakdowns?.isEmpty == true)
+        #expect(entry.costUSD == nil)
+        #expect(entry.unpricedRequestCount == 1)
+        #expect(entry.estimatedRequestCount == 0)
+    }
+
+    @Test
+    func `zero token request with a named unpriced model keeps its row`() async throws {
+        let fixture = try Fixture()
+        try fixture.database(blobs: [
+            Fixture.blob(model: "fixture-unpriced", label: nil, input: 0, output: 0, cacheRead: 0, reasoning: 0),
+        ])
+        let snapshot = try await fixture.snapshot()
+        let entry = try #require(snapshot.daily.first)
+        #expect(snapshot.historyCoverageIsEstablished)
+        #expect(entry.requestCount == 1)
+        #expect(entry.totalTokens == 0)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == ["fixture-unpriced"])
+        #expect(entry.costUSD == nil)
+        #expect(entry.unpricedRequestCount == 1)
+        #expect(entry.estimatedRequestCount == 0)
+    }
+
+    @Test(arguments: [false, true])
+    func `zero token request without a model folds into a named day in either order`(zeroFirst: Bool) throws {
+        let fixture = try Fixture()
+        let named = Fixture.blob(model: "fixture-model-a", label: nil)
+        let zero = Fixture.blob(model: nil, label: nil, input: 0, output: 0, cacheRead: 0, reasoning: 0)
+        try fixture.database(blobs: zeroFirst ? [zero, named] : [named, zero])
+        let result = try fixture.report()
+        let entry = try #require(result.report.data.first)
+        #expect(result.coverage == .complete)
+        #expect(entry.requestCount == 2)
+        #expect(entry.totalTokens == 187)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == ["fixture-model-a"])
+        #expect(entry.modelBreakdowns?.first?.requestCount == 1)
+        #expect(entry.modelBreakdowns?.first?.totalTokens == 187)
+    }
+
+    @Test
+    func `zero token request without a model costs nothing when pricing is present`() async throws {
+        let fixture = try Fixture()
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
+        {
+            "google": {
+                "id": "google",
+                "name": "Google",
+                "models": {
+                    "gemini-fixture-a": {
+                        "id": "gemini-fixture-a",
+                        "cost": {"input": 1, "output": 2, "cache_read": 0.2}
+                    }
+                }
+            }
+        }
+        """#.utf8))
+        let cacheRoot = fixture.root.appendingPathComponent("scanner-cache")
+        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: Fixture.now, cacheRoot: cacheRoot))
+        try fixture.database(blobs: [
+            Fixture.blob(model: "gemini-fixture-a", label: nil),
+            Fixture.blob(model: nil, label: nil, input: 0, output: 0, cacheRead: 0, reasoning: 0),
+            // The previous day holds only the zero token request, so its entry has no breakdown at all.
+            Fixture.blob(
+                model: nil,
+                label: nil,
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                reasoning: 0,
+                seconds: 1_787_745_600),
+        ])
+
+        let snapshot = try await fixture.snapshot()
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        let entry = try #require(snapshot.daily.first { $0.date == "2026-08-27" })
+        #expect(entry.requestCount == 2)
+        #expect(abs((entry.costUSD ?? .nan) - expected) < 1e-9)
+        #expect(entry.unpricedRequestCount == 0)
+        #expect(entry.estimatedRequestCount == 2)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == ["gemini-fixture-a"])
+        let zeroDay = try #require(snapshot.daily.first { $0.date == "2026-08-26" })
+        #expect(zeroDay.requestCount == 1)
+        #expect(zeroDay.costUSD == 0)
+        #expect(zeroDay.unpricedRequestCount == 0)
+        #expect(zeroDay.estimatedRequestCount == 1)
+        #expect(zeroDay.modelBreakdowns?.isEmpty == true)
+        #expect(snapshot.historyCoverageIsEstablished)
+        #expect(snapshot.summary(forLastDays: 30, calendar: Fixture.calendar).coverage
+            == CostUsageCoverageCounts(estimated: 3))
+    }
+
+    @Test
+    func `usage field 9 is reasoning and field 10 is visible output`() throws {
+        let usage = Fixture.varint(2, 10) + Fixture.varint(9, 5) + Fixture.varint(10, 3)
+        let chat = Fixture.message(4, usage)
+            + Fixture.message(9, Fixture.message(4, Fixture.varint(1, 1_787_832_000)))
+        let bytes = Fixture.message(1, chat)
+        let turn = try #require(try AntigravityProtoReader.parseTurn(bytes))
+        #expect(turn.usage?.reasoning == 5)
+        #expect(turn.usage?.output == 3)
+    }
+
+    @Test
+    func `safety routed Gemini Flash turns price from the base Flash model`() async throws {
+        let fixture = try Fixture()
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
+        {
+            "google": {
+                "id": "google",
+                "name": "Google",
+                "models": {
+                    "gemini-3.7-flash": {
+                        "id": "gemini-3.7-flash",
+                        "cost": {"input": 1, "output": 2, "cache_read": 0.2}
+                    }
+                }
+            }
+        }
+        """#.utf8))
+        let cacheRoot = fixture.root.appendingPathComponent("scanner-cache")
+        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: Fixture.now, cacheRoot: cacheRoot))
+        try fixture.database(blobs: [Fixture.blob(model: "gemini-3.7-flash-safety-le")])
+
+        let snapshot = try await fixture.snapshot()
+        let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
+        // The recorded model name stays exactly as observed; only pricing resolves through the alias.
+        #expect(snapshot.daily.first?.modelBreakdowns?.first?.modelName == "gemini-3.7-flash-safety-le")
+
+        #expect(AntigravityLocalReader.pricingBaseModelID(for: "gemini-3.7-flash-safety-le")
+            == "gemini-3.7-flash")
     }
 }

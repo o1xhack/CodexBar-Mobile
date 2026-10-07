@@ -49,6 +49,7 @@ private enum CookieRefreshStagedMutation: Sendable {
 private struct CookieRefreshSuppressionState: Sendable {
     let provider: UsageProvider
     var stagedMutations: [KeychainCacheStore.Key: CookieRefreshStagedMutation] = [:]
+    var validatedNonpersistentSession = false
 }
 
 private enum CookieRefreshReadResolution {
@@ -1048,6 +1049,14 @@ extension CookieHeaderCache {
         }
     }
 
+    static func markNonpersistentRefreshValidated(provider: UsageProvider) {
+        self.refreshReadSuppressionLock.withLock {
+            guard let token = self.refreshReadSuppressions.first(where: { $0.value.provider == provider })?.key
+            else { return }
+            self.refreshReadSuppressions[token]?.validatedNonpersistentSession = true
+        }
+    }
+
     public static func commitRefreshReadSuppression(
         _ gate: CookieRefreshReadSuppressionGate) -> CookieRefreshCommitSummary
     {
@@ -1060,6 +1069,10 @@ extension CookieHeaderCache {
                 }
 
                 let stagedCount = state.stagedMutations.count
+                guard stagedCount > 0 else {
+                    return CookieRefreshCommitSummary(
+                        stagedCount: 0, committedCount: 0, failedCount: state.validatedNonpersistentSession ? 0 : 1)
+                }
                 guard stagedCount == 1,
                       let (key, mutation) = state.stagedMutations.first,
                       case let .store(entry, onCommit) = mutation

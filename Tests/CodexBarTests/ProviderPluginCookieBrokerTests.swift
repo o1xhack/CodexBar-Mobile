@@ -1,9 +1,30 @@
 import Foundation
+import SweetCookieKit
 import Testing
 @testable import CodexBarCore
 
 struct ProviderPluginCookieBrokerTests {
     private let domains: Set<String> = ["cloud.example.test", "community.example.test"]
+
+    @Test
+    func `denied batches retain later sessions and do not replace API failures`() throws {
+        try self.isolated {
+            let broker = ProviderPluginCookieBroker(
+                provider: .manus,
+                domains: self.domains,
+                settings: .init(cookieSource: .auto, manualCookieHeader: nil),
+                batches: { _, batch in
+                    if batch == 0 {
+                        throw BrowserCookieError.accessDenied(browser: .safari, details: "Synthetic denial")
+                    }
+                    return batch == 1 ? [("session=fallback", "Fixture")] : nil
+                })
+            let session = try #require(try broker.nextSession(domain: "cloud.example.test"))
+            #expect(session.header == "session=fallback")
+            let apiError = ProviderFetchClassifiedError(kind: .apiFailure, message: "Synthetic server failure")
+            #expect((broker.preferredFailure(over: apiError) as? ProviderFetchClassifiedError)?.kind == .apiFailure)
+        }
+    }
 
     @Test
     func `China manual capture is never issued for global domain`() throws {
@@ -352,5 +373,21 @@ struct ProviderPluginCookieBrokerTests {
                 try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(base, operation: body)
             }
         }
+    }
+}
+
+/// Single-batch fixture construction is test-only; production imports use the batched initializer.
+extension ProviderPluginCookieBroker {
+    typealias Importer = @Sendable (String) throws -> [(header: String, source: String)]
+
+    convenience init(
+        provider: UsageProvider,
+        domains: Set<String>,
+        settings: ProviderSettingsSnapshot.CookieProviderSettings,
+        importer: @escaping Importer)
+    {
+        self.init(provider: provider, domains: domains, settings: settings, batches: { domain, batch in
+            try batch == 0 ? importer(domain) : nil
+        })
     }
 }

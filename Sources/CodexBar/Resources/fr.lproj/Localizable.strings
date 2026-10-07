@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Moyenne (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Éviter les invites du Trousseau";
 "Balance" = "Balance";
+"Cloud credits" = "Crédits cloud";
+"Expired" = "Expiré";
 "Battery Saver" = "Économiseur de batterie";
 "Bordered" = "Bordé";
 "Build" = "Version";
@@ -541,6 +543,11 @@
 "session_depleted_notification_body" = "0 % restant. Vous serez notifié quand elle redeviendra disponible.";
 "session_restored_notification_title" = "Session %@ rétablie";
 "session_restored_notification_body" = "Le quota de session est à nouveau disponible.";
+"limit_reset_notifications_title" = "Notifications de réinitialisation";
+"limit_reset_notifications_subtitle" = "Indique le fournisseur et la fenêtre lorsqu'une limite de session ou hebdomadaire est réinitialisée.";
+"limit_reset_notification_title" = "%1$@ %2$@ : limite réinitialisée";
+"limit_reset_notification_body" = "Un nouveau quota est disponible.";
+"limit_reset_notification_body_with_account" = "Compte %@. Un nouveau quota est disponible.";
 "quota_warning_warn_at" = "Avertir à";
 "quota_warning_global_threshold_subtitle" = "Pourcentages restants pour les fenêtres de session et hebdomadaires, sauf si un fournisseur les remplace.";
 "quota_warning_sound" = "Lire un son de notification";
@@ -845,7 +852,6 @@
 "No local data found" = "Aucune donnée locale trouvée";
 "Credits unavailable; keep Codex running to refresh." = "Crédits indisponibles ; laissez le Codex fonctionner pour l'actualiser.";
 "No available fetch strategy for minimax." = "Aucune stratégie de récupération disponible pour minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Aucune session de Cursor trouvée. Veuillez vous connecter à cursor.com dans Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX ou Edge Canary. Si vous utilisez Safari, accordez l'accès complet au disque à CodexBar dans Paramètres système ▸ Confidentialité et sécurité. Vous pouvez également vous connecter à Cursor à partir du menu CodexBar (Ajouter/changer de compte).";
 "No OpenCode session cookies found in browsers." = "Aucun cookie de session OpenCode trouvé dans les navigateurs.";
 "No available fetch strategy for %@." = "Aucune stratégie de récupération disponible pour %@.";
 "Today" = "Aujourd’hui";
@@ -1621,6 +1627,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Discussion indépendante";
+"Independent chats" = "Discussions indépendantes";
+"Chat %d" = "Discussion %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1716,3 +1726,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "La synchronisation des réglages Mac est distincte de celle de l’utilisation sur iPhone. Activez-la sur chaque Mac pour le voir ici. L’historique des coûts reste local.";
 
 "Cached data from" = "Données en cache du";
+"Supported browsers: %@. Use Manual for other browsers." = "Navigateurs pris en charge : %@. Utilisez le mode Manuel pour les autres navigateurs.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Collez l’en-tête Cookie d’une requête Chrome vers www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Réservé";

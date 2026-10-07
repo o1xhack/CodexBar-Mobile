@@ -156,13 +156,8 @@ struct DeepSeekPlatformTokenImporterTests {
 
     @Test
     func `stored selection does not wait for unrelated profile validation`() async {
-        let gate = DeepSeekPlatformValidationGate()
-        let fallbackRelease = Task {
-            try? await Task.sleep(for: .seconds(1))
-            await gate.open()
-        }
-        let startedAt = ContinuousClock.now
-
+        let releaseValidation = HeldRequestGate()
+        defer { Task { await releaseValidation.open() } }
         let resolution = await DeepSeekPlatformTokenImporter._resolveForTesting(
             candidates: [
                 Self.candidate(id: "profile-1", token: "selected"),
@@ -171,16 +166,12 @@ struct DeepSeekPlatformTokenImporterTests {
             selectedProfileID: "profile-1",
             validate: { token in
                 if token == "unselected" {
-                    await gate.wait()
+                    await releaseValidation.wait()
                 }
                 return Self.summary(marker: token == "selected" ? 1 : 2)
             })
 
-        let elapsed = startedAt.duration(to: .now)
-        await gate.open()
-        fallbackRelease.cancel()
-
-        #expect(elapsed < .milliseconds(500))
+        #expect(await releaseValidation.isOpen == false)
         #expect(resolution.profiles.map(\.id) == ["profile-1"])
         #expect(resolution.selectedSummary?.todayTokens == 1)
         #expect(resolution.detailedUsageState == .available)
@@ -256,26 +247,5 @@ struct DeepSeekPlatformTokenImporterTests {
             daily: [],
             currency: "USD",
             updatedAt: Date(timeIntervalSince1970: 0))
-    }
-}
-
-private actor DeepSeekPlatformValidationGate {
-    private var isOpen = false
-    private var continuations: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        guard !self.isOpen else { return }
-        await withCheckedContinuation { continuation in
-            self.continuations.append(continuation)
-        }
-    }
-
-    func open() {
-        self.isOpen = true
-        let continuations = self.continuations
-        self.continuations.removeAll()
-        for continuation in continuations {
-            continuation.resume()
-        }
     }
 }

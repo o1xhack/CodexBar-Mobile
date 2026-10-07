@@ -214,6 +214,7 @@ public struct CostUsageFetcher: Sendable {
     public func loadTokenSnapshot(
         provider: UsageProvider,
         environment: [String: String] = ProcessInfo.processInfo.environment,
+        antigravityAdditionalProfileHomes: [String] = [],
         now: Date = Date(),
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
@@ -231,6 +232,7 @@ public struct CostUsageFetcher: Sendable {
         try await Self.loadTokenSnapshot(
             provider: provider,
             environment: environment,
+            antigravityAdditionalProfileHomes: antigravityAdditionalProfileHomes,
             now: now,
             forceRefresh: forceRefresh,
             allowVertexClaudeFallback: allowVertexClaudeFallback,
@@ -249,6 +251,7 @@ public struct CostUsageFetcher: Sendable {
     package func loadTokenResult(
         provider: UsageProvider,
         environment: [String: String] = ProcessInfo.processInfo.environment,
+        antigravityAdditionalProfileHomes: [String] = [],
         now: Date = Date(),
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
@@ -267,6 +270,7 @@ public struct CostUsageFetcher: Sendable {
         try await Self.loadTokenResult(
             provider: provider,
             environment: environment,
+            antigravityAdditionalProfileHomes: antigravityAdditionalProfileHomes,
             now: now,
             forceRefresh: forceRefresh,
             allowVertexClaudeFallback: allowVertexClaudeFallback,
@@ -399,6 +403,7 @@ public struct CostUsageFetcher: Sendable {
     static func loadTokenSnapshot(
         provider: UsageProvider,
         environment: [String: String] = ProcessInfo.processInfo.environment,
+        antigravityAdditionalProfileHomes: [String] = [],
         now: Date = Date(),
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
@@ -420,6 +425,7 @@ public struct CostUsageFetcher: Sendable {
         try await self.loadTokenResult(
             provider: provider,
             environment: environment,
+            antigravityAdditionalProfileHomes: antigravityAdditionalProfileHomes,
             now: now,
             forceRefresh: forceRefresh,
             allowVertexClaudeFallback: allowVertexClaudeFallback,
@@ -442,6 +448,7 @@ public struct CostUsageFetcher: Sendable {
     static func loadTokenResult(
         provider: UsageProvider,
         environment: [String: String] = ProcessInfo.processInfo.environment,
+        antigravityAdditionalProfileHomes: [String] = [],
         now: Date = Date(),
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
@@ -550,7 +557,7 @@ public struct CostUsageFetcher: Sendable {
                     inBackground: refreshPricingInBackground || !forceRefresh),
                 client: modelsDevClient)
             if let local = try await self.loadPricedAntigravityLocalSnapshot(
-                environment: environment,
+                context: .init(environment: environment, additionalProfileHomes: antigravityAdditionalProfileHomes),
                 now: now,
                 historyDays: clampedHistoryDays,
                 calendar: fallbackCalendar,
@@ -901,14 +908,10 @@ public struct CostUsageFetcher: Sendable {
                     staleSnapshotUpdatedAt = previous.updatedAt
                 } else {
                     daily = view.dailyReport(range: range, cacheRoot: options.scanOptions.cacheRoot)
-                    projects = view.projects(
-                        range: range,
-                        cacheRoot: options.scanOptions.cacheRoot)
-                    sessions = Self.codexSessionsWithThreadTitles(
-                        view.sessions(
-                            range: range,
-                            cacheRoot: options.scanOptions.cacheRoot,
-                            roots: roots),
+                    (projects, sessions) = Self.codexBreakdownsWithMetadata(
+                        view.sessions(range: range, cacheRoot: options.scanOptions.cacheRoot, roots: roots),
+                        projects: view.projects(range: range, cacheRoot: options.scanOptions.cacheRoot),
+                        projectSessionIDs: view.projectSessionIDs(range: range),
                         sessionsRoot: roots.first,
                         environment: options.environment)
                 }
@@ -968,38 +971,102 @@ public struct CostUsageFetcher: Sendable {
         }
     }
 
-    /// Codex keeps thread names outside the rollout files, so overlay them after the cost scan.
-    static func codexSessionsWithThreadTitles(
+    /// Refresh presentation metadata once per database, without changing the cached accounting.
+    static func codexBreakdownsWithMetadata(
         _ sessions: [CostUsageSessionBreakdown],
+        projects: [CostUsageProjectBreakdown] = [],
+        projectSessionIDs: [String: Set<String>] = [:],
         sessionsRoot: URL?,
-        environment: [String: String] = ProcessInfo.processInfo.environment) -> [CostUsageSessionBreakdown]
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default,
+        projectMetadataLookup: (URL, Set<String>, Set<String>) -> CodexThreadMetadataReader.ProjectMetadata = {
+            CodexThreadMetadataReader(databaseURL: $0).projectMetadata(for: $1, sessionIDs: $2)
+        }) -> (projects: [CostUsageProjectBreakdown], sessions: [CostUsageSessionBreakdown])
     {
-        guard !sessions.isEmpty,
-              let sessionsRoot,
-              sessionsRoot.lastPathComponent == "sessions"
-        else {
-            return sessions
-        }
+        var result = (projects: projects, sessions: sessions)
+        guard !projects.isEmpty || !sessions.isEmpty,
+              let sessionsRoot, sessionsRoot.lastPathComponent == "sessions"
+        else { return result }
         let home = sessionsRoot.deletingLastPathComponent()
-        let indexedNames = CodexThreadMetadataReader.indexedThreadNames(
-            codexHomeDirectory: home, sessionIDs: Set(sessions.map(\.sessionID)))
-        let groups = Dictionary(grouping: sessions) { session in
-            CodexThreadMetadataReader(
+        let projectlessMetadata = CodexProjectlessWorkspaceMetadata.load(codexHomeDirectory: home)
+        var databasesByWorkingDirectory: [String?: URL] = [:]
+        var databasesBySQLiteHome: [URL: URL] = [:]
+        func database(for workingDirectory: String?) -> URL {
+            if let database = databasesByWorkingDirectory[workingDirectory] { return database }
+            let sqliteHome = CodexThreadMetadataReader.sqliteHomeDirectory(
                 codexHomeDirectory: home,
                 environment: environment,
-                resolvedWorkingDirectory: session.workingDirectory.map {
-                    URL(fileURLWithPath: $0, isDirectory: true)
-                }).databaseURL
+                resolvedWorkingDirectory: workingDirectory.map { URL(fileURLWithPath: $0, isDirectory: true) })
+            let database = databasesBySQLiteHome[sqliteHome] ?? CodexThreadMetadataReader.databaseURL(
+                sqliteHomeDirectory: sqliteHome, fileManager: fileManager)
+            databasesBySQLiteHome[sqliteHome] = database
+            databasesByWorkingDirectory[workingDirectory] = database
+            return database
         }
-        var metadata: [String: CodexThreadMetadata] = [:]
-        for (database, sessions) in groups {
-            metadata.merge(CodexThreadMetadataReader(databaseURL: database).metadata(
-                for: Set(sessions.map(\.sessionID)), indexedNames: indexedNames)) { _, latest in latest }
+        var pathsByDatabase: [URL: Set<String>] = [:]
+        var memberIDsByDatabase: [URL: Set<String>] = [:]
+        let projectLookups = projects.map { project in
+            // A canonical project may combine worktrees with different relative SQLite homes.
+            project.sources.compactMap { source -> (database: URL, path: String)? in
+                guard let path = source.path else { return nil }
+                let database = database(for: path)
+                pathsByDatabase[database, default: []].insert(path)
+                memberIDsByDatabase[database, default: []].formUnion(projectSessionIDs[path] ?? [])
+                return (database, path)
+            }
         }
-        return sessions.map { session in
-            guard let title = metadata[session.sessionID]?.title else { return session }
-            return session.withTitle(title)
+        let sessionGroups = Dictionary(grouping: sessions.indices) { index in
+            let session = sessions[index]
+            let database = database(for: session.workingDirectory)
+            pathsByDatabase[database, default: []].formUnion(session.workingDirectory.map { [$0] } ?? [])
+            memberIDsByDatabase[database, default: []].insert(session.sessionID)
+            return database
         }
+        let metadataByDatabase = Dictionary(uniqueKeysWithValues: pathsByDatabase.map { database, paths in
+            let candidates = (memberIDsByDatabase[database] ?? []).intersection(projectlessMetadata?.threadIDs ?? [])
+            return (database, projectMetadataLookup(database, paths, candidates))
+        })
+        var assignedSessionIDs: Set<String> = []
+        for metadata in metadataByDatabase.values {
+            assignedSessionIDs.formUnion(metadata.assignedSessionIDs)
+            for path in metadata.ownedPaths {
+                assignedSessionIDs.formUnion(projectSessionIDs[path] ?? [])
+            }
+        }
+        for index in projects.indices {
+            let lookups = projectLookups[index]
+            guard !lookups.isEmpty, lookups.count == projects[index].sources.count else { continue }
+            let names = lookups.compactMap { metadataByDatabase[$0.database]?.names[$0.path] }
+            guard names.count == lookups.count, Set(names).count == 1,
+                  let name = names.first else { continue }
+            result.projects[index].name = name
+        }
+        let indexedNames = CodexThreadMetadataReader.indexedThreadNames(
+            codexHomeDirectory: home, sessionIDs: Set(sessions.map(\.sessionID)))
+        for (database, indices) in sessionGroups {
+            let metadata = CodexThreadMetadataReader(databaseURL: database).metadata(
+                for: Set(indices.map { sessions[$0].sessionID }), indexedNames: indexedNames)
+            for index in indices {
+                let session = sessions[index]
+                if let title = metadata[session.sessionID]?.title {
+                    result.sessions[index] = session.withTitle(title)
+                }
+                if let path = session.workingDirectory {
+                    if let name = metadataByDatabase[database]?.names[path] {
+                        result.sessions[index].projectName = name
+                    }
+                    if metadataByDatabase[database]?.ownedPaths.contains(path) == true {
+                        assignedSessionIDs.insert(session.sessionID)
+                    }
+                }
+            }
+        }
+        return Self.codexBreakdownsWithProjectlessMetadata(
+            projects: result.projects,
+            sessions: result.sessions,
+            projectSessionIDs: projectSessionIDs,
+            metadata: projectlessMetadata,
+            assignedSessionIDs: assignedSessionIDs)
     }
 
     private static func codexReportView(
@@ -1054,13 +1121,12 @@ public struct CostUsageFetcher: Sendable {
     }
 
     private static func loadPricedAntigravityLocalSnapshot(
-        environment: [String: String],
+        context: AntigravityLocalReader.Context,
         now: Date,
         historyDays: Int,
         calendar: Calendar,
         pricing: AntigravityPricingOptions) async throws -> CostUsageTokenSnapshot?
     {
-        let context = AntigravityLocalReader.Context(environment: environment)
         let snapshot = try await self.loadAntigravityLocalSnapshot(
             context: context,
             now: now,
@@ -1369,6 +1435,12 @@ public struct CostUsageFetcher: Sendable {
                                 range: range,
                                 cacheRoot: options.cacheRoot))
                         }
+                        (projects, sessions) = Self.codexBreakdownsWithMetadata(
+                            sessions,
+                            projects: projects,
+                            projectSessionIDs: cache.projectSessionIDs(range: range),
+                            sessionsRoot: roots.first,
+                            environment: environment)
                     }
                 }
             }
@@ -1419,13 +1491,7 @@ public struct CostUsageFetcher: Sendable {
                 piHistoryIsComplete = piResult?.isComplete == true && piResult?.scopeFingerprint != nil
                 guard !requireCompleteHistory || piHistoryIsComplete else { return nil }
                 if let piResult, let scope = piResult.scopeFingerprint {
-                    if let nativeSnapshot {
-                        accounting = .includesPi(
-                            scope: scope,
-                            native: nativeSnapshot)
-                    } else {
-                        accounting = .piOnly(scope: scope)
-                    }
+                    accounting = nativeSnapshot.map { .includesPi(scope: scope, native: $0) } ?? .piOnly(scope: scope)
                     reports.append(piResult.report)
                     if let piLastScanAt = piResult.lastScanAt {
                         scanTimes.append(piLastScanAt)
@@ -1803,11 +1869,15 @@ public struct CostUsageFetcher: Sendable {
     {
         var dailyByPath: [String: [CostUsageDailyReport]] = [:]
         var namesByPath: [String: String] = [:]
+        var projectlessByPath: [String: Bool] = [:]
         var sourceDailyByProjectPath: [String: [String: [CostUsageDailyReport]]] = [:]
         var sourceNamesByProjectPath: [String: [String: String]] = [:]
         for project in projects {
             let key = project.path ?? ""
-            namesByPath[key] = project.name
+            if namesByPath[key] == nil || projectlessByPath[key] != false || !project.isProjectless {
+                namesByPath[key] = project.name
+            }
+            projectlessByPath[key] = (projectlessByPath[key] ?? true) && project.isProjectless
             dailyByPath[key, default: []].append(CostUsageDailyReport(data: project.daily, summary: nil))
             let sources = project.sources.isEmpty
                 ? [
@@ -1838,7 +1908,8 @@ public struct CostUsageFetcher: Sendable {
                 modelBreakdowns: Self.projectModelBreakdowns(from: merged.data),
                 sources: Self.mergedProjectSources(
                     sourceDailyByPath: sourceDailyByProjectPath[key] ?? [:],
-                    sourceNamesByPath: sourceNamesByProjectPath[key] ?? [:]))
+                    sourceNamesByPath: sourceNamesByProjectPath[key] ?? [:]),
+                isProjectless: projectlessByPath[key] == true)
         }
         .sorted { lhs, rhs in
             let lhsCost = lhs.totalCostUSD ?? -1

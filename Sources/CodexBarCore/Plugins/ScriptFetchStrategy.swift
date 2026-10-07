@@ -140,17 +140,25 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             importer: importer,
             policy: runtime.manifest.cookiePolicy,
             settingsOverride: self.cookieSettings?(context))
-        let result = try await runtime.fetchResult(
-            settings: values.settings,
-            secrets: values.secrets,
-            sourceMode: context.sourceMode,
-            cookieSource: cookies.cookieSource,
-            cookieInvalidator: { cookies.rejectCookie(domain: $0) },
-            cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
-            cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
-            cookieSessionValidator: { try cookies.acceptCookie(domain: $0, id: $1) },
-            cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
+        let result: ProviderPluginResult
+        do {
+            result = try await runtime.fetchResult(
+                settings: values.settings,
+                secrets: values.secrets,
+                sourceMode: context.sourceMode,
+                cookieSource: cookies.cookieSource,
+                cookieInvalidator: { cookies.rejectCookie(domain: $0) },
+                cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
+                cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
+                cookieSessionValidator: { try cookies.acceptCookie(domain: $0, id: $1) },
+                cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
+        } catch {
+            throw cookies.preferredFailure(over: error)
+        }
         try Task.checkCancellation()
+        if runtime.manifest.cookiePolicy?.cache == .nonpersistent {
+            CookieHeaderCache.markNonpersistentRefreshValidated(provider: self.provider)
+        }
         let saved = result.persist.isEmpty ? ProviderSettingsSaveOutcome.unchanged
             : await context.settingsWriter?(self.provider, result.persist) ?? .failed
         try Task.checkCancellation()

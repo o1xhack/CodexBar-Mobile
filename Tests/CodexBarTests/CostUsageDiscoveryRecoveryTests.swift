@@ -82,7 +82,11 @@ struct CostUsageDiscoveryRecoveryTests {
         #expect(repaired.pendingSessionIds.isEmpty)
         #expect(repaired.filePathBySessionId["parent-first"] == nil)
         #expect(repaired.filePathBySessionId["parent-second"] == nil)
-        #expect(cache.codexScanCatchUpPending == keepSibling)
+        #expect(cache.codexScanCatchUpPending == false)
+        let view = CostUsageStoreAccess.readView(cacheRoot: env.cacheRoot, calendar: options.calendar, purpose: .report)
+        #expect(view.historyCoverageIsEstablished(
+            range: .init(since: day, until: day, calendar: options.calendar),
+            rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options)) == !keepSibling)
         if !keepSibling {
             #expect(cache.codexScanInventoryPaths == [control.path])
         }

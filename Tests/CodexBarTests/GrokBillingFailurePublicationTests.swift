@@ -16,6 +16,10 @@ struct GrokBillingFailurePublicationTests {
             .write(to: signals)
         let env = ["GROK_HOME": home.path]
         let oldTokens = GrokLocalSessionScanner.summarize(env: env).toCostUsageTokenSnapshot(historyDays: 30)
+        let artifact = session.appendingPathComponent("artifacts/nested-session")
+        try FileManager.default.createDirectory(at: artifact, withIntermediateDirectories: true)
+        try Data(#"{"contextTokensUsed":900,"primaryModelId":"artifact-model"}"#.utf8)
+            .write(to: artifact.appendingPathComponent("signals.json"))
         let quota = UsageSnapshot(
             primary: RateWindow(usedPercent: 29, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: nil,
@@ -60,6 +64,8 @@ struct GrokBillingFailurePublicationTests {
             }
             let published = try #require(store.tokenSnapshot(for: .grok))
             #expect(published.last30DaysTokens == tokens)
+            #expect(published.daily.map(\.requestCount) == [1])
+            #expect(published.daily.map(\.modelsUsed) == [["example-model"]])
             #expect(published.last30DaysCostUSD == nil)
             let request = await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: .captureOnly)
             let history = try #require(request.capturedInputs.first { $0.provider == .grok }?.snapshot)

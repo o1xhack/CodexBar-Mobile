@@ -104,6 +104,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "平均（\\(metadata.sessionLabel) + \\(metadata.weeklyLabel)）";
 "Avoid Keychain prompts" = "避免钥匙串提示";
 "Balance" = "余额";
+"Cloud credits" = "云端额度";
+"Expired" = "已过期";
 "Battery Saver" = "省电模式";
 "Bordered" = "带边框";
 "Build" = "构建";
@@ -810,7 +812,6 @@
 "No local data found" = "未找到本地数据";
 "Credits unavailable; keep Codex running to refresh." = "额度暂不可用；请保持 Codex 运行后再刷新。";
 "No available fetch strategy for minimax." = "没有可用的 MiniMax 抓取策略。";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "未找到 Cursor 会话。请在 Safari、Chrome、Microsoft Edge、Brave、Arc、Dia、ChatGPT Atlas、Chromium、Helium、Vivaldi、Yandex Browser、Firefox、Zen、Colibri、Sidekick、Opera、Opera GX 或 Edge Canary 中登录 cursor.com。若使用 Safari，请在“系统设置 ▸ 隐私与安全性”中授予 CodexBar“完全磁盘访问权限”。你也可以在 CodexBar 菜单中登录 Cursor（添加/切换账户）。";
 "No OpenCode session cookies found in browsers." = "在浏览器中未找到 OpenCode 会话 Cookie。";
 "No available fetch strategy for %@." = "%@ 暂无可用的获取策略。";
 "Today" = "今日";
@@ -1054,6 +1055,11 @@
 "session_depleted_notification_body" = "剩余 0%。可用时会通知你。";
 "session_restored_notification_title" = "%@ 会话已恢复";
 "session_restored_notification_body" = "会话额度已重新可用。";
+"limit_reset_notifications_title" = "额度重置通知";
+"limit_reset_notifications_subtitle" = "会话或每周额度重置时，通知是哪个提供商的哪项额度。";
+"limit_reset_notification_title" = "%1$@ %2$@额度已重置";
+"limit_reset_notification_body" = "新额度已可用。";
+"limit_reset_notification_body_with_account" = "账户 %@。新额度已可用。";
 "quota_warning_notification_title" = "%1$@ 的 %2$@ 额度偏低";
 "quota_warning_notification_body" = "剩余 %1$@。已达到 %2$d%% 的 %3$@ 预警阈值。";
 "quota_warning_notification_body_with_account" = "账户 %1$@。剩余 %2$@。已达到 %3$d%% 的 %4$@ 预警阈值。";
@@ -1360,6 +1366,9 @@
 "Cache write" = "缓存写入";
 "Reasoning" = "推理";
 "Sessions" = "会话";
+"Independent chats" = "独立聊天";
+"Independent chat" = "独立聊天";
+"Chat %d" = "聊天 %d";
 "Projects" = "项目";
 "Plan metered" = "套餐计量";
 "List-price equivalent" = "目录价等值";
@@ -1734,3 +1743,6 @@
 
 
 "Cached data from" = "缓存数据时间：";
+"Supported browsers: %@. Use Manual for other browsers." = "支持的浏览器：%@。其他浏览器请使用“手动”模式。";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "粘贴 Chrome 向 www.workbuddy.cn/profile/plans-usage 发送的请求中的 Cookie 标头。";
+"Reserved" = "已预留";

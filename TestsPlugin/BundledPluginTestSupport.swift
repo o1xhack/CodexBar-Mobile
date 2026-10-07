@@ -12,7 +12,8 @@ enum BundledPluginTestSupport {
         _ name: String,
         engine: ProviderPluginEngineKind,
         transport: any ProviderHTTPTransport,
-        contextOptions: ProviderPluginContextOptions = .production) throws -> ProviderPluginRuntime
+        contextOptions: ProviderPluginContextOptions = .production,
+        storageDirectory: URL? = nil) throws -> ProviderPluginRuntime
     {
         guard let bundle = CodexBarCoreResources.bundle,
               let url = bundle.url(forResource: name, withExtension: "js")
@@ -25,6 +26,7 @@ enum BundledPluginTestSupport {
             resourceBundle: bundle,
             transport: transport,
             contextOptions: contextOptions,
-            engine: engine)
+            engine: engine,
+            storageDirectory: storageDirectory)
     }
 }

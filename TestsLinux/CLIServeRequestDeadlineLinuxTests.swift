@@ -1,6 +1,3 @@
-// `TestsLinux` is declared unconditionally in Package.swift, so this file is also
-// compiled on macOS. The raw socket calls below are Linux-only, so gate the whole
-// file the same way the other syscall suites here do.
 #if canImport(Glibc) || canImport(Musl)
 import Foundation
 #if canImport(Glibc)
@@ -11,188 +8,176 @@ import Musl
 import Testing
 @testable import CodexBarCLI
 
-/// `readRequest` bounds each `recv` but not the request as a whole.
-///
-/// A client that keeps trickling bytes just inside the per-read window never trips
-/// that timeout, so it holds its connection — and the cooperative-executor thread
-/// serving it — for as long as it likes. Both the Host allowlist and the bearer
-/// token are checked only after the head has been read, so a few such clients
-/// exhaust `maximumConnections` entirely pre-auth.
-///
-/// A client that simply goes silent is *not* enough to show this: the existing
-/// per-read timeout closes it. The clients here keep sending.
 @Suite(.serialized)
 struct CLIServeRequestDeadlineLinuxTests {
-    private final class ListeningSignal: @unchecked Sendable {
-        private let semaphore = DispatchSemaphore(value: 0)
-        private let lock = NSLock()
-        private var signalled = false
-
-        func signal() {
-            self.lock.lock()
-            defer { self.lock.unlock() }
-            guard !self.signalled else { return }
-            self.signalled = true
-            self.semaphore.signal()
-        }
-
-        func wait() {
-            self.semaphore.wait()
-        }
-    }
-
-    /// A connection that dribbles one byte at a time, fast enough that the per-read
-    /// timeout never fires, but never completing the header block.
-    private final class TricklingClient: @unchecked Sendable {
+    private final class Client: @unchecked Sendable {
         private let fd: Int32
         private let lock = NSLock()
+        private let writerFinished = DispatchGroup()
         private var stopped = false
 
-        init?(port: UInt16) {
-            let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
-            guard fd >= 0 else { return nil }
-            var addr = sockaddr_in()
-            addr.sin_family = sa_family_t(AF_INET)
-            addr.sin_port = port.bigEndian
-            addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-            let connected = withUnsafePointer(to: &addr) { pointer in
-                pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPointer in
-                    connect(fd, sockPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+        init(port: UInt16) throws {
+            #if canImport(Glibc)
+            let streamType = Int32(SOCK_STREAM.rawValue)
+            #else
+            let streamType = Int32(SOCK_STREAM)
+            #endif
+            let fd = socket(AF_INET, streamType, 0)
+            guard fd >= 0 else { throw POSIXError(.EIO) }
+            var address = sockaddr_in()
+            address.sin_family = sa_family_t(AF_INET)
+            address.sin_port = port.bigEndian
+            address.sin_addr.s_addr = inet_addr("127.0.0.1")
+            let connected = withUnsafePointer(to: &address) { pointer in
+                pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
+                    connect(fd, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
                 }
             }
-            guard connected == 0 else {
+            // This timeout is only a hang guard, not a response-time expectation.
+            var timeout = timeval(tv_sec: 60, tv_usec: 0)
+            guard connected == 0,
+                  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size)) == 0
+            else {
                 close(fd)
-                return nil
+                throw POSIXError(.EIO)
             }
             self.fd = fd
         }
 
-        /// Sends a header byte every `intervalSeconds`, well inside the 5s per-read
-        /// window, so `waitForReadable` keeps succeeding.
-        func start(intervalSeconds: Double) {
-            Thread.detachNewThread { [self] in
-                // A header line that never terminates: no CRLFCRLF is ever sent.
-                let filler = Array("X-Pad: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".utf8)
-                var index = 0
-                while true {
-                    self.lock.lock()
-                    let done = self.stopped
-                    self.lock.unlock()
-                    if done { return }
+        func sendRequest(_ request: String) -> Bool {
+            let bytes = Array(request.utf8)
+            let sent = bytes.withUnsafeBytes { send(self.fd, $0.baseAddress, $0.count, Int32(MSG_NOSIGNAL)) }
+            return sent == bytes.count
+        }
 
-                    var byte = filler[index % filler.count]
-                    index += 1
-                    let sent = send(self.fd, &byte, 1, 0)
-                    if sent <= 0 { return }
-                    Thread.sleep(forTimeInterval: intervalSeconds)
+        func startTrickling() {
+            self.writerFinished.enter()
+            Thread.detachNewThread { [self] in
+                defer { self.writerFinished.leave() }
+                // Never finish the header or approach the 16 KiB request-size cap.
+                // Keep sending inside the per-read window until the server responds.
+                while !self.lock.withLock({ self.stopped }) {
+                    var byte: UInt8 = 97
+                    guard send(self.fd, &byte, 1, Int32(MSG_NOSIGNAL)) == 1 else { return }
+                    Thread.sleep(forTimeInterval: 0.3)
                 }
             }
         }
 
+        func response() throws -> String {
+            var data = Data()
+            var buffer = [UInt8](repeating: 0, count: 1024)
+            while true {
+                let count = buffer.withUnsafeMutableBytes { recv(self.fd, $0.baseAddress, $0.count, 0) }
+                if count < 0, errno == EINTR { continue }
+                // A close/reset after a response is normal while the peer is still writing.
+                if count == 0 || (count < 0 && errno == ECONNRESET) {
+                    guard let response = String(bytes: data, encoding: .utf8) else { throw POSIXError(.EILSEQ) }
+                    return response
+                }
+                guard count > 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+                data.append(contentsOf: buffer.prefix(count))
+            }
+        }
+
         func stop() {
-            self.lock.lock()
-            self.stopped = true
-            self.lock.unlock()
+            let shouldStop = self.lock.withLock {
+                guard !self.stopped else { return false }
+                self.stopped = true
+                return true
+            }
+            guard shouldStop else { return }
+            // Wake any blocked send, then join before closing/reusing the descriptor.
+            _ = shutdown(self.fd, Int32(SHUT_RDWR))
+            guard self.writerFinished.wait(timeout: .now() + 60) == .success else {
+                Issue.record("Trickling writer did not stop before the hang guard")
+                return
+            }
             close(self.fd)
         }
     }
 
-    /// Issues a complete request; returns seconds until a response, or nil on timeout.
-    private static func probeHealth(port: UInt16, timeoutSeconds: Int) -> Double? {
-        let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
-        guard fd >= 0 else { return nil }
-        defer { close(fd) }
-        var addr = sockaddr_in()
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = port.bigEndian
-        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-        let connected = withUnsafePointer(to: &addr) { pointer in
-            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPointer in
-                connect(fd, sockPointer, socklen_t(MemoryLayout<sockaddr_in>.size))
+    /// The accept loop and handlers use the cooperative executor. Keep blocking
+    /// fixture I/O off it so a two-core runner still has a thread to serve clients.
+    private static func onBackgroundThread<Value: Sendable>(
+        onFailure: @escaping @Sendable () -> Void = {},
+        _ operation: @escaping @Sendable () throws -> Value) async throws -> Value
+    {
+        try await withCheckedThrowingContinuation { continuation in
+            Thread.detachNewThread {
+                do {
+                    try continuation.resume(returning: operation())
+                } catch {
+                    // Release blocked server workers before resuming on their executor.
+                    onFailure()
+                    continuation.resume(throwing: error)
+                }
             }
         }
-        guard connected == 0 else { return nil }
-
-        var timeout = timeval(tv_sec: timeoutSeconds, tv_usec: 0)
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
-
-        let started = DispatchTime.now().uptimeNanoseconds
-        let request = Array("GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".utf8)
-        _ = request.withUnsafeBytes { send(fd, $0.baseAddress, $0.count, 0) }
-
-        var buffer = [UInt8](repeating: 0, count: 256)
-        let received = buffer.withUnsafeMutableBytes { recv(fd, $0.baseAddress, $0.count, 0) }
-        guard received > 0 else { return nil }
-        return Double(DispatchTime.now().uptimeNanoseconds &- started) / 1e9
     }
 
     @Test
-    func `trickling clients cannot hold connection slots indefinitely`() async throws {
+    func `trickling clients are rejected before their request headers finish`() async throws {
         let connectionCap = 3
-        // A short injected deadline keeps this suite from occupying executor threads
-        // for the full production budget, which would stall unrelated suites running
-        // alongside it.
-        let deadlineMilliseconds: Int64 = 1500
-        let listening = ListeningSignal()
+        let listening = DispatchSemaphore(value: 0)
         let server = CLILocalHTTPServer(
             host: "127.0.0.1",
             port: 0,
             allowedHosts: .loopbackOnly,
             maximumConnections: connectionCap,
-            totalReadTimeoutMilliseconds: deadlineMilliseconds)
+            totalReadTimeoutMilliseconds: 1500)
         { _ in
             CLILocalHTTPResponse(status: .ok, body: Data(#"{"ok":true}"#.utf8))
         }
-
         let task = Task { try await server.run { listening.signal() } }
-        listening.wait()
+        defer { server.stop() }
+        let didListen = try await Self.onBackgroundThread { listening.wait(timeout: .now() + 60) == .success }
+        try #require(didListen)
         let port = try #require(server.listeningPort)
 
-        // Occupy every slot with clients that keep sending, so the per-read timeout
-        // never fires for them.
-        var clients: [TricklingClient] = []
+        var clients: [Client] = []
+        defer { clients.forEach { $0.stop() } }
         for _ in 0..<connectionCap {
-            if let client = TricklingClient(port: port) {
-                // Comfortably inside the 5s per-read window, so that timeout never
-                // fires and only the overall deadline can evict these clients.
-                client.start(intervalSeconds: 0.3)
-                clients.append(client)
-            }
+            let client = try Client(port: port)
+            clients.append(client)
+            try #require(client.sendRequest("GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nX-Pad: "))
+            client.startTrickling()
         }
-        #expect(clients.count == connectionCap, "fixture sanity: all trickling clients connected")
-
-        try await Task.sleep(nanoseconds: 300_000_000)
-
-        // Over-cap connections are dropped immediately rather than queued, so a
-        // legitimate client has to retry until a slot frees. With an overall
-        // deadline the trickling clients are evicted and one becomes available;
-        // without one they hold every slot for as long as they keep sending.
-        let started = DispatchTime.now().uptimeNanoseconds
-        // Well beyond the injected deadline, but far short of how long the trickling
-        // clients would hold their slots without one.
-        let budgetSeconds = 12.0
-        var servedAfterSeconds: Double?
-        while Double(DispatchTime.now().uptimeNanoseconds &- started) / 1e9 < budgetSeconds {
-            if Self.probeHealth(port: port, timeoutSeconds: 2) != nil {
-                servedAfterSeconds = Double(DispatchTime.now().uptimeNanoseconds &- started) / 1e9
-                break
-            }
-            try await Task.sleep(nanoseconds: 200_000_000)
+        let stopConnections: @Sendable () -> Void = { [clients] in
+            server.stop()
+            clients.forEach { $0.stop() }
         }
 
         for client in clients {
-            client.stop()
+            // Requiring the rejection (not merely a later healthy probe) proves each
+            // connection was admitted and evicted with its incomplete writer still open.
+            let response = try await Self.onBackgroundThread(onFailure: stopConnections) { try client.response() }
+            #expect(response.hasPrefix("HTTP/1.1 400 Bad Request\r\n"))
+            #expect(response.hasSuffix(#"{"error":"invalid request"}"#))
         }
-        server.stop()
-        _ = try? await task.value
 
-        #expect(
-            servedAfterSeconds != nil,
-            """
-            a well-behaved client never got a connection slot within \(Int(budgetSeconds))s; \
-            trickling clients held every slot because the request head has no overall deadline
-            """)
+        // Closing a socket precedes releasing its slot. Retry that handoff with a
+        // generous hang guard, and assert the actual response rather than its latency.
+        let hangGuard = ContinuousClock.now.advanced(by: .seconds(60))
+        var healthy = false
+        repeat {
+            let client = try Client(port: port)
+            defer { client.stop() }
+            if client.sendRequest("GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n") {
+                let response = try await Self.onBackgroundThread(
+                    onFailure: {
+                        stopConnections()
+                        client.stop()
+                    },
+                    { try client.response() })
+                healthy = response.hasPrefix("HTTP/1.1 200 OK\r\n") && response.hasSuffix(#"{"ok":true}"#)
+            }
+            if !healthy { try await Task.sleep(for: .milliseconds(20)) }
+        } while !healthy && ContinuousClock.now < hangGuard
+        #expect(healthy, "Connection slots were not released before the hang guard")
+
+        server.stop()
+        try await task.value
     }
 }
-
 #endif

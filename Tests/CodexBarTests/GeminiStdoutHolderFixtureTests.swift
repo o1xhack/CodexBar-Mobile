@@ -138,16 +138,13 @@ struct GeminiStdoutHolderFixtureTests {
         #expect(holder.cleanup() == outcome)
     }
 
-    @Test
-    func `producer still times out after two seconds while its acknowledged holder stays owned`() throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `producer times out while its acknowledged holder stays owned`() throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
         let holder = try Holder(root: env.homeURL)
         defer { #expect(holder.cleanup().succeeded) }
-        let started = ProcessInfo.processInfo.systemUptime
         #expect(holder.runProducer(blockAfterAcknowledgment: true) == nil)
-        let elapsed = ProcessInfo.processInfo.systemUptime - started
-        #expect(elapsed >= 2 && elapsed < 5)
         let publishedPID = try String(contentsOf: holder.pidFile, encoding: .utf8)
         #expect(pid_t(publishedPID) == holder.process.processIdentifier)
         #expect(holder.process.isRunning)

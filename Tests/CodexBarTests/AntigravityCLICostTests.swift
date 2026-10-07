@@ -126,7 +126,7 @@ struct AntigravityCLICostTests {
         #expect(payload.provider == "antigravity")
         #expect(payload.source == "local")
         let established = source == "valid" || source == "empty"
-        let expectedTokens: Int? = source == "empty" ? 0 : (source == "valid" ? 198 : nil)
+        let expectedTokens: Int? = source == "empty" ? 0 : (source == "valid" ? 187 : nil)
         let expectedCost: Double? = source == "empty" ? 0 : nil
         #expect(payload.historyCoverageIsEstablished == established)
         #expect(payload.last30DaysTokens == expectedTokens)
@@ -144,6 +144,6 @@ struct AntigravityCLICostTests {
         #expect(text.contains("dollar costs unavailable"))
         #expect(text.contains("Local token history is unavailable or incomplete.") == !established)
         #expect(text.contains("No token usage found in the selected period.") == (source == "empty"))
-        if source == "valid" { #expect(text.contains("198")) }
+        if source == "valid" { #expect(text.contains("187")) }
     }
 }

@@ -510,7 +510,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
             domain: domain,
             key: key,
             lockURL: lockURL)
-        store.markPending()
+        store.markPending(profileIdentifier: "fixture-profile")
 
         let childRead = try self.runDefaults(["read", domain, key])
         #expect(childRead.status == 0)
@@ -524,15 +524,15 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
         #expect(childWrite.status == 0)
         #expect(store.isPending)
 
-        store.withCacheTransaction { pending in
+        store.withCacheTransaction(profileIdentifier: "fixture-profile") { pending in
             pending = false
         }
         let childReadAfterResolution = try self.runDefaults(["read", domain, key])
         #expect(childReadAfterResolution.status != 0)
     }
 
-    @Test
-    func `newer tombstone survives an older cache transaction`() throws {
+    @Test(arguments: [false, true])
+    func `newer tombstone survives an older cache transaction`(initiallyPending: Bool) throws {
         let domain = "ClaudeOAuthPendingCacheRaceTests.\(UUID().uuidString)"
         let key = "pending"
         let tempDirectory = FileManager.default.temporaryDirectory
@@ -549,16 +549,17 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
             domain: domain,
             key: key,
             lockURL: lockURL)
-        store.markPending()
+        if initiallyPending { store.markPending(profileIdentifier: "fixture-profile") }
 
         let newerGeneration = UUID().uuidString
         var childWriteStatus: Int32?
-        store.withCacheTransaction { pending in
+        let committed = store.withCacheTransaction(profileIdentifier: "fixture-profile") { pending in
             childWriteStatus = try? self.runDefaults(["write", domain, key, newerGeneration]).status
             pending = false
         }
         userDefaults.synchronize()
 
+        #expect(!committed)
         #expect(childWriteStatus == 0)
         #expect(userDefaults.string(forKey: key) == newerGeneration)
         #expect(store.isPending)
@@ -584,7 +585,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
             key: key,
             lockURL: tempDirectory.appendingPathComponent("cache.lock"))
         #expect(store.isPending)
-        store.withCacheTransaction { pending in
+        store.withCacheTransaction(profileIdentifier: "fixture-profile") { pending in
             pending = false
         }
         #expect(!store.isPending)
@@ -611,13 +612,13 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
             key: key,
             lockURL: nonDirectoryURL.appendingPathComponent("cache.lock"))
         var operationCalled = false
-        store.withCacheTransaction { _ in
+        store.withCacheTransaction(profileIdentifier: "fixture-profile") { _ in
             operationCalled = true
         }
         userDefaults.synchronize()
 
         #expect(!operationCalled)
-        #expect(userDefaults.string(forKey: key) != nil)
+        #expect(store.isPending(profileIdentifier: "fixture-profile"))
         #expect(store.isPending)
     }
 

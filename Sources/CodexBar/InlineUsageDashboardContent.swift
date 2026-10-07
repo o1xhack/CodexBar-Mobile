@@ -791,7 +791,7 @@ struct InlineUsageDashboardContent: View {
                 Text(self.title)
                     .font(.caption2)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(self.value)
                     .font(self.emphasis ? .headline : .subheadline)
                     .fontWeight(.semibold)

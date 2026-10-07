@@ -598,20 +598,8 @@ enum MenuBarLayoutSemanticWindowResolver {
             .semanticWindows(snapshot: snapshot)
     }
 
-    /// The active model-scoped weekly carve-out (e.g. Claude's `claude-weekly-scoped-fable`
-    /// "Fable only" window), if the snapshot exposes one. Kept generic across models: keys off
-    /// the `claude-weekly-scoped-` id prefix rather than a specific model name, so it keeps
-    /// working when the promotional window rotates to a different model.
-    ///
-    /// When more than one scoped weekly window is active, the most constrained one (highest
-    /// used percentage) wins: that is the limit the user is closest to hitting and the one
-    /// worth showing in the always-visible menu bar. The full `NamedRateWindow` is returned so
-    /// callers can label the token with the active model instead of assuming Fable.
     static func scopedWeeklyNamedWindow(snapshot: UsageSnapshot?) -> NamedRateWindow? {
-        guard let snapshot else { return nil }
-        return (snapshot.extraRateWindows ?? [])
-            .filter { $0.id.hasPrefix("claude-weekly-scoped-") && !$0.window.isSyntheticPlaceholder }
-            .max { $0.window.usedPercent < $1.window.usedPercent }
+        snapshot?.claudeScopedWeeklyWindow
     }
 }
 
@@ -658,8 +646,12 @@ enum MenuBarLayoutBalanceResolver {
         case .devpass:
             return snapshot?.detailRow(label: "Cycle remaining")?.value
         default:
-            guard ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow.stripsBalancePrefix
-            else { return nil }
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            if descriptor.metadata.balanceOnly,
+               snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID,
+               let balance = snapshot?.detailRow(label: "Balance")?.value, !balance.isEmpty
+            { return balance }
+            guard descriptor.presentation.planRow.stripsBalancePrefix else { return nil }
             return self.displayValue(
                 from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")
         }

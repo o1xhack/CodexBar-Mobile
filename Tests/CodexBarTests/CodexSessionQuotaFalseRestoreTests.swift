@@ -232,7 +232,7 @@ struct CodexSessionQuotaFalseRestoreTests {
             remaining: 0,
             source: .primary,
             observedAt: self.start,
-            codexOwnerKey: owner,
+            accountDiscriminator: owner.rawValue,
             trustedResetBoundary: boundary,
             pendingCodexRestoreObservationAt: nil)
 
@@ -245,7 +245,7 @@ struct CodexSessionQuotaFalseRestoreTests {
                 resetBoundary: candidate,
                 observedAt: self.start.addingTimeInterval(300),
                 evaluationTime: self.start.addingTimeInterval(200),
-                codexOwnerKey: owner),
+                accountDiscriminator: owner.rawValue),
             notificationsEnabled: true)
 
         #expect(evaluation.outcome == .awaitingCodexRestoreConfirmation)
@@ -304,7 +304,7 @@ struct CodexSessionQuotaFalseRestoreTests {
         self.observe(store, used: 0, boundary: boundary, at: self.start.addingTimeInterval(120), owner: ownerB)
 
         #expect(notifier.transitions == [.depleted])
-        #expect(store.sessionQuotaTransitionStates[.codex]?.codexOwnerKey == ownerB)
+        #expect(store.sessionQuotaTransitionStates[.codex]?.accountDiscriminator == ownerB.rawValue)
         #expect(store.sessionQuotaTransitionStates[.codex]?.remaining == 100)
     }
 
@@ -316,7 +316,7 @@ struct CodexSessionQuotaFalseRestoreTests {
             remaining: 0,
             source: .primary,
             observedAt: self.start,
-            codexOwnerKey: owner,
+            accountDiscriminator: owner.rawValue,
             trustedResetBoundary: boundary,
             pendingCodexRestoreObservationAt: nil)
 
@@ -329,7 +329,7 @@ struct CodexSessionQuotaFalseRestoreTests {
                 resetBoundary: boundary,
                 observedAt: self.start.addingTimeInterval(60),
                 evaluationTime: self.start.addingTimeInterval(60),
-                codexOwnerKey: owner),
+                accountDiscriminator: owner.rawValue),
             notificationsEnabled: true)
 
         #expect(evaluation.outcome == .baselineChanged)
@@ -679,7 +679,7 @@ extension CodexSessionQuotaFalseRestoreTests {
             sourceLabel: "fixture",
             limitResetOwnerKey: limitResetOwner)
 
-        #expect(store.sessionQuotaTransitionStates[.codex]?.codexOwnerKey == expectedOwner)
+        #expect(store.sessionQuotaTransitionStates[.codex]?.accountDiscriminator == expectedOwner.rawValue)
     }
 
     @Test
@@ -799,7 +799,7 @@ extension CodexSessionQuotaFalseRestoreTests {
                 limitResetOwnerKey: nil)
         }
 
-        #expect(store.sessionQuotaTransitionStates[.codex]?.codexOwnerKey != nil)
+        #expect(store.sessionQuotaTransitionStates[.codex]?.accountDiscriminator != nil)
         #expect(notifier.transitions == [.depleted, .restored])
     }
 
@@ -887,7 +887,7 @@ extension CodexSessionQuotaFalseRestoreTests {
             owner: newOwner)
 
         #expect(notifier.transitions == [.depleted])
-        #expect(store.sessionQuotaTransitionStates[.codex]?.codexOwnerKey == newOwner)
+        #expect(store.sessionQuotaTransitionStates[.codex]?.accountDiscriminator == newOwner.rawValue)
         #expect(store.sessionQuotaTransitionStates[.codex]?.remaining == 0)
         #expect(!store.codexSessionQuotaBaselineRequired)
 

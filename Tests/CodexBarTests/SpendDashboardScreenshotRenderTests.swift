@@ -10,6 +10,50 @@ import XCTest
 ///   CODEXBAR_SPEND_PROOF_DIR=.github/pr-proof swift test --filter SpendDashboardScreenshotRenderTests
 @MainActor
 final class SpendDashboardScreenshotRenderTests: XCTestCase {
+    func test_renderIndependentChatScreenshots() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_SPEND_CHAT_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_SPEND_CHAT_PROOF_DIR for synthetic independent-chat screenshots.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let now = try XCTUnwrap(Self.gmtCalendar.date(from: DateComponents(year: 2026, month: 8, day: 29)))
+        let titles = ["Example project", "Independent chat", "Investigate connectivity", "Restore the local service"]
+        for variant in ["before", "chats", "privacy"] {
+            let projects = titles.enumerated().map { index, title in
+                let classified = variant != "before" && index > 0
+                let cost = Double(4 - index)
+                return CostUsageProjectBreakdown(
+                    name: index == 0 || classified ? title : "generated-chat-\(index)",
+                    path: "/synthetic/workspace-\(index)",
+                    totalTokens: 1000,
+                    totalCostUSD: cost,
+                    daily: [Self.entry(day: "2026-08-29", cost: cost, tokens: 1000, model: "example-coder")],
+                    modelBreakdowns: nil,
+                    isProjectless: classified)
+            }
+            let snapshot = CostUsageTokenSnapshot(
+                sessionTokens: nil,
+                sessionCostUSD: nil,
+                last30DaysTokens: 4000,
+                last30DaysCostUSD: 10,
+                daily: projects.flatMap(\.daily),
+                projects: projects,
+                updatedAt: now)
+            let model = SpendDashboardModel.build(
+                inputs: [.init(provider: .codex, displayName: "Codex", snapshot: snapshot)],
+                requestedDays: 7,
+                now: now,
+                calendar: Self.gmtCalendar)
+            let view = try Self.chrome(
+                selectedDays: 7,
+                group: XCTUnwrap(model.groups.first),
+                detailSection: variant == "before" ? .projects : .chats,
+                hidePersonalInfo: variant == "privacy")
+            let data = try XCTUnwrap(Self.pngData(for: AnyView(view)))
+            try data.write(to: directory.appendingPathComponent("\(variant).png"))
+        }
+    }
+
     func test_renderCostHistoryPrivacyScreenshots() throws {
         guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_COST_PRIVACY_PROOF_DIR"] else {
             throw XCTSkip("Set CODEXBAR_COST_PRIVACY_PROOF_DIR to render synthetic cost-history privacy proof.")

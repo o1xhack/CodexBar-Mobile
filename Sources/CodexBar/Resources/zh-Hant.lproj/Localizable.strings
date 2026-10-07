@@ -104,6 +104,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "平均（\\(metadata.sessionLabel) + \\(metadata.weeklyLabel)）";
 "Avoid Keychain prompts" = "避免鑰匙圈提示";
 "Balance" = "餘額";
+"Cloud credits" = "雲端額度";
+"Expired" = "已過期";
 "Battery Saver" = "省電模式";
 "Bordered" = "有邊框";
 "Build" = "建置";
@@ -546,6 +548,11 @@
 "session_depleted_notification_body" = "剩餘 0%。恢復可用時會再通知。";
 "session_restored_notification_title" = "%@ 工作階段已恢復";
 "session_restored_notification_body" = "工作階段配額已恢復可用。";
+"limit_reset_notifications_title" = "配額重設通知";
+"limit_reset_notifications_subtitle" = "工作階段或每週配額重設時，通知是哪個提供者的哪項配額。";
+"limit_reset_notification_title" = "%1$@ %2$@配額已重設";
+"limit_reset_notification_body" = "新配額已可用。";
+"limit_reset_notification_body_with_account" = "帳號 %@。新配額已可用。";
 "quota_warning_warn_at" = "提醒門檻";
 "quota_warning_global_threshold_subtitle" = "工作階段和每週時段的剩餘百分比，除非提供者另有設定。";
 "quota_warning_sound" = "播放通知音效";
@@ -1253,7 +1260,6 @@
 "Clearing removes past resume, continue, and rewind history." = "會移除過去的 resume、continue 和 rewind 歷史。";
 "%@ is unavailable in the current environment." = "目前環境無法使用 %@。";
 "Clearing removes local temporary provider data." = "會移除本機提供者暫存資料。";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "找不到 Cursor 工作階段。請在 Safari、Chrome、Microsoft Edge、Brave、Arc、Dia、ChatGPT Atlas、Chromium、Helium、Vivaldi、Yandex Browser、Firefox、Zen、Colibri、Sidekick、Opera、Opera GX 或 Edge Canary 中登入 cursor.com。如果你使用 Safari，請在「系統設定」▸「隱私權與安全性」授予 CodexBar 完整磁碟存取權。你也可以從 CodexBar 選單登入 Cursor（新增 / 切換帳號）。";
 "On pace" = "用量正常";
 "Lasts until reset" = "可撐到重置";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "找不到 z.ai API token。請在 ~/.codexbar/config.json 設定 apiKey，或設定 Z_AI_API_KEY。";
@@ -1652,6 +1658,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "獨立聊天";
+"Independent chats" = "獨立聊天";
+"Chat %d" = "聊天 %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1750,3 +1760,6 @@
 
 
 "Cached data from" = "快取資料時間：";
+"Supported browsers: %@. Use Manual for other browsers." = "支援的瀏覽器：%@。其他瀏覽器請使用「手動」模式。";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "貼上 Chrome 向 www.workbuddy.cn/profile/plans-usage 傳送的請求中的 Cookie 標頭。";
+"Reserved" = "已保留";

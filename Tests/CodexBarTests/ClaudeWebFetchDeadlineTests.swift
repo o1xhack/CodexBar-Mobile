@@ -191,23 +191,27 @@ struct ClaudeWebFetchDeadlineTests {
         #expect(webFetchProbe.invocationCount == 0)
     }
 
-    @Test
-    func `app auto availability and fetch share one web deadline`() async {
+    @Test(.timeLimit(.minutes(1)), arguments: [Duration.milliseconds(119_990), .seconds(120), .seconds(240)])
+    func `app auto availability and fetch share one web deadline`(availabilityDuration: Duration) async {
         let deadlineClock = ClaudeWebDeadlineClock()
-        let usageProbe = ClaudeWebDeadlineProbe()
+        let releaseUsage = HeldRequestGate()
+        defer { Task { await releaseUsage.open() } }
         let context = Self.makeContext(
             runtime: .app,
             sourceMode: .auto,
-            webTimeout: 1,
+            webTimeout: 120,
             cookieSource: .auto)
         let availabilityOverride: @Sendable (ProviderFetchContext, BrowserDetection) -> Bool = { _, _ in
-            deadlineClock.advance(by: .milliseconds(990))
+            deadlineClock.advance(by: availabilityDuration)
             return true
         }
         let strategy = ClaudeWebFetchStrategy(
             browserDetection: context.browserDetection,
             usageLoader: { _ in
-                await usageProbe.waitUntilReleased()
+                if availabilityDuration >= .seconds(120) {
+                    Issue.record("An exhausted shared deadline must not start a usage load")
+                }
+                await releaseUsage.wait()
                 return Self.makeClaudeUsage()
             },
             deadlineNow: { deadlineClock.now() })
@@ -219,19 +223,15 @@ struct ClaudeWebFetchDeadlineTests {
         }
         #expect(available)
 
-        let startedAt = ContinuousClock.now
         do {
             _ = try await strategy.fetch(context)
-            Issue.record("Expected the stalled load to consume only the remaining web deadline")
+            Issue.record("Expected only the remaining shared web deadline")
         } catch let error as ClaudeWebFetchStrategyError {
-            #expect(error == .timedOut(seconds: 1))
+            #expect(error == .timedOut(seconds: 120))
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        let elapsed = startedAt.duration(to: ContinuousClock.now)
-        await usageProbe.release()
-
-        #expect(elapsed < .milliseconds(300))
+        #expect(await releaseUsage.isOpen == false)
     }
 
     @Test

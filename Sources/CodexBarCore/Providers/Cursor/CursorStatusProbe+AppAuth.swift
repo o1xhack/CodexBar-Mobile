@@ -16,12 +16,24 @@ extension CursorStatusProbe {
 
 #if os(Linux)
 extension CursorStatusProbe {
+    private static let httpClient = Self.makeHTTPClient()
+
+    static func makeHTTPClient(
+        configuration: URLSessionConfiguration = ProviderHTTPClient.defaultConfiguration()) -> ProviderHTTPClient
+    {
+        // FoundationNetworking can overwrite an explicit Cookie header from its process-local cookie jar.
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCache = nil
+        return ProviderHTTPClient(session: ProviderHTTPClient.redirectGuardedSession(configuration: configuration))
+    }
+
     init(
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
         browserCookieImportOrder: BrowserCookieImportOrder = [],
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        urlSession: (any ProviderHTTPTransport)? = nil,
         appAuthStore: any CursorAppAuthSessionProviding,
         sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
@@ -30,7 +42,7 @@ extension CursorStatusProbe {
         self.timeout = timeout
         self.browserDetection = browserDetection
         self.browserCookieImportOrder = browserCookieImportOrder
-        self.urlSession = urlSession
+        self.urlSession = urlSession ?? Self.httpClient
         self.sessionStore = sessionStore
         self.appAuthStore = appAuthStore
         self.conditionalMutationCoordinator = conditionalMutationCoordinator

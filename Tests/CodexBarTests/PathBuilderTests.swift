@@ -506,7 +506,7 @@ struct PathBuilderTests {
     @Test
     func `Codex launch preflight blocks quarantined script without native assessment`() {
         let allowed = CodexLaunchPreflight.isLaunchCandidateAllowed(
-            path: "/opt/homebrew/bin/codex",
+            path: "/synthetic/bin/codex",
             fileManager: MockFileManager(executables: []),
             hasExtendedAttribute: { _, name in name == "com.apple.quarantine" },
             spctlAssessment: { _ in nil },
@@ -532,7 +532,7 @@ struct PathBuilderTests {
     @Test
     func `Codex launch preflight blocks generic Gatekeeper rejection`() {
         let allowed = CodexLaunchPreflight.isLaunchCandidateAllowed(
-            path: "/opt/homebrew/bin/codex",
+            path: "/synthetic/bin/codex",
             fileManager: MockFileManager(executables: []),
             hasExtendedAttribute: { _, _ in false },
             spctlAssessment: { _ in .init(output: "rejected\nsource=no usable signature", exitStatus: 3) },
@@ -545,7 +545,7 @@ struct PathBuilderTests {
     @Test
     func `Codex launch preflight allows valid signed command line binary assessment`() {
         let allowed = CodexLaunchPreflight.isLaunchCandidateAllowed(
-            path: "/opt/homebrew/bin/codex",
+            path: "/synthetic/bin/codex",
             fileManager: MockFileManager(executables: []),
             hasExtendedAttribute: { _, name in name == "com.apple.quarantine" },
             spctlAssessment: { path in
@@ -562,7 +562,7 @@ struct PathBuilderTests {
     @Test
     func `Codex launch preflight blocks revoked assessment even with non app rejection text`() {
         let allowed = CodexLaunchPreflight.isLaunchCandidateAllowed(
-            path: "/opt/homebrew/bin/codex",
+            path: "/synthetic/bin/codex",
             fileManager: MockFileManager(executables: []),
             hasExtendedAttribute: { _, name in name == "com.apple.quarantine" },
             spctlAssessment: { _ in

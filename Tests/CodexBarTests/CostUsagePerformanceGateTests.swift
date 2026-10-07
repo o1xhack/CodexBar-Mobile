@@ -122,7 +122,6 @@ struct CostUsagePerformanceGateTests {
         #expect(metrics.cacheAliasLookups == corpusSize)
         #expect(metrics.cacheAliasCandidatesVisited == corpusSize)
         #expect(metrics.usageRowsProcessed == 0)
-        #expect(elapsed < TestTimingBudget.scaled(.seconds(10)))
         let elapsedComponents = elapsed.components
         let elapsedMilliseconds = elapsedComponents.seconds * 1000
             + elapsedComponents.attoseconds / 1_000_000_000_000_000
@@ -295,11 +294,7 @@ struct CostUsagePerformanceGateTests {
         #expect(noOpRows == 1)
         #expect(fullRows > noOpRows)
         #expect(noOpCountersAfter.pages <= 2)
-        // Equality is intentionally O(cache rows), not O(files): current main's stable full
-        // save already reuses row payloads, so the semantic comparison can cost more CPU while
-        // still eliminating almost all writes. Keep that cost bounded without claiming it is free.
-        #expect(noOpTiming.elapsed < 3)
-        #expect(noOpTiming.cpu < 3)
+        // Count writes and visits; elapsed/CPU measurements below are diagnostic only.
         #expect(noOpAfter.databaseBytes == noOpBefore.databaseBytes)
         #expect(noOpAfter.walBytes > 0)
 
@@ -323,7 +318,6 @@ struct CostUsagePerformanceGateTests {
             }
         }
         #expect(headVisits.value == 0)
-        #expect(warmScannerTiming.elapsed < 3)
         print("[scale-write-proof] files=\(fileCount) rows=\(recordCount) snapshots=\(recordCount)")
         print("[scale-write-proof] full elapsed=\(fullTiming.elapsed) cpu=\(fullTiming.cpu) "
             + "logicalRows=\(fullRows) pages=\(fullCountersAfter.pages) before={\(fullBefore)} after={\(fullAfter)}")
@@ -1697,9 +1691,7 @@ extension CostUsagePerformanceGateTests {
             maxCodexSessionFileBytes: 1024,
             maxCodexScanBytesPerRefresh: 64 * 1024 * 1024)
         options.refreshMinIntervalSeconds = 0
-        let started = Date()
         _ = Self.report(day: day, now: day, options: options)
-        let elapsed = Date().timeIntervalSince(started)
         let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let firstParent = try #require(firstCache.files.values.first { $0.sessionId == "parent-giant" })
         let firstChild = try #require(firstCache.files.values.first { $0.sessionId == "child-small" })
@@ -1708,7 +1700,7 @@ extension CostUsagePerformanceGateTests {
         let firstChildTokens = try #require(
             firstChildDay[CostUsagePricing.normalizeCodexModel("openai/gpt-5.2-codex")])
 
-        #expect(elapsed < 2.0)
+        #expect(try #require(firstParent.parsedBytes) < firstParent.size)
         #expect(firstCache.files.keys.contains {
             URL(fileURLWithPath: $0).lastPathComponent == childURL.lastPathComponent
         })

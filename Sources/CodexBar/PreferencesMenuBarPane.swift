@@ -128,7 +128,8 @@ struct MenuBarPane: View {
                 Toggle(isOn: self.$settings.randomBlinkEnabled) {
                     SettingsRowLabel(L("surprise_me_title"), subtitle: L("surprise_me_subtitle"))
                 }
-                .disabled(self.mergedIconPresentation.effectiveStyle == .stacked)
+                // Brand icons (including stacked rows, which require them) never draw blink frames.
+                .disabled(self.settings.menuBarShowsBrandIconWithPercent)
             } header: {
                 Text(L("section_animation"))
             }

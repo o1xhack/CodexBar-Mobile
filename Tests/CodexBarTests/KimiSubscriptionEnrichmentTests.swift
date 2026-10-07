@@ -3,11 +3,12 @@ import Testing
 @testable import CodexBarCore
 
 struct KimiSubscriptionEnrichmentTests {
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `slow plan metadata cannot discard completed subscription quotas`() async throws {
         let plan = KimiEnrichmentLatch()
+        let hangGuard = plan.hangGuard()
+        defer { hangGuard.cancel() }
         let transport = Self.transport(plan: plan)
-        let started = ContinuousClock.now
         let snapshot: KimiUsageSnapshot
         do {
             snapshot = try await KimiUsageFetcher.fetchUsage(
@@ -18,8 +19,8 @@ struct KimiSubscriptionEnrichmentTests {
             await plan.release()
             throw error
         }
-        let elapsed = started.duration(to: .now)
         let planWasRequested = await plan.started
+        #expect(await !plan.released)
         await plan.release()
 
         #expect(planWasRequested)
@@ -30,13 +31,13 @@ struct KimiSubscriptionEnrichmentTests {
         let windows = snapshot.toUsageSnapshot().extraRateWindows ?? []
         #expect(windows.first { $0.id == "kimi-monthly" }?.window.usedPercent == 42)
         #expect(windows.first { $0.id == "kimi-code-7d" }?.window.usedPercent == 17)
-        #expect(elapsed < TestTimingBudget.scaled(.milliseconds(750)))
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `API usage retains completed monthly quota while plan enrichment times out`() async throws {
         let plan = KimiEnrichmentLatch()
-        let started = ContinuousClock.now
+        let hangGuard = plan.hangGuard()
+        defer { hangGuard.cancel() }
         let snapshot: KimiUsageSnapshot
         do {
             snapshot = try await KimiUsageFetcher.fetchCodeAPIUsage(
@@ -47,31 +48,41 @@ struct KimiSubscriptionEnrichmentTests {
             await plan.release()
             throw error
         }
-        let elapsed = started.duration(to: .now)
+        #expect(await !plan.released)
         await plan.release()
         #expect(snapshot.weekly?.used == "25")
         #expect(snapshot.subscriptionBalance?.amountUsedRatio == 0.42)
         #expect(snapshot.subscriptionCodeWeeklyLimit?.ratio == 0.17)
         #expect(snapshot.planName == nil)
-        #expect(elapsed < TestTimingBudget.scaled(.seconds(3)))
     }
 
     @Test
     func `plan can complete independently of stalled statistics`() async throws {
         let stats = KimiEnrichmentLatch()
-        let snapshot = try await KimiUsageFetcher.fetchUsage(
-            authToken: "fixture-web-token",
-            transport: Self.transport(plan: stats, stalledPath: "/GetSubscriptionStats"),
-            subscriptionGrace: .milliseconds(100))
+        let hangGuard = stats.hangGuard()
+        defer { hangGuard.cancel() }
+        let snapshot: KimiUsageSnapshot
+        do {
+            snapshot = try await KimiUsageFetcher.fetchUsage(
+                authToken: "fixture-web-token",
+                transport: Self.transport(plan: stats, stalledPath: "/GetSubscriptionStats"),
+                subscriptionGrace: .milliseconds(100))
+        } catch {
+            await stats.release()
+            throw error
+        }
+        #expect(await !stats.released)
         await stats.release()
         #expect(snapshot.weekly?.used == "25")
         #expect(snapshot.subscriptionBalance == nil)
         #expect(snapshot.planName == "Allegro")
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `cancelled enrichment returns before a cancellation ignoring plan request`() async throws {
         let plan = KimiEnrichmentLatch()
+        let hangGuard = plan.hangGuard()
+        defer { hangGuard.cancel() }
         let task = Task {
             try await KimiUsageFetcher.fetchUsage(
                 authToken: "fixture-web-token",
@@ -79,7 +90,6 @@ struct KimiSubscriptionEnrichmentTests {
                 subscriptionGrace: .seconds(30))
         }
         await plan.waitUntilStarted()
-        let started = ContinuousClock.now
         task.cancel()
         do {
             _ = try await task.value
@@ -87,9 +97,8 @@ struct KimiSubscriptionEnrichmentTests {
         } catch {
             #expect(error is CancellationError)
         }
-        let elapsed = started.duration(to: .now)
+        #expect(await !plan.released)
         await plan.release()
-        #expect(elapsed < TestTimingBudget.scaled(.milliseconds(500)))
     }
 
     private static func transport(
@@ -131,11 +140,19 @@ struct KimiSubscriptionEnrichmentTests {
     """
 }
 
-private actor KimiEnrichmentLatch {
+actor KimiEnrichmentLatch {
     private(set) var started = false
     private var startedWaiters: [CheckedContinuation<Void, Never>] = []
-    private var released = false
+    private(set) var released = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    nonisolated func hangGuard() -> Task<Void, Never> {
+        Task {
+            do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            Issue.record("Enrichment did not finish before the fixture hang guard")
+            await self.release()
+        }
+    }
 
     func hold() async {
         self.started = true
@@ -148,7 +165,7 @@ private actor KimiEnrichmentLatch {
     }
 
     func waitUntilStarted() async {
-        if self.started {
+        if self.started || self.released {
             return
         }
         await withCheckedContinuation { self.startedWaiters.append($0) }
@@ -156,6 +173,8 @@ private actor KimiEnrichmentLatch {
 
     func release() {
         self.released = true
+        self.startedWaiters.forEach { $0.resume() }
+        self.startedWaiters.removeAll()
         self.waiters.forEach { $0.resume() }
         self.waiters.removeAll()
     }

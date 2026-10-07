@@ -26,7 +26,10 @@ Command Code support uses browser cookies or a manually pasted cookie header.
 1. Sign in to `https://commandcode.ai` in a supported browser.
 2. Open Settings -> Providers -> Command Code.
 3. Enable Command Code and leave Cookie source on Automatic, or switch to Manual
-   and paste a `Cookie:` header/cURL capture from Command Code.
+   and paste a `Cookie:` header/cURL capture from Command Code, or just the session token value.
+
+Bare tokens use the production cookie name `__Secure-commandcode_prod_.session_token`.
+Explicit cookie pairs and full headers keep their names and additional cookies, including legacy better-auth names.
 
 Automatic import looks for better-auth session cookies from `commandcode.ai`
 and `www.commandcode.ai`. It tries each detected browser profile in order until

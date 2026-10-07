@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "平均 (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "キーチェーンのプロンプトを回避";
 "Balance" = "残高";
+"Cloud credits" = "クラウドクレジット";
+"Expired" = "期限切れ";
 "Battery Saver" = "バッテリーセーバー";
 "Bordered" = "枠線あり";
 "Build" = "ビルド";
@@ -538,6 +540,11 @@
 "session_depleted_notification_body" = "残り 0% です。再び利用可能になったら通知します。";
 "session_restored_notification_title" = "%@ のセッションが回復しました";
 "session_restored_notification_body" = "セッションクォータが再び利用可能になりました。";
+"limit_reset_notifications_title" = "リセット通知";
+"limit_reset_notifications_subtitle" = "セッションまたは週間の上限がリセットされたときに、どのプロバイダのどの枠かを通知します。";
+"limit_reset_notification_title" = "%1$@ の%2$@上限がリセットされました";
+"limit_reset_notification_body" = "新しいクォータが利用可能です。";
+"limit_reset_notification_body_with_account" = "アカウント %@。新しいクォータが利用可能です。";
 "quota_warning_warn_at" = "警告する残量";
 "quota_warning_global_threshold_subtitle" = "プロバイダ側で上書きされない限り、セッションおよび週間ウインドウの残量パーセントに適用されます。";
 "quota_warning_sound" = "通知音を再生";
@@ -842,7 +849,6 @@
 "No local data found" = "ローカルデータが見つかりません";
 "Credits unavailable; keep Codex running to refresh." = "クレジット情報を取得できません。更新するには Codex を実行したままにしてください。";
 "No available fetch strategy for minimax." = "minimax に利用可能な取得戦略がありません。";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Cursor のセッションが見つかりません。Safari、Chrome、Microsoft Edge、Brave、Arc、Dia、ChatGPT Atlas、Chromium、Helium、Vivaldi、Yandex Browser、Firefox、Zen、Colibri、Sidekick、Opera、Opera GX、または Edge Canary で cursor.com にログインしてください。Safari をお使いの場合は、システム設定 ▸ プライバシーとセキュリティ で CodexBar にフルディスクアクセスを許可してください。CodexBar のメニューから Cursor にサインインすることもできます（アカウントを追加/切り替え）。";
 "No OpenCode session cookies found in browsers." = "ブラウザに OpenCode のセッション Cookie が見つかりません。";
 "No available fetch strategy for %@." = "%@ に利用可能な取得戦略がありません。";
 "Today" = "今日";
@@ -1622,6 +1628,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "独立したチャット";
+"Independent chats" = "独立したチャット";
+"Chat %d" = "チャット %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1719,3 +1729,6 @@
 
 
 "Cached data from" = "キャッシュ日時：";
+"Supported browsers: %@. Use Manual for other browsers." = "対応ブラウザ: %@。その他のブラウザでは「手動」を使用してください。";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome で www.workbuddy.cn/profile/plans-usage に送信したリクエストの Cookie ヘッダーを貼り付けてください。";
+"Reserved" = "確保済み";

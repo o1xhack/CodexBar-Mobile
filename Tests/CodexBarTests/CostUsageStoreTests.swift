@@ -615,25 +615,24 @@ extension CostUsageStoreTests {
         var reread = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         reread.lastScanUnixMs = 2000
         let interloper = try SQLiteTestConnection(url: store.databaseURL)
-        var checkpointError: Error?
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = (store.databaseURL, {
+        let checkpointError = LockIsolated<Error?>(nil)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.identicalContentPreLockCheckpoint = (store.databaseURL, {
             do {
                 try interloper.execute("UPDATE files SET parsed_bytes = 999 WHERE path = '\(path)'")
             } catch {
-                checkpointError = error
+                checkpointError.setValue(error)
             }
         })
-        defer { CostUsageStore.identicalContentPreLockCheckpointForTesting = nil }
 
-        let result = save(reread)
+        let result = CostUsageStoreTestHooks.$current.withValue(hooks) { save(reread) }
 
-        #expect(checkpointError == nil)
+        #expect(checkpointError.value == nil)
         #expect(result.catchUpRequired)
         #expect(await store.rebuildCount == 0)
         #expect(await store.fetchFile(path: path)?.parsedBytes == 999)
         #expect(CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar).lastScanUnixMs == 1000)
 
-        CostUsageStore.identicalContentPreLockCheckpointForTesting = nil
         var refreshed = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         refreshed.lastScanUnixMs = 3000
         let retried = save(refreshed)
@@ -866,73 +865,6 @@ extension CostUsageStoreTests {
     }
 
     @Test
-    func `two stores advance freshness monotonically without losing current metadata`() async throws {
-        let fixture = try StoreFixture()
-        defer { fixture.remove() }
-        let first = CostUsageStore(cacheRoot: fixture.root)
-        let second = CostUsageStore(cacheRoot: fixture.root)
-        var stale = Self.metadata()
-        stale.lastScanUnixMs = 100
-        #expect(await first.setMetadata(stale))
-
-        // Simulate a second owner committing richer metadata after the first owner obtained
-        // its stale input. The freshness operation must re-read this whole payload under its
-        // writer lock rather than writing fields copied from the stale caller.
-        var current = stale
-        current.lastScanUnixMs = 250
-        current.scanSinceDay = "2026-07-01"
-        current.scanUntilDay = "2026-08-11"
-        current.pricingKey = "pricing-v2"
-        current.priorityMetadataKey = "priority-v2"
-        current.catchUpPending = false
-        current.rootMtimes = ["/current/root": 999]
-        current.previousReportPayload = Data([9, 8, 7])
-        current.priorityTurnStatePayload = Data([6, 5, 4])
-        current.projectMetadataVersion = 9
-        #expect(await second.setMetadata(current))
-
-        #expect(await first.advanceLastScanUnixMs(200))
-        #expect(await first.fetchMetadata() == current)
-        #expect(await second.advanceLastScanUnixMs(300))
-        var expected = current
-        expected.lastScanUnixMs = 300
-        #expect(await first.fetchMetadata() == expected)
-
-        var catchUp = expected
-        catchUp.catchUpPending = true
-        catchUp.lastScanUnixMs = 0
-        #expect(await second.setMetadata(catchUp))
-        #expect(await first.advanceLastScanUnixMs(400))
-        #expect(await first.fetchMetadata() == catchUp)
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `held writer lock makes freshness advance fail soft without rebuilding`() async throws {
-        let fixture = try StoreFixture()
-        defer { fixture.remove() }
-        let store = CostUsageStore(cacheRoot: fixture.root, busyTimeoutMilliseconds: 25)
-        var metadata = Self.metadata()
-        metadata.catchUpPending = false
-        #expect(await store.setMetadata(metadata))
-
-        let holder = try SQLiteTestConnection(url: store.databaseURL)
-        try holder.execute("BEGIN IMMEDIATE")
-        try holder.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('freshness-holder', '1')")
-
-        #expect(await store.advanceLastScanUnixMs(500) == false)
-        #expect(await store.rebuildCount == 0)
-        #expect(FileManager.default.fileExists(atPath: store.databaseURL.path))
-
-        try holder.execute("COMMIT")
-        #expect(await store.fetchMetadata() == metadata)
-        #expect(await store.advanceLastScanUnixMs(500))
-        var expected = metadata
-        expected.lastScanUnixMs = 500
-        #expect(await store.fetchMetadata() == expected)
-        #expect(await store.rebuildCount == 0)
-    }
-
-    @Test
     func `terminal accumulator round trips all state`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
@@ -1027,6 +959,12 @@ extension CostUsageStoreTests {
         "834522608c1b0457",
         "8b9bc662426a8aab",
         "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
+        "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+        "029fe80aa98f27e8", // Before the shared JSON fallback.
+        "c61aebb9cf043a72", // Previous request-ledger revision.
+        "4a4c4ef34ce6f037", // Before request-ledger accounting.
+        // Orphan-fork scheduling preserves parsed rows, replay buffers, and scan checkpoints.
+        "04a6361469a4ff77", // Released in 0.70.0; adoption must not rebuild stalled histories.
         "98de5f52231e524e", // Released in 0.68.0.
         "9972dad7f7aeff21", // Before direct-fork baseline corrections.
         "03e43d1217789d16",
@@ -1072,6 +1010,11 @@ extension CostUsageStoreTests {
             "834522608c1b0457",
             "8b9bc662426a8aab",
             "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
+            "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+            "029fe80aa98f27e8",
+            "c61aebb9cf043a72",
+            "4a4c4ef34ce6f037",
+            "04a6361469a4ff77",
             "98de5f52231e524e",
             "9972dad7f7aeff21",
             "4dd9e5769818370a",

@@ -100,6 +100,8 @@
 "Average (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))" = "Genomsnitt (\\(metadata.sessionLabel) + \\(metadata.weeklyLabel))";
 "Avoid Keychain prompts" = "Undvik frågor från Nyckelring";
 "Balance" = "Saldo";
+"Cloud credits" = "Molnkrediter";
+"Expired" = "Upphört";
 "Battery Saver" = "Batterisparläge";
 "Bordered" = "Med ram";
 "Build" = "Bygge";
@@ -541,6 +543,11 @@
 "session_depleted_notification_body" = "0 % kvar. Du får en avisering när den är tillgänglig igen.";
 "session_restored_notification_title" = "%@-sessionen är återställd";
 "session_restored_notification_body" = "Sessionskvoten är tillgänglig igen.";
+"limit_reset_notifications_title" = "Återställningsaviseringar";
+"limit_reset_notifications_subtitle" = "Visar vilken leverantör och vilket fönster som återställdes när en sessions- eller veckogräns återställs.";
+"limit_reset_notification_title" = "Gräns för %1$@ återställd (%2$@)";
+"limit_reset_notification_body" = "Ny kvot är tillgänglig.";
+"limit_reset_notification_body_with_account" = "Konto %@. Ny kvot är tillgänglig.";
 "quota_warning_warn_at" = "Varna vid";
 "quota_warning_global_threshold_subtitle" = "Återstående procent för sessions- och veckofönster, om inte en leverantör åsidosätter dem.";
 "quota_warning_sound" = "Spela aviseringsljud";
@@ -844,7 +851,6 @@
 "No local data found" = "Inga lokala data hittades";
 "Credits unavailable; keep Codex running to refresh." = "Krediter är inte tillgängliga. Håll Codex igång för att uppdatera.";
 "No available fetch strategy for minimax." = "Ingen tillgänglig hämtningsstrategi för minimax.";
-"No Cursor session found. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX, or Edge Canary. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. You can also sign in to Cursor from the CodexBar menu (Add / switch account)." = "Ingen Cursor-session hittades. Logga in på cursor.com i Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Colibri, Sidekick, Opera, Opera GX eller Edge Canary. Om du använder Safari ger du CodexBar Fullständig skivåtkomst i Systeminställningar ▸ Integritet och säkerhet. Du kan också logga in på Cursor från CodexBar-menyn (lägg till/byt konto).";
 "No OpenCode session cookies found in browsers." = "Inga OpenCode-sessionscookies hittades i webbläsare.";
 "No available fetch strategy for %@." = "Ingen tillgänglig hämtningsstrategi för %@.";
 "Today" = "Idag";
@@ -1620,6 +1626,10 @@
 "Cache write" = "Cache write";
 "Reasoning" = "Reasoning";
 "Sessions" = "Sessions";
+
+"Independent chat" = "Fristående chatt";
+"Independent chats" = "Fristående chattar";
+"Chat %d" = "Chatt %d";
 "Projects" = "Projects";
 "Plan metered" = "Plan metered";
 "List-price equivalent" = "List-price equivalent";
@@ -1716,3 +1726,6 @@
 "Mac settings sync is separate from iPhone usage sync. Enable it on each Mac to list that Mac here. Cost history stays local." = "Synkronisering av Mac-inställningar är separat från iPhone-användning. Aktivera den på varje Mac för att visa den här. Kostnadshistoriken sparas lokalt.";
 
 "Cached data from" = "Cachelagrade data från";
+"Supported browsers: %@. Use Manual for other browsers." = "Webbläsare som stöds: %@. Använd Manuellt för andra webbläsare.";
+"Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Klistra in Cookie-headern från en Chrome-begäran till www.workbuddy.cn/profile/plans-usage.";
+"Reserved" = "Reserverat";

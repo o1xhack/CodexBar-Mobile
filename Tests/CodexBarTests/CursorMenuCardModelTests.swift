@@ -356,6 +356,50 @@ struct CursorMenuCardModelTests {
         #expect(metrics["Grok Bot"]?.pacePercent != nil)
     }
 
+    @Test(arguments: [false, true])
+    func `mid-week grok bot allowance shows reserve only when paid`(isTrial: Bool) throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-10-03T00:02:00Z"))
+        let status = CursorSandUsageStatus(
+            currentPeriodStart: "2026-10-02T18:03:04Z",
+            nextResetTimestampUtc: "2026-10-05T11:20:04Z",
+            usagePercent: 44.935,
+            hasAvailableUsage: true,
+            includedLimitZero: isTrial,
+            sandTrialExpiresAt: "2026-10-05T11:20:04Z")
+        let extra = try #require(status.extraRateWindow(now: now, resetDescription: { _ in "Resets" }))
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            extraRateWindows: [extra],
+            updatedAt: now,
+            identity: nil)
+        let metadata = try #require(ProviderDefaults.metadata[.cursor])
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .cursor,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        let grok = try #require(model.metrics.first(where: { $0.title == "Grok Bot" }))
+        #expect(grok.detailLeftText == (isTrial ? nil : "20% in reserve"))
+        #expect(grok.detailRightText == (isTrial ? nil : "Lasts until reset"))
+        #expect((grok.pacePercent == nil) == isTrial)
+    }
+
     @Test
     func `trial grok bot extra window has no weekly pace`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)

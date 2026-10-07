@@ -99,7 +99,10 @@ public enum AccountIdentityComputer {
              .devpass, .atlascloud, .vercel, .llmman,
              // Upstream v0.67.0 Raycast and xKiro expose quota data but no
              // stable cross-Mac account identifier used by the mobile merger.
-             .raycast, .xkiro:
+             .raycast, .xkiro,
+             // Upstream v0.71-v0.72 browser-session providers stay per-device
+             // until a cross-Mac account identifier is proven.
+             .museai, .lithosai, .workbuddy:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

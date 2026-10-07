@@ -252,14 +252,16 @@ struct AdaptiveRefreshTimerTests {
         store.noteMenuOpened(at: now.addingTimeInterval(-10 * 60))
         store.restartTimerWithSleepOverrideForTesting(.seconds(10))
 
+        let beforeSchedule = Date()
         let sleepDuration = try #require(await UsageStore.nextAdaptiveTimerSleepDuration(for: store))
+        let afterSchedule = Date()
 
         let computedInterval = try #require(store.adaptiveRefreshComputedIntervalForTesting)
         #expect(computedInterval == 30 * 60)
         #expect(sleepDuration == .seconds(10))
         let scheduledAt = try #require(store.adaptiveRefreshScheduledAt)
-        #expect(scheduledAt.timeIntervalSince(Date()) > 29 * 60)
-        #expect(scheduledAt.timeIntervalSince(Date()) <= 30 * 60)
+        #expect(scheduledAt >= beforeSchedule.addingTimeInterval(computedInterval))
+        #expect(scheduledAt <= afterSchedule.addingTimeInterval(computedInterval))
     }
 
     @Test

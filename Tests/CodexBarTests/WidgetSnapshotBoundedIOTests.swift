@@ -28,8 +28,10 @@ struct WidgetSnapshotBoundedIOTests {
         defer { WidgetSnapshotStore._test_resetBoundedIOState() }
         let counter = LockedCounter()
 
+        let held = HeldWidgetOperation()
+        defer { held.release() }
         let result: Int? = WidgetSnapshotStore._test_performBounded(timeout: 0.1) {
-            Thread.sleep(forTimeInterval: 1.0)
+            held.wait()
             return 1
         }
         let afterTimeout: Int? = WidgetSnapshotStore._test_performBounded(timeout: 1.0) {
@@ -42,8 +44,8 @@ struct WidgetSnapshotBoundedIOTests {
         #expect(counter.value == 0)
     }
 
-    @Test
-    func `tripped circuit breaker skips later loads saves and operations immediately`() throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `tripped circuit breaker skips later loads saves and operations`() throws {
         WidgetSnapshotStore._test_resetBoundedIOState()
         defer { WidgetSnapshotStore._test_resetBoundedIOState() }
         let directory = try Self.makeTemporaryDirectory()
@@ -54,25 +56,24 @@ struct WidgetSnapshotBoundedIOTests {
         WidgetSnapshotStore.save(snapshot, to: existingURL, timeout: 2.0)
         let counter = LockedCounter()
 
+        let held = HeldWidgetOperation()
+        defer { held.release() }
         let timedOut: Int? = WidgetSnapshotStore._test_performBounded(timeout: 0.1) {
-            Thread.sleep(forTimeInterval: 1.0)
+            held.wait()
             return 1
         }
-        let start = Date()
         let skipped: Int? = WidgetSnapshotStore._test_performBounded(timeout: 1.0) {
             counter.increment()
             return 2
         }
         let loaded = WidgetSnapshotStore.load(from: existingURL, timeout: 1.0)
         WidgetSnapshotStore.save(snapshot, to: skippedSaveURL, timeout: 1.0)
-        let elapsed = Date().timeIntervalSince(start)
 
         #expect(timedOut == nil)
         #expect(skipped == nil)
         #expect(counter.value == 0)
         #expect(loaded == nil)
         #expect(!FileManager.default.fileExists(atPath: skippedSaveURL.path))
-        #expect(elapsed < 0.25)
     }
 
     @Test
@@ -80,8 +81,10 @@ struct WidgetSnapshotBoundedIOTests {
         WidgetSnapshotStore._test_resetBoundedIOState()
         defer { WidgetSnapshotStore._test_resetBoundedIOState() }
 
+        let held = HeldWidgetOperation()
+        defer { held.release() }
         let timedOut: Int? = WidgetSnapshotStore._test_performBounded(timeout: 0.1) {
-            Thread.sleep(forTimeInterval: 1.0)
+            held.wait()
             return 1
         }
         let blocked: Int? = WidgetSnapshotStore._test_performBounded(timeout: 1.0) { 2 }
@@ -106,6 +109,21 @@ struct WidgetSnapshotBoundedIOTests {
             .appendingPathComponent("WidgetSnapshotBoundedIOTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+}
+
+private final class HeldWidgetOperation: Sendable {
+    private let gate = DispatchSemaphore(value: 0)
+    private let finished = DispatchSemaphore(value: 0)
+
+    func wait() {
+        defer { self.finished.signal() }
+        #expect(self.gate.wait(timeout: .now() + 60) == .success)
+    }
+
+    func release() {
+        self.gate.signal()
+        #expect(self.finished.wait(timeout: .now() + 30) == .success)
     }
 }
 

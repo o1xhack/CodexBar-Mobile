@@ -28,7 +28,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
             accounts: [Self.account(id: "account", cacheIdentity: "cache-account")])
         let task = try #require(store.spendDashboardCodexCostCatchUpTask)
         await task.value
-        #expect(sleeps == [1998, 1998])
+        #expect(sleeps == [0, 1998])
     }
 
     @Test(arguments: [CodexCostCatchUpMode.automatic, .accelerated])
@@ -756,7 +756,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         #expect(store.spendDashboardCodexCostCatchUpRevision == revision + 1)
     }
 
-    private static func makeStore(suite: String) throws -> UsageStore {
+    static func makeStore(suite: String) throws -> UsageStore {
         let settings = testSettingsStore(
             suiteName: "UsageStoreSpendDashboardCodexCostCatchUpTests-\(suite)", userDefaults: InMemoryUserDefaults())
         settings.costUsageEnabled = true
@@ -808,7 +808,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         return try #require(receivedHistoryDays)
     }
 
-    private static func account(id: String, cacheIdentity: String) -> CodexSpendScanRequest {
+    static func account(id: String, cacheIdentity: String) -> CodexSpendScanRequest {
         CodexSpendScanRequest(
             id: id,
             displayName: "Codex · \(id)",

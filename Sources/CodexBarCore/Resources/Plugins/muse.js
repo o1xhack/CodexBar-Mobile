@@ -26,27 +26,6 @@ function _optionalChain(ops) {
   }
   return value;
 }
-async function _asyncOptionalChain(ops) {
-  let lastAccessLHS = undefined;
-  let value = ops[0];
-  let i = 1;
-  while (i < ops.length) {
-    const op = ops[i];
-    const fn = ops[i + 1];
-    i += 2;
-    if ((op === "optionalAccess" || op === "optionalCall") && value == null) {
-      return undefined;
-    }
-    if (op === "access" || op === "optionalAccess") {
-      lastAccessLHS = value;
-      value = await fn(value);
-    } else if (op === "call" || op === "optionalCall") {
-      value = await fn((...args) => value.call(lastAccessLHS, ...args));
-      lastAccessLHS = undefined;
-    }
-  }
-  return value;
-}
 defineProvider({
   id: "muse",
   name: "Muse Code",
@@ -115,112 +94,113 @@ defineProvider({
       throw ctx.fail.permissionDenied("No Muse Code subscription is active on this login.");
     }
     const plan = text(root.subs_tier_name, "subs_tier_name");
+    const loginEmail = text(root.user_email, "user_email");
     const rows = [];
     if (plan) rows.push({ label: "Plan", value: plan });
+    const details = [{ title: "Muse Code subscription", rows }];
     const snapshot = {
-      details: [{ title: "Muse Code subscription", rows }],
-      identity: { email: text(root.user_email, "user_email"), loginMethod: _nullishCoalesce(plan, () => "Muse login") },
+      details,
+      identity: { email: loginEmail, loginMethod: _nullishCoalesce(plan, () => "Muse login") },
       dataConfidence: "unknown",
     };
     const percentLabel = (value) => `${ctx.format.number(value, { maximumFractionDigits: 0 })}%`;
 
-    // The browser quota belongs to one dev.meta.ai team, which the user must choose explicitly: a session can
-    // see several teams, and list order says nothing about which one holds the CLI login's subscription.
     async function webQuota() {
       if (ctx.browser.availability("dev.meta.ai") === "off") return undefined;
+      // The browser session must belong to the same Meta account as the CLI login.
+      const expectedEmail = _nullishCoalesce(loginEmail, () => "").toLowerCase();
+      if (!expectedEmail) return undefined;
+      let requestsLeft = 5;
+      // Only a rejected session returns null; other unavailable reads keep the cookie.
+      const get = async (session, path, forbiddenRejectsSession = true) => {
+        if (requestsLeft-- <= 0) throw new Error("Muse browser request budget exhausted");
+        const headers = { Cookie: _nullishCoalesce(session.header, () => ""), "User-Agent": "CodexBar" };
+        const response = await ctx.http.get(`https://dev.meta.ai${path}`, { headers, timeoutSeconds: 8 });
+        if (response.status === 401 || (response.status === 403 && forbiddenRejectsSession)) {
+          ctx.browser.rejectCookie("dev.meta.ai", session);
+          return null;
+        }
+        if (response.status !== 200) return {};
+        const value = JSON.parse(response.bodyText);
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      };
       try {
-        let requestsLeft = 5;
+        // dev.meta.ai can report a blank email; the session user's team membership then supplies it. Checking
+        // membership costs a request, so such sessions wait until no session matches the login by email.
+        const unverified = [];
         for await (const session of ctx.browser.sessions("dev.meta.ai")) {
           if (requestsLeft <= 0) break;
-          let rejected = false;
-          const headers = { Cookie: _nullishCoalesce(session.header, () => ""), "User-Agent": "CodexBar" };
-          const get = async (path) => {
-            if (requestsLeft-- <= 0) throw new Error("Muse browser request budget exhausted");
-            const response = await ctx.http.get(`https://dev.meta.ai${path}`, { headers, timeoutSeconds: 8 });
-            if (response.status === 401 || response.status === 403) {
-              rejected = true;
-              ctx.browser.rejectCookie("dev.meta.ai", session);
-              return undefined;
-            }
-            if (response.status !== 200) return undefined;
-            const value = JSON.parse(response.bodyText);
-            return value && typeof value === "object" && !Array.isArray(value) ? value : undefined;
-          };
-          // The browser session must belong to the same Meta account as the CLI login.
-          const loginEmail = _optionalChain([
-            text,
-            "call",
-            (_3) => _3(root.user_email, "user_email"),
-            "optionalAccess",
-            (_4) => _4.toLowerCase,
-            "call",
-            (_5) => _5(),
-          ]);
-          const me = await get("/api/auth/me");
-          const webEmail =
-            typeof _optionalChain([me, "optionalAccess", (_6) => _6.email]) === "string"
-              ? me.email.trim().toLowerCase()
-              : undefined;
-          if (!loginEmail || !webEmail || loginEmail !== webEmail) continue;
-          const listed = await _asyncOptionalChain([
-            await get("/api/portal/teams"),
-            "optionalAccess",
-            async (_7) => _7.teams,
-          ]);
-          if (rejected) continue;
-          if (!Array.isArray(listed)) return undefined;
-          const teams = [];
-          for (const entry of listed) {
-            const item = entry && typeof entry === "object" ? entry : {};
-            const id =
-              typeof item.team_id === "string"
-                ? item.team_id
-                : Number.isSafeInteger(item.team_id)
-                  ? String(item.team_id)
-                  : "";
-            if (!/^[0-9]+$/.test(id)) continue;
-            const name = typeof item.team_name === "string" && item.team_name.trim() ? item.team_name.trim() : id;
-            teams.push({ id, name });
+          const me = await get(session, "/api/auth/me");
+          if (!me) continue;
+          const webEmail = typeof me.email === "string" ? me.email.trim().toLowerCase() : "";
+          if (!webEmail) {
+            const userID = numericID(me.userId);
+            if (userID) unverified.push({ session, userID });
+            continue;
           }
-          const selected = _nullishCoalesce(
-            _optionalChain([
-              ctx,
-              "access",
-              (_8) => _8.settings,
-              "access",
-              (_9) => _9.get,
-              "call",
-              (_10) => _10("MUSE_WEB_TEAM_ID"),
-              "optionalAccess",
-              (_11) => _11.trim,
-              "call",
-              (_12) => _12(),
-            ]),
-            () => "",
-          );
-          const team = teams.find((candidate) => candidate.id === selected);
-          if (!selected) return { teams, note: "Choose a browser team in Muse Code settings" };
-          if (!team) return { teams, note: "The selected browser team is not visible to this session" };
-          const quota = await _asyncOptionalChain([
-            await get(`/api/portal/teams/${team.id}/subscription-quota`),
-            "optionalAccess",
-            async (_13) => _13.subscription_quota,
-          ]);
-          if (rejected) continue;
-          if (!quota || typeof quota !== "object")
-            return { teams, note: "No subscription quota for the selected team" };
-          const record = quota;
-          // The team's quota must be for the same plan the CLI login reports.
-          if (!plan || typeof record.tier !== "string" || record.tier.trim() !== plan) {
-            return { teams, note: "The selected team's plan differs from the Muse login" };
-          }
-          const parsed = parseWebQuota(record);
-          return parsed ? { teams, quota: { team, ...parsed } } : { teams };
+          if (webEmail !== expectedEmail) continue;
+          const result = await teamQuota(session);
+          if (result !== "skip") return result;
+        }
+        for (const { session, userID } of unverified) {
+          if (requestsLeft <= 0) break;
+          const result = await teamQuota(session, userID);
+          if (result !== "skip") return result;
         }
       } catch (error) {
         void error;
       }
       return undefined;
+
+      // Returns "skip" when the next session should be tried. `userID` asks for a membership check first.
+      async function teamQuota(session, userID) {
+        const response = await get(session, "/api/portal/teams");
+        if (!response) return "skip";
+        const listed = response.teams;
+        // A session not yet bound to the login must not end the search for a later bound session.
+        if (!Array.isArray(listed)) return userID ? "skip" : undefined;
+        const teams = [];
+        for (const entry of listed) {
+          const item = entry && typeof entry === "object" ? entry : {};
+          const id = numericID(item.team_id);
+          if (!id) continue;
+          const name = typeof item.team_name === "string" && item.team_name.trim() ? item.team_name.trim() : id;
+          teams.push({ id, name });
+        }
+        const selected = _nullishCoalesce(ctx.settings.get("MUSE_WEB_TEAM_ID"), () => "").trim();
+        const team = teams.find((candidate) => candidate.id === selected);
+        if (userID) {
+          // Accept the session only if a visible team lists its user with the login's email.
+          const probe = _nullishCoalesce(team, () => teams[0]);
+          if (!probe) return "skip";
+          // Member lists can be forbidden to some roles; that does not mean the session expired.
+          const membership = await get(session, `/api/portal/teams/${probe.id}/members`, false);
+          if (!membership || !Array.isArray(membership.members)) return "skip";
+          const own = membership.members.find((member) => member && numericID(member.user_id) === userID);
+          if (
+            typeof _optionalChain([own, "optionalAccess", (_3) => _3.email]) !== "string" ||
+            own.email.trim().toLowerCase() !== expectedEmail
+          )
+            return "skip";
+        }
+        if (!selected) return { teams, note: "Choose a browser team in Muse Code settings" };
+        if (!team) return { teams, note: "The selected browser team is not visible to this session" };
+        const quotaResponse = await get(session, `/api/portal/teams/${team.id}/subscription-quota`);
+        if (!quotaResponse) return "skip";
+        const quota = quotaResponse.subscription_quota;
+        if (!quota || typeof quota !== "object") return { teams, note: "No subscription quota for the selected team" };
+        const record = quota;
+        // The team's quota must be for the same plan the CLI login reports.
+        if (!plan || typeof record.tier !== "string" || record.tier.trim() !== plan) {
+          return { teams, note: "The selected team's plan differs from the Muse login" };
+        }
+        const parsed = parseWebQuota(record);
+        return parsed ? { teams, quota: { team, ...parsed } } : { teams };
+      }
+    }
+    function numericID(value) {
+      const id = typeof value === "string" ? value.trim() : Number.isSafeInteger(value) ? String(value) : "";
+      return /^[0-9]+$/.test(id) ? id : undefined;
     }
     function parseWebQuota(quota) {
       // Limits and usage are weighted token counts encoded as decimal strings.
@@ -265,20 +245,12 @@ defineProvider({
       // The login response omits quotas while the 5-hour window is idle, even when the weekly limit has usage.
       // The dev.meta.ai usage page reads the same subscription quota with the browser session.
       const web = await webQuota();
-      if (!_optionalChain([web, "optionalAccess", (_14) => _14.quota]))
+      if (!_optionalChain([web, "optionalAccess", (_4) => _4.quota]))
         rows.push({ label: "Quota", value: "Not included in this login response" });
       if (!web) return snapshot;
-      const teamRows = _nullishCoalesce(web.teams, () => []).map((team) => ({ label: team.name, value: team.id }));
+      const teamRows = web.teams.map((team) => ({ label: team.name, value: team.id }));
       if (web.note) teamRows.unshift({ label: "Status", value: web.note });
-      _optionalChain([
-        snapshot,
-        "access",
-        (_15) => _15.details,
-        "optionalAccess",
-        (_16) => _16.push,
-        "call",
-        (_17) => _17({ title: "Browser teams", rows: teamRows }),
-      ]);
+      details.push({ title: "Browser teams", rows: teamRows });
       if (!web.quota) return snapshot;
       const { team, primary, secondary } = web.quota;
       const webRows = [
@@ -286,15 +258,7 @@ defineProvider({
         { label: "5 hours", value: percentLabel(primary.usedPercent) },
         { label: "Weekly", value: percentLabel(secondary.usedPercent) },
       ];
-      _optionalChain([
-        snapshot,
-        "access",
-        (_18) => _18.details,
-        "optionalAccess",
-        (_19) => _19.push,
-        "call",
-        (_20) => _20({ title: "Browser team quota (dev.meta.ai)", rows: webRows }),
-      ]);
+      details.push({ title: "Browser team quota (dev.meta.ai)", rows: webRows });
       // Weighted usage reported for a user-selected team, not by the CLI login itself.
       return { usage: { ...snapshot, primary, secondary, dataConfidence: "estimated" }, sourceLabel: "oauth+web" };
     }
