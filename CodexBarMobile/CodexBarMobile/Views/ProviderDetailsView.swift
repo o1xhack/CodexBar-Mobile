@@ -170,13 +170,17 @@ struct ProviderDetailsTeaserView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 8)
-                    Text(ProviderDetailRowPresentation(
-                        providerID: self.providerID,
-                        row: row,
-                        sectionTitle: self.section.title).value)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
+                    // Same minute clock as the full details so a cached expiry flips while visible.
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text(ProviderDetailRowPresentation(
+                            providerID: self.providerID,
+                            row: row,
+                            sectionTitle: self.section.title,
+                            now: context.date).value)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                    }
                 }
             }
         }
