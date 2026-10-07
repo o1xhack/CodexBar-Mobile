@@ -1401,7 +1401,7 @@ extension SpendDashboardModelTests {
         let group = try #require(model.groups.first)
         #expect(group.projects.count == 2)
         #expect(group.projects.map(\.totalCost) == [7, 5])
-        #expect(Set(group.projects.map(\.id)) == ["codex-a:path:/tmp/shared", "codex-b:path:/tmp/shared"])
+        #expect(Set(group.projects.map(\.id)) == ["7:codex-a|16:path:/tmp/shared", "7:codex-b|16:path:/tmp/shared"])
         #expect(group.projects[0].providerName == "Codex · #2")
     }
 
@@ -1569,5 +1569,25 @@ extension SpendDashboardModelTests {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         return calendar
+    }
+}
+
+extension SpendDashboardModelTests {
+    @Test
+    func `project row ids stay unique when source and project paths embed the path boundary`() {
+        func row(sourceID: String, path: String) -> SpendDashboardModel.ProjectRow {
+            SpendDashboardModel.ProjectRow(
+                rank: 1,
+                provider: .codex,
+                providerName: "Codex",
+                sourceID: sourceID,
+                projectName: "project",
+                path: path,
+                totalTokens: nil,
+                totalCost: nil)
+        }
+        let first = row(sourceID: "codex:profile:/a", path: "/b:path:/c")
+        let second = row(sourceID: "codex:profile:/a:path:/b", path: "/c")
+        #expect(first.id != second.id)
     }
 }

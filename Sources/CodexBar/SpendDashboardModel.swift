@@ -141,7 +141,10 @@ struct SpendDashboardModel: Equatable, Sendable {
         var isProjectless: Bool = false
 
         var id: String {
-            "\(self.sourceID):\(self.path.map { "path:\($0)" } ?? "name:\(self.projectName)")"
+            // Length-prefix each component: Codex source IDs embed profile paths, so a plain
+            // ":path:" join could make two different (source, project) pairs collide.
+            let identity = self.path.map { "path:\($0)" } ?? "name:\(self.projectName)"
+            return "\(self.sourceID.utf8.count):\(self.sourceID)|\(identity.utf8.count):\(identity)"
         }
     }
 

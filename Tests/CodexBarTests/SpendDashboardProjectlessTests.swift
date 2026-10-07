@@ -47,7 +47,7 @@ struct SpendDashboardProjectlessTests {
             #expect(rows.count == 1)
             #expect(!row.isProjectless)
             #expect(row.projectName == "work")
-            #expect(row.id == "codex-a:path:/fixtures/shared")
+            #expect(row.id == "7:codex-a|21:path:/fixtures/shared")
             #expect(row.totalCost == 5)
             #expect(row.totalTokens == 50)
         }
