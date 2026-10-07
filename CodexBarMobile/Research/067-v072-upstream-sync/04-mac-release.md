@@ -5,7 +5,7 @@ Date: 2026-10-07
 
 ## 授权与来源
 
-- 2026-10-07 用户在本 Goal 中明确授权“Mac 全流程发布”：push 分支 → PR → Codex Code Review → 合并 mobile-dev → 签名公证 Draft → finalize 公开发布并更新 appcast；iOS 本轮不上传 TestFlight。MOBILE_VERSION 确认保持 2.6.0。
+- 2026-10-07 用户在本 Goal 中明确授权“Mac 全流程发布”：push 分支 → PR → Codex Code Review → 合并 mobile-dev → 签名公证 Draft → finalize 公开发布并更新 appcast；当时 iOS 暂不上传。MOBILE_VERSION 确认保持 2.6.0。（后续同日用户另行授权 iOS 上传并提交审核，见 05。）
 - PR [#180](https://github.com/o1xhack/CodexBar-Mobile/pull/180)：3 轮 Codex review（P2 teaser 到期刷新、P2 项目行 ID 碰撞均修复并 resolve），最终 head `000bd2570cbd075ef93e0797f0ec59a5422d1197` 收到 “Didn't find any major issues”；`Scripts/check_pr_review_gate.sh 180` 通过（rounds=3、unresolved=0），PR Fast Checks success；`gh pr merge --merge --match-head-commit` 合并为 `5948797ec68d86aa1b8e42b787170a91febdc158`（保留上游 merge 历史）。
 - 发行源码：mobile-dev `5948797ec`；包内 `CodexGitCommit=5948797ec`。
 
@@ -34,4 +34,4 @@ Date: 2026-10-07
 - Final CI 通过后在 mobile-dev（HEAD = origin = `5948797ec`，tag 包含其中）运行 `./Scripts/release.sh --finalize`：Release 公开（`isDraft=false`，2026-10-07T10:00:25Z，Latest），下载 enclosure 重新校验 Sparkle 签名与长度，appcast 提交 `825f68e86` 推送到 mobile-dev；raw appcast 回读 `sparkle:version 164.1.2.6.0` / `shortVersionString 0.72.0.1`。
 - 正式 Release：https://github.com/o1xhack/CodexBar-Mobile/releases/tag/v0.72.0.1-mobile.2.6.0
 - issue #177、#178、#179 已逐个回复正式 release URL 与完成说明后 `Close as completed`。
-- iOS 2.6.0 (235) 未上传 TestFlight/App Store（用户选择本轮只发布 Mac）。
+- Mac 发布时 iOS 2.6.0 (235) 尚未上传（当时的授权边界）；之后 iOS 已上传并提交审核，见 [05-ios-release.md](05-ios-release.md)。
