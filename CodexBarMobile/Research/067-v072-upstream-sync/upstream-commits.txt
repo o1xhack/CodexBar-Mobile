@@ -1,0 +1,151 @@
+cfee869f3 2026-10-04 docs: update appcast for 0.72.0
+6ba06fe9e 2026-10-04 chore(release): prepare 0.72.0
+f7b5f8acc 2026-10-04 ci: give the macOS test shards headroom (#4253)
+8f6e38a03 2026-10-04 fix(cli): report classified cookie refresh failures instead of missing cookies (#4249)
+ac0d9b4c4 2026-10-04 fix(claude): bind cache recovery to committed failed writes
+19087ebd1 2026-10-04 fix(spend): preserve project ownership when grouping chats
+8ac07d758 2026-10-04 fix(test): harden isolated direct worker execution
+316ea2095 2026-10-04 fix(antigravity): preserve model history around empty requests
+1e6e148bc 2026-10-04 fix(menu): keep blink scheduling aligned with visible critters
+c4c1e0127 2026-10-04 fix(spend): distinguish independent Codex chats from projects
+b58d83a5d 2026-10-04 Hide the empty Antigravity unknown model row
+deddae5e3 2026-10-04 fix(workbuddy): preserve credits across optional reset failures
+cb03a9fc4 2026-10-04 fix(menu): stop blink task in brand icon mode
+e7b67f182 2026-10-04 Test Linux Claude Auto recovery and document upgrade behaviour
+7180cf777 2026-10-03 fix(lithosai): restore cookie retries and menu bar balance (#4240)
+874d63d4e 2026-10-04 Retain valid Claude credentials after rejected cache write cleanup
+9cab8f9eb 2026-10-04 Export Grok purchased credit balance in usage JSON
+c7e216c67 2026-10-04 Support Claude web usage on Linux with manual cookies
+6dca28df4 2026-10-03 fix(antigravity): pair the OAuth client id with its own secret during discovery (#4238)
+21ada88c5 2026-10-04 Preserve direct test failure and timeout results across retries
+f6c607525 2026-10-04 Add opt-in isolated direct macOS test groups
+5e99cf4b6 2026-10-03 docs(changelog): avoid concurrent unreleased insertion conflict
+c0915b587 2026-10-03 fix(codex): continue automatic cost discovery in a bounded burst (#4237)
+bc7e2011d 2026-10-03 chore(deps): adopt SweetCookieKit 0.5.5 and widen Muse browser import (#4235)
+c8e53a318 2026-10-03 feat(antigravity): support additional Gemini profile homes (#4236)
+05a6a4344 2026-10-04 Read Claude OAuth limit reset inventory safely
+d2cb59866 2026-10-03 fix(muse): try email-matched sessions before blank-email membership checks
+1aa809cc3 2026-10-03 docs(changelog): link Muse Code fix to #4228
+20b1c4b4d 2026-10-03 test(muse): cover unbound browser sessions and invisible selected teams
+263858dfc 2026-10-03 fix(muse): keep searching after an unbound session's team list fails
+bfe5a5802 2026-10-03 fix(muse): match blank dev.meta.ai session emails through team membership
+f9988aa70 2026-10-03 feat(workbuddy): add WorkBuddy credits provider
+3bbf6bc48 2026-10-03 chore: start 0.71.2 development
+c04fc93f9 2026-10-03 docs: update appcast for 0.71.1
+917ae1465 2026-10-03 chore(release): prepare 0.71.1
+a53a6fe19 2026-10-02 fix(cookies): explain supported automatic browser sources (#4219)
+18ccd38ee 2026-10-03 Preserve saved pricing when typed requests replace cached mirrors
+cad03a93b 2026-10-02 test: isolate SettingsStore suites with per-test defaults (#4220)
+c8faf7233 2026-10-02 docs(spend): avoid changelog merge conflicts
+e7e325e23 2026-10-03 Preserve execution identity across metadata-only scan boundaries
+8faab770f 2026-10-03 Leave unreleased changelog ordering to upstream
+50ce15d2b 2026-10-02 test: finish replacing wall-clock assertions with controlled fixtures (#4217)
+9e48be064 2026-10-03 Route request usage through Codex ownership and replay boundaries
+fcba379d0 2026-10-03 fix(cursor): keep Grok Bot weekly pace when currentPeriodStart lands mid-week
+b66c10cc1 2026-10-02 Fix request ledger Linux and Swift 6.2 compilation
+f1f77baf7 2026-10-02 Fix Codex resumed usage with request ledger identities
+20daa8063 2026-10-02 fix(codex): publish fresh weekly quota when the previous credit inventory is missing (#4218)
+f087262d9 2026-10-02 Refine Claude cloud-credit balance presentation
+896255a02 2026-10-02 fix(commandcode): normalize bare manual session tokens (#4212)
+5955c9f5a 2026-10-02 fix(widget): document and verify shared provider accents
+7551fa98d 2026-10-02 fix(menu): wrap long inline statistics headings (#4211)
+e4dcc4869 2026-10-02 fix(status): finish provider publication ordering safeguards
+b1943758c 2026-10-02 Bound Grok local session scans to session roots
+29ae87e25 2026-10-02 ci: detect widget package pin drift (#4206)
+c40bec29a 2026-10-02 chore: start 0.71.1 development
+cb5f0cbe8 2026-10-02 docs: update appcast for 0.71.0
+d4813eeba 2026-10-03 Retain certified Codex baselines after metadata-only saves
+512826306 2026-10-03 Preserve Claude scan certificates across pricing replacement
+c676f3ac2 2026-10-03 Avoid rewriting empty Codex token histories
+98d84b8a0 2026-10-02 chore(widget): sync the SweetCookieKit 0.5.4 pin in the widget workspace
+f5835e3e1 2026-10-02 test(widget): add an opt-in Cursor usage tile render
+76b212b44 2026-10-02 fix(widget): align frozen widget colors with menu accents
+9260f2fe4 2026-10-02 chore(changelog): restore the 0.70.0 notes as shipped
+637947ac1 2026-10-02 chore(release): prepare 0.71.0
+cd244a0f0 2026-10-02 feat(lithosai): add console balance and spend (#4196)
+43c1e338e 2026-10-01 fix(pi): read OMP cttl.ephemeral1h as the one-hour cache-write subset
+ffdcee31b 2026-10-01 Explain Claude cloud-credit CLI label
+745bf89a3 2026-10-01 Show Claude cloud-session credits in menu and CLI
+d44acaa69 2026-10-01 test(museai): use opaque rejected session fixtures
+0ac27e8f7 2026-10-01 perf(codex): memoize Gatekeeper verdicts for standalone CLI binaries (#4080)
+119cc242b 2026-10-01 test(cost): isolate cost store test hooks (#4190)
+3457fb553 2026-10-01 test(process): control RPC and PTY fixture deadlines (#4188)
+6ccd9f2f2 2026-10-01 test: replace remaining scale and Antigravity time budgets (#4187)
+170606517 2026-10-01 test(cost): isolate Claude cache state per test (#4186)
+b5435c75a 2026-10-01 fix(codex): settle archived forks with a missing parent (#4154)
+3239175f6 2026-10-01 perf(deps): adopt SweetCookieKit 0.5.4 (#4180)
+9a0b95822 2026-10-01 perf(cost): reuse exact Claude cache fragments (#4179)
+9413e98c1 2026-10-01 perf(keychain): validate running code during preflight (#4178)
+2266b60ce 2026-10-01 test: replace provider and CLI wall-clock assertions (#4167)
+ba5e89eb4 2026-10-01 test: replace wall-clock checks with controlled fixtures (#4165)
+a01181340 2026-10-01 test: replace serve request wall-clock assertion (#4164)
+d066665de 2026-10-01 fix(sync): make remote record applies atomic (#4161)
+e069bff23 2026-10-01 fix: correct Cursor sessions, provider order, and Pi costs (#4148)
+b71dc6a9d 2026-10-01 Provide runtime evidence for overlapping status refreshes
+2d099c9d0 2026-10-01 chore(cost): regenerate codex parser hash
+944dbe4eb 2026-10-01 perf(cost): skip pricing Claude rows outside the scan range (#4169)
+4367a701c 2026-10-01 perf(cost): reuse the Codex cache decoder per pass (#4166)
+095373361 2026-10-01 Prevent older refreshes from replacing newer provider status
+f5fcf05d6 2026-10-01 Keep project label helpers outside the shared model file
+67e836cb4 2026-10-01 fix(claude): select scoped-only menu bar quotas (#4159)
+ff35cc2ed 2026-10-01 Fix spend project identity and use saved Codex project names
+2e4633073 2026-09-30 chore(cost): regenerate codex parser hash
+643dd0e79 2026-09-30 perf(cost): preserve pricing stamps on identical refreshes (#4160)
+455203d8e 2026-09-30 perf(cost): reuse Claude cache persistence identities (#4157)
+3a0467f0d 2026-09-30 perf(cost): skip impossible Vertex transcript classification (#4152)
+74c0d6d78 2026-09-30 chore(cost): regenerate codex parser hash
+958494057 2026-09-30 perf(cost): reuse Claude reconciliation during cache rebuilds (#4158)
+25888a0ff 2026-09-30 perf(cost): reuse Codex listing metadata and paths (#4153)
+4b0bda132 2026-09-30 perf(cost): reuse Codex thread database discovery (#4151)
+4c9e08317 2026-09-30 perf(cost): avoid filesystem probes during Codex cache reconciliation (#4150)
+a2a088b63 2026-09-30 perf(cost): reuse local day keys and Gregorian calendars (#4149)
+d97dfdeb7 2026-09-30 perf(cost): index models.dev fallback pricing merges (#4146)
+f8ecbff50 2026-09-30 perf(sessions): avoid filesystem probes when classifying processes (#4145)
+5ca83845f 2026-09-30 fix(codex): harden Node runtime discovery
+627130e34 2026-09-30 fix(refresh): detect Codex activity from rollout timestamps (#4156)
+705a58830 2026-09-30 fix(claude): preserve CLI recovery and isolate quota probes (#4155)
+9930e06d4 2026-09-30 test: replace hooks and process wall-clock assertions (#4162)
+949cac4e8 2026-09-30 fix(sync): recover removed records and gate push registration (#4147)
+53a366fbf 2026-10-01 Preserve rejected Codex discovery at RPC and PTY launch boundaries
+d2a6360f3 2026-10-01 Assess the npm payload selected by the launcher Node runtime
+94984614a 2026-09-30 fix(claude): unify safe PTY prompt and quota handling
+4d1b834ab 2026-09-30 fix(opencode): share Console parsing and preserve snapshot API
+4a350f05f 2026-09-30 fix(sessions): verify discovery after executable removal
+3299979c8 2026-09-30 fix(codex): validate npm payload layouts and preserve discovery fallbacks
+c40987f52 2026-09-30 refactor(antigravity): reuse parsed usage for local pricing
+d9f3aed90 2026-09-30 fix(antigravity): preserve consecutive credential updates
+7d0de656d 2026-10-01 Fix Codex CLI discovery after npm payload loss
+bd0ebc0db 2026-09-30 Apply the Antigravity schema allowance per database
+45557db29 2026-09-30 Correct Antigravity usage field mapping
+4b3c65917 2026-09-30 fix(opencode): parse Console reset timestamps without fractions
+89229b37e 2026-09-30 fix(opencode): support migrated Console workspaces
+ca051cfa5 2026-09-29 Add changelog entry for agent sessions fix
+73e737894 2026-09-29 Keep agent sessions running from a deleted binary
+1d7f20576 2026-09-30 docs(changelog): move the Claude trust fix under 0.70.1
+5de8b9ccf 2026-09-30 chore: start 0.70.1 development
+cb7e8a6d3 2026-09-29 better fix
+97391d5cd 2026-09-29 better method to find path
+6c070c727 2026-09-30 feat(notifications): add opt-in limit reset notifications
+1d854173a 2026-09-29 Fall back to Gemini Flash Lite in the menu bar
+9cbaedbc5 2026-09-29 fix(claude): show claude-swap path field under its toggle
+503e980f7 2026-09-29 Add codexbar-kde to Linux desktop integrations
+709ff569c 2026-09-29 fix(claude): keep the legacy trust prompt response unchanged
+e9a3f6534 2026-09-29 fix(claude): only trust the dedicated probe directory
+d9444c907 2026-09-29 fix(claude): answer the workspace trust dialog in PTY probes
+057d41a91 2026-09-29 Reap descendants of the scoped agy usage probe
+f2db790e5 2026-09-28 Avoid presenting unavailable Claude quota as 100% remaining
+77051eac6 2026-09-28 Guard CLI token writeback against mid-run reauthorization
+b9f0bfa9d 2026-09-28 test(antigravity): prove token updater drops stale writebacks
+d4caae94a 2026-09-28 Isolate browser uninstall test from LaunchServices registrations
+c0cd3092a 2026-09-26 feat(museai): add muse.ai subscription usage
+5e895efd9 2026-09-28 Persist scoped agy token refreshes to the selected account
+3731502b1 2026-09-28 Support token-only scoped Antigravity credentials
+9ed0d96a0 2026-09-28 fix(antigravity): report linux platform in the Hub user agent on Linux builds
+dbdd465b4 2026-09-28 fix(antigravity): identify as the Antigravity Hub client for OAuth quota requests
+7c4018f59 2026-09-28 Verify scoped agy identity via effective access token
+5becbf61e 2026-09-28 Drop unverified quota fallback
+70be213f9 2026-09-27 docs(antigravity): move live proof artifacts to PR description
+8053da9e3 2026-09-27 refactor(antigravity): stage scoped credentials via CredentialFileWriter
+6cfaad644 2026-09-27 fix(antigravity): keep model quotas when quota verification is denied
+e0172ea2e 2026-09-23 docs(antigravity): add live scoped-fetch proof artifacts
+6b706a67d 2026-09-23 feat(antigravity): scope agy print reports to the selected account (#3662)
