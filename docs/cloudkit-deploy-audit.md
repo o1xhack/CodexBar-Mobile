@@ -84,6 +84,10 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 
 对照最新published `v0.68.0.1-mobile.2.3.0`，`Shared/iCloud/CloudConstants.swift`无diff，`providerPayloadVersion=1`。新增`SyncRateWindow.blockingQuota`与`SyncDailyPoint.modelsUsed`是既有`DeviceProviderSnapshot.payload`中的optional JSON；没有新增record type、CloudKit field/index、query或subscription，也不增加private zone。因此当前候选代码判定`NO_DEPLOY`。Mac打包与iOSentitlements仍为Production。本轮没有调用Production schema export、deploy或实际数据库读写；iOS实现后的最终diff仍需复核，兼容矩阵不能由本结论代替。
 
+## v0.72.0.1 候选代码审计（2026-10-06，尚未发布）
+
+对照最新 published `v0.70.0.1-mobile.2.4.0`：`Shared/iCloud/CloudConstants.swift` 与 `Scripts/cloudkit/` 无 diff，`providerPayloadVersion=1`。新增 `SyncRateWindow.balanceDescription`、`SyncProviderDetailSection.Row.id/progress/usageValue` 均为既有 `DeviceProviderSnapshot.payload` 内的 optional JSON（nil 不编码）。`QuotaProviderList` 追加 `museai`、`workbuddy` 只增加运行时 private zone 与 zone subscription，沿用已部署的 `QuotaTransition` type/fields。上游 fleet `CloudSyncEngine` 移植（#4147/#4161）沿用已部署的 `CodexBarSync` zone 与 `ProviderIntent`/`Preferences`/`Device`/`AccountSnapshot` record types；上游 push 注册只在签名含 `com.apple.developer.aps-environment` 时触发，CKSyncEngine 自管 database subscription，fork 打包不含该 entitlement。判定 `NO_DEPLOY`。Mac 打包与 iOS entitlements 仍为 Production。本轮未调用 Production schema export、deploy 或实际数据库读写。
+
 ## 注意事项
 
 - **`providerPayloadVersion` bump = 强制全量重写**。看到 commit 改它必须警惕：除了 CK deploy，还会触发用户首次启动新版后 CPU/网络 spike。Phase B 加 6 个 optional 字段时**故意不 bump** 就是为了避这个。

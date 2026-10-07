@@ -19,35 +19,9 @@
 
 ### Fixed
 
-- iPhone quota alerts keep publishing restored transitions when the Mac shows a reset banner instead, or when Mac notifications are off.
+- iPhone quota alerts keep publishing restored transitions when the Mac shows a reset banner instead of a restored banner.
 - Mobile snapshots publish provider balance descriptions, LithosAI prepaid and Grok purchased-credit balances, and detail-row progress and expiry metadata as optional fields older iPhones ignore.
 - Invalidate semantic parser caches for the merged cost scanners while retaining compatible published cache predecessors.
-
-## 0.70.0.1 — 2026-10-02
-
-### Highlights
-
-- iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates. Successful direct Mac removal clears only earlier upload errors and records its push time, preserving fetch failures and newer upload failures.
-
-- Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.
-- Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.
-- Grok keeps local token history available during billing outages and includes observed model names. Partial cost scans remain clearly incomplete instead of appearing fully accounted for.
-- Mistral offers Monthly Plan in the menu bar and uses event, API zone, and service tier when calculating costs; updated model aliases and published pricing improve other cost estimates.
-- Refreshed provider colors and bundled Notion, ZoomMate, and LongCat integrations preserve their provider-specific quota, credit, and usage details.
-- Widget snapshots retain each provider's last good result, Codex handles plan upgrades and catch-up more reliably, and process cleanup stays responsive on busy machines.
-- Diagnostics redact stored process environments throughout the app, CLI, provider contexts, and session scanners.
-
-### Changed
-
-- Sync upstream v0.69.0 and v0.70.0 in one fork release, retaining the complete upstream provider, cost, quota burndown, widget, process cleanup, and environment-redaction changes listed below.
-- Preserve fork CloudKit Production publishing, account ownership fences, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.
-- Kimi mobile snapshots publish effective availability when the monthly pool blocks shorter quotas; optional metadata retains the original observed usage and reset for newer mobile clients.
-
-### Fixed
-
-- Keep Grok token-history projections aligned with the producer time zone, requested reporting period, and partial-history metadata; sync observed model names even when token usage has no known cost.
-- Keep partial cost scans marked as lower bounds on legacy and current mobile payloads; invalidate semantic parser caches while retaining compatible published cache predecessors.
-- Exclude Claude live-only reset inventory from persistent mobile detail rows to prevent stale redemption availability after cache restore.
 
 ## 0.72.0 — 2026-10-04
 
@@ -164,6 +138,32 @@
 - Claude: use a known model-scoped weekly quota for automatic and combined menu bar percentages when the regular quota windows are absent (#4126).
 - Antigravity: exclude model IDs from local token totals, correct visible and reasoning output counts, and estimate safety-routed Gemini Flash usage (#4124). Thanks @urda!
 - Antigravity: apply schema text limits per database so normal histories do not become partial after a few hundred sessions, and retain valid rows around oversized schemas (#4133). Thanks @urda!
+
+## 0.70.0.1 — 2026-10-02
+
+### Highlights
+
+- iPhone Local History keeps saved daily totals when Mac reports refresh; device-local Codex estimates no longer use account dashboard costs as missing-day replacements. Mac sync settings explain their separate scope, provide manual device refresh, and show named spend-source failures with cached-data dates. Successful direct Mac removal clears only earlier upload errors and records its push time, preserving fetch failures and newer upload failures.
+
+- Plan Usage shows recorded remaining-quota burndown for Codex and Claude, with capture age and calendar endpoints.
+- Kimi correctly reports when the monthly pool blocks access despite unused shorter-window quota. Claude shows saved limit resets from a fresh web response on Mac.
+- Grok keeps local token history available during billing outages and includes observed model names. Partial cost scans remain clearly incomplete instead of appearing fully accounted for.
+- Mistral offers Monthly Plan in the menu bar and uses event, API zone, and service tier when calculating costs; updated model aliases and published pricing improve other cost estimates.
+- Refreshed provider colors and bundled Notion, ZoomMate, and LongCat integrations preserve their provider-specific quota, credit, and usage details.
+- Widget snapshots retain each provider's last good result, Codex handles plan upgrades and catch-up more reliably, and process cleanup stays responsive on busy machines.
+- Diagnostics redact stored process environments throughout the app, CLI, provider contexts, and session scanners.
+
+### Changed
+
+- Sync upstream v0.69.0 and v0.70.0 in one fork release, retaining the complete upstream provider, cost, quota burndown, widget, process cleanup, and environment-redaction changes listed below.
+- Preserve fork CloudKit Production publishing, account ownership fences, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.
+- Kimi mobile snapshots publish effective availability when the monthly pool blocks shorter quotas; optional metadata retains the original observed usage and reset for newer mobile clients.
+
+### Fixed
+
+- Keep Grok token-history projections aligned with the producer time zone, requested reporting period, and partial-history metadata; sync observed model names even when token usage has no known cost.
+- Keep partial cost scans marked as lower bounds on legacy and current mobile payloads; invalidate semantic parser caches while retaining compatible published cache predecessors.
+- Exclude Claude live-only reset inventory from persistent mobile detail rows to prevent stale redemption availability after cache restore.
 
 ## 0.70.0 — 2026-09-29
 

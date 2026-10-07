@@ -806,7 +806,8 @@ final class SyncCoordinator {
                     rawResetsAt: window.resetsAt,
                     rawResetDescription: window.resetDescription,
                     rawNextRegenPercent: window.nextRegenPercent),
-                balanceDescription: window.balanceDescription)
+                // The projected window describes the blocking pool, not the lane's own balance.
+                balanceDescription: nil)
         }
     }
 
@@ -1406,6 +1407,7 @@ final class SyncCoordinator {
         guard let providerCost else { return nil }
         let kind: String
         let amount: Double
+        var period = providerCost.period
         switch provider {
         case .neuralwatt, .zenmux, .lithosai:
             guard providerCost.limit <= 0 else { return nil }
@@ -1435,6 +1437,7 @@ final class SyncCoordinator {
             guard let balance = providerCost.balance else { return nil }
             kind = "balance"
             amount = balance
+            period = providerCost.period ?? "Purchased credits"
         default:
             return nil
         }
@@ -1443,7 +1446,7 @@ final class SyncCoordinator {
             kind: kind,
             amount: amount,
             currencyCode: providerCost.currencyCode,
-            period: providerCost.period,
+            period: period,
             isEstimated: confidence == .estimated || confidence == .percentOnly,
             observedAt: kind == "balance"
                 ? providerCost.balanceUpdatedAt ?? providerCost.updatedAt

@@ -43,6 +43,7 @@ struct SyncV072BridgeTests {
             #expect(amount.kind == "balance")
             #expect(amount.amount == balance)
             #expect(amount.observedAt == self.observed)
+            #expect(amount.period == "Purchased credits")
         }
         let noBalance = ProviderCostSnapshot(used: 0, limit: 0, currencyCode: "USD", updatedAt: self.observed)
         #expect(SyncCoordinator.mapProviderAmount(provider: .grok, snapshot: nil, providerCost: noBalance) == nil)
