@@ -1529,7 +1529,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "동기화할 때마다 67개 제공자 ID에 걸친 77개의 안정적인 모의 스냅샷을 전송합니다. 다중 계정, sub2api, Wayfinder 및 알 수 없는 제공자 대체 사례가 포함됩니다. 모의 이메일은 `.test` TLD를 사용하므로 iPhone에 MOCK 배지가 표시됩니다. 이 옵션을 끄면 약 한 번의 동기화 주기 안에 CloudKit이 모의 레코드를 제거합니다. 기본값은 꺼짐입니다.";
+"mobile_toggle_mock_subtitle" = "동기화할 때마다 95개 제공자 ID에 걸친 105개의 안정적인 모의 스냅샷을 전송합니다. 다중 계정, sub2api, Wayfinder 및 알 수 없는 제공자 대체 사례가 포함됩니다. 모의 이메일은 `.test` TLD를 사용하므로 iPhone에 MOCK 배지가 표시됩니다. 이 옵션을 끄면 약 한 번의 동기화 주기 안에 CloudKit이 모의 레코드를 제거합니다. 기본값은 꺼짐입니다.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

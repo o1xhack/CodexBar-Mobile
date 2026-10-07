@@ -1687,7 +1687,7 @@
 "mobile_sync_status_syncing" = "Eşitleniyor…";
 "mobile_sync_status_syncing_elapsed_format" = "Eşzamanlanıyor — %@ · %d sn";
 "mobile_sync_status_syncing_phase_format" = "Eşzamanlanıyor — %@";
-"mobile_toggle_mock_subtitle" = "Her eşzamanlamada 67 sağlayıcı kimliğini kapsayan 77 kararlı sahte anlık görüntü gönderir; çoklu hesap, sub2api, Wayfinder ve bilinmeyen sağlayıcı geri dönüş durumları buna dahildir. Sahte e-postalar `.test` üst düzey alan adını kullandığından iPhone MOCK rozeti gösterir. Bu seçenek kapatıldığında CloudKit sahte kayıtları yaklaşık bir eşzamanlama döngüsünde kaldırır. Varsayılan olarak kapalıdır.";
+"mobile_toggle_mock_subtitle" = "Her eşzamanlamada 95 sağlayıcı kimliğini kapsayan 105 kararlı sahte anlık görüntü gönderir; çoklu hesap, sub2api, Wayfinder ve bilinmeyen sağlayıcı geri dönüş durumları buna dahildir. Sahte e-postalar `.test` üst düzey alan adını kullandığından iPhone MOCK rozeti gösterir. Bu seçenek kapatıldığında CloudKit sahte kayıtları yaklaşık bir eşzamanlama döngüsünde kaldırır. Varsayılan olarak kapalıdır.";
 "mobile_toggle_mock_title" = "Mock sağlayıcı verisi ekle";
 "mobile_toggle_push_subtitle" = "Bir oturum kotası tükendiğinde veya geri yüklendiğinde, iCloud üzerinden iOS yardımcı uygulamasına görünür bir uyarı push bildirimi gönder. Bu, Mac yerel bildirimlerinden bağımsızdır — Mac'i sessiz tutup iPhone'da uyarı almaya devam edebilirsiniz.";
 "mobile_toggle_push_title" = "iOS'a push bildirimleri";

@@ -582,7 +582,8 @@ enum ProviderSnapshotMerger {
                 rawUsedPercent: window.usedPercent,
                 rawResetsAt: window.resetsAt,
                 rawResetDescription: window.resetDescription,
-                rawNextRegenPercent: window.nextRegenPercent))
+                rawNextRegenPercent: window.nextRegenPercent),
+            balanceDescription: window.balanceDescription)
     }
 
     private static func mergeProviderEntries(

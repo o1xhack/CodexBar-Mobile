@@ -1559,7 +1559,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Verstuurt bij elke synchronisatie 77 stabiele mock-snapshots voor 67 provider-ID's, inclusief meerdere accounts, sub2api, Wayfinder en terugval voor onbekende providers. Mock-e-mailadressen gebruiken het TLD `.test`, zodat de iPhone een MOCK-badge toont. Als je dit uitschakelt, verwijdert CloudKit de mock-records binnen ongeveer één synchronisatiecyclus. Standaard uitgeschakeld.";
+"mobile_toggle_mock_subtitle" = "Verstuurt bij elke synchronisatie 105 stabiele mock-snapshots voor 95 provider-ID's, inclusief meerdere accounts, sub2api, Wayfinder en terugval voor onbekende providers. Mock-e-mailadressen gebruiken het TLD `.test`, zodat de iPhone een MOCK-badge toont. Als je dit uitschakelt, verwijdert CloudKit de mock-records binnen ongeveer één synchronisatiecyclus. Standaard uitgeschakeld.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

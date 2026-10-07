@@ -1559,7 +1559,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Envoie à chaque synchronisation 77 instantanés fictifs stables couvrant 67 identifiants de fournisseur, notamment les cas multicompte, sub2api, Wayfinder et le repli pour fournisseur inconnu. Les adresses fictives utilisent le TLD `.test`, afin que l’iPhone affiche un badge MOCK. La désactivation permet à CloudKit de supprimer les enregistrements fictifs en environ un cycle de synchronisation. Désactivé par défaut.";
+"mobile_toggle_mock_subtitle" = "Envoie à chaque synchronisation 105 instantanés fictifs stables couvrant 95 identifiants de fournisseur, notamment les cas multicompte, sub2api, Wayfinder et le repli pour fournisseur inconnu. Les adresses fictives utilisent le TLD `.test`, afin que l’iPhone affiche un badge MOCK. La désactivation permet à CloudKit de supprimer les enregistrements fictifs en environ un cycle de synchronisation. Désactivé par défaut.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

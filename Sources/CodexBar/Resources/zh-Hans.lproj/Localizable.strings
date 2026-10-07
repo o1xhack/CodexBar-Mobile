@@ -1510,7 +1510,7 @@
 "mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
 "mobile_section_mock_data" = "调试 · Mock provider 数据";
 "mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步会推送 77 个稳定的模拟快照，覆盖 67 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
+"mobile_toggle_mock_subtitle" = "每次同步会推送 105 个稳定的模拟快照，覆盖 95 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
 "mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
 "mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
 "mobile_section_dev_test" = "DEV — iOS 推送测试";

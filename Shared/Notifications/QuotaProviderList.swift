@@ -165,6 +165,10 @@ public enum QuotaProviderList {
         Provider(id: "xkiro", displayName: "xKiro"),
         Provider(id: "raycast", displayName: "Raycast"),
         Provider(id: "aixy", displayName: "Aixy"),
+        // iOS 2.6.0 / Mac v0.72.0 percentage providers (LithosAI is balance-only).
+        // Append only so existing zone and subscription identifiers stay stable.
+        Provider(id: "museai", displayName: "Muse (muse.ai)"),
+        Provider(id: "workbuddy", displayName: "WorkBuddy"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

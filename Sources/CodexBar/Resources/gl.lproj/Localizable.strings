@@ -1537,7 +1537,7 @@
 "mobile_sync_status_syncing" = "Sincronizando…";
 "mobile_sync_status_syncing_elapsed_format" = "Sincronizando — %@ · %d s";
 "mobile_sync_status_syncing_phase_format" = "Sincronizando — %@";
-"mobile_toggle_mock_subtitle" = "Envía 77 instantáneas simuladas estables de 67 identificadores de provedor en cada sincronización, incluídos casos de varias contas, sub2api, Wayfinder e reserva para provedores descoñecidos. Os correos simulados usan o TLD `.test`, polo que o iPhone mostra unha insignia MOCK. Ao desactivalo, CloudKit elimina os rexistros simulados en aproximadamente un ciclo de sincronización. Desactivado por defecto.";
+"mobile_toggle_mock_subtitle" = "Envía 105 instantáneas simuladas estables de 95 identificadores de provedor en cada sincronización, incluídos casos de varias contas, sub2api, Wayfinder e reserva para provedores descoñecidos. Os correos simulados usan o TLD `.test`, polo que o iPhone mostra unha insignia MOCK. Ao desactivalo, CloudKit elimina os rexistros simulados en aproximadamente un ciclo de sincronización. Desactivado por defecto.";
 "mobile_toggle_mock_title" = "Inxectar datos de provedores simulados";
 "mobile_toggle_push_subtitle" = "Cando unha cota de sesión se esgote ou se restaure, envía unha alerta visible á app complementaria de iOS mediante iCloud. Isto é independente das notificacións locais do Mac: podes manter o Mac en silencio e seguir recibindo avisos no iPhone.";
 "mobile_toggle_push_title" = "Enviar notificacións push a iOS";
