@@ -55,7 +55,7 @@ struct CloudOperationDeadlineTests {
         let configuration = try #require(operation.configuration)
         #expect(configuration.timeoutIntervalForRequest == 17)
         #expect(configuration.timeoutIntervalForResource == 17)
-        #expect(operation.qualityOfService == .utility)
+        #expect(operation.qualityOfService == .userInitiated)
     }
 
     @Test

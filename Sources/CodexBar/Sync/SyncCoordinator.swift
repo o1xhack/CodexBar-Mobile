@@ -371,7 +371,11 @@ final class SyncCoordinator {
                 sharedUtilizationHistory: sharedUtilizationHistory,
                 clearSharedCostOwnership: detachesProviderCost,
                 accountRecordKey: self.settings.effectiveSelectedTokenAccount(for: provider)
-                    .map(Self.tokenAccountRecordKey))
+                    .map(Self.tokenAccountRecordKey),
+                statusNote: Self.limitsUnavailableNote(
+                    snapshot: syncSnapshot,
+                    error: error,
+                    availability: self.store.knownLimitsAvailability(for: provider)))
 
             providerSnapshots.append(providerSnapshot)
             if detachesProviderCost, let sharedCostSummary {
@@ -1107,7 +1111,8 @@ final class SyncCoordinator {
         sharedCostSummary: SyncCostSummary?,
         sharedUtilizationHistory: [SyncUtilizationSeries]?,
         clearSharedCostOwnership: Bool = false,
-        accountRecordKey requestedAccountRecordKey: String? = nil) -> ProviderUsageSnapshot
+        accountRecordKey requestedAccountRecordKey: String? = nil,
+        statusNote: String? = nil) -> ProviderUsageSnapshot
     {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
@@ -1300,7 +1305,7 @@ final class SyncCoordinator {
             secondary: secondaryWindow,
             accountEmail: snapshot?.identity?.accountEmail,
             loginMethod: snapshot?.identity?.loginMethod,
-            statusMessage: error,
+            statusMessage: error ?? statusNote,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: resolvedCostSummary,
@@ -2294,6 +2299,18 @@ final class SyncCoordinator {
             hash = hash &* 0x100_0000_01B3
         }
         return Int(bitPattern: UInt(truncatingIfNeeded: hash))
+    }
+
+    /// A refresh that ended without usage data or an error (for example a Claude subscription notice
+    /// with no quota) would otherwise reach the iPhone as an unexplained empty card. Explain it without
+    /// marking the Mac as failing.
+    static func limitsUnavailableNote(
+        snapshot: UsageSnapshot?,
+        error: String?,
+        availability: UsageLimitsAvailability?) -> String?
+    {
+        guard snapshot == nil, error == nil, availability?.isUnavailable == true else { return nil }
+        return "Usage limits are not available for this account on this Mac."
     }
 
     func stopObserving() {

@@ -484,4 +484,58 @@ struct MultiMacFailureFallbackTests {
         #expect(lonely.allFailed)
         #expect(lonely.needsNotice(at: self.now) == false)
     }
+
+    private func emptyEntry(_ provider: String = "museai", note: String? = nil, at date: Date) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: provider, providerName: "Claude", primary: nil, secondary: nil, accountEmail: nil,
+            loginMethod: nil, statusMessage: note, isError: false, lastUpdated: date)
+    }
+
+    @Test func `an entry with neither data nor an error does not hide another Mac's data`() throws {
+        let studio = self.device("Mac Studio", [self.emptyEntry(note: "Usage limits are not available for this account on this Mac.", at: self.now)], at: self.now)
+        let macbook = self.device("MacBook Pro", [self.observation(capturedAt: self.now.addingTimeInterval(-300))],
+                                  at: self.now.addingTimeInterval(-300))
+        let providers = try self.merged([studio, macbook])
+        #expect(providers.count == 1)
+        let card = try #require(providers.first)
+        #expect(card.primary?.usedPercent == 21)
+        let status = try #require(ProviderSourceStatus.resolve(provider: card))
+        #expect(status.sourceDeviceName == "MacBook Pro")
+        #expect(status.failures(at: self.now).first?.message?.contains("not available") == true)
+    }
+
+    @Test func `an identity-less empty entry is absorbed into the observed account`() throws {
+        let studio = self.device("Mac Studio", [self.emptyEntry("claude", at: self.now)], at: self.now)
+        let macbook = self.device(
+            "MacBook Pro",
+            [self.observation("claude", capturedAt: self.now.addingTimeInterval(-300), email: "fixture@example.invalid")],
+            at: self.now.addingTimeInterval(-300))
+        let providers = try self.merged([studio, macbook])
+        #expect(providers.count == 1)
+        #expect(providers.first?.accountEmail == "fixture@example.invalid")
+        let account = try #require(providers.first)
+        let status = try #require(ProviderSourceStatus.resolve(provider: account))
+        #expect(status.failures(at: self.now).isEmpty, "an unexplained empty entry adds no notice")
+    }
+
+    @Test func `two Macs that publish only costs stay quiet`() throws {
+        let cost = SyncCostSummary(
+            sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: 3, last30DaysTokens: 1,
+            daily: [SyncDailyPoint(dayKey: "2026-10-07", costUSD: 3, totalTokens: 1)])
+        func costOnly(_ date: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "vertexai", providerName: "Vertex AI", primary: nil, secondary: nil, accountEmail: nil,
+                loginMethod: nil, statusMessage: nil, isError: false, lastUpdated: date, costSummary: cost)
+        }
+        let providers = try self.merged([
+            self.device("Mac Studio", [costOnly(self.now)], at: self.now),
+            self.device("MacBook Pro", [costOnly(self.now.addingTimeInterval(-60))], at: self.now.addingTimeInterval(-60)),
+        ])
+        let card = try #require(providers.first)
+        #expect(card.costSummary?.daily.first?.costUSD == 6)
+        let status = try #require(ProviderSourceStatus.resolve(provider: card))
+        #expect(status.needsNotice(at: self.now) == false)
+        #expect(status.isWarning(at: self.now) == false)
+    }
 }
+
