@@ -404,7 +404,7 @@ enum CostLedgerService {
             if let existing = try context.fetch(existingDescriptor).first,
                existing !== legacy
             {
-                if legacy.lastUpdated > existing.lastUpdated {
+                if Self.replacesDay(existing, with: legacy) {
                     existing.costUSD = legacy.costUSD
                     existing.totalTokens = legacy.totalTokens
                     existing.tokenCountIsKnown = legacy.tokenCountIsKnown
@@ -467,7 +467,7 @@ enum CostLedgerService {
             if let target = try context.fetch(targetDescriptor).first,
                target !== source
             {
-                if source.lastUpdated > target.lastUpdated {
+                if Self.replacesDay(target, with: source) {
                     target.costUSD = source.costUSD
                     target.totalTokens = source.totalTokens
                     target.tokenCountIsKnown = source.tokenCountIsKnown
@@ -497,6 +497,15 @@ enum CostLedgerService {
     /// its latest bounded provider blob temporarily carries no cost summary.
     /// Ownership migration must consult both stores: the blob describes the
     /// current window, while CWL can retain older days independently.
+    /// Whether a merged day takes `candidate`'s amount: a known amount always beats an unknown one;
+    /// otherwise the newer publication wins.
+    static func replacesDay(_ current: DailyCostPoint, with candidate: DailyCostPoint) -> Bool {
+        let currentKnown = current.costIsKnown ?? (current.costUSD > 0)
+        let candidateKnown = candidate.costIsKnown ?? (candidate.costUSD > 0)
+        if currentKnown != candidateKnown { return candidateKnown }
+        return candidate.lastUpdated > current.lastUpdated
+    }
+
     /// Distinct accounts that own ledger rows for one device and provider.
     static func ledgerOwners(
         deviceID: String,
@@ -713,8 +722,6 @@ enum CostLedgerService {
         readerTimeZone: TimeZone = .current,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
-        try self.pruneLedgerRowsMissingProviderSnapshots(in: context)
-
         let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
         if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
             try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
@@ -980,28 +987,6 @@ enum CostLedgerService {
             }
         }
         return false
-    }
-
-    /// Removes history only for a provider its device no longer publishes at all. A device that
-    /// still publishes the provider under another or no account keeps the history: the account
-    /// may be temporarily unknown (no credentials, failed refresh), and deleting would lose days
-    /// that exist nowhere else once the Mac's own logs age out.
-    private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
-        let publishedProviders = try Set(
-            context.fetch(FetchDescriptor<ProviderSnapshotModel>())
-                .map { "\($0.deviceID)|\($0.providerID)" })
-
-        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        var didDelete = false
-        for row in rows {
-            if !publishedProviders.contains("\(row.deviceID)|\(row.providerID)") {
-                context.delete(row)
-                didDelete = true
-            }
-        }
-        if didDelete {
-            try context.save()
-        }
     }
 
     private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {

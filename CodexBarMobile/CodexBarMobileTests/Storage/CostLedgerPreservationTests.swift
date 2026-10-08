@@ -97,7 +97,7 @@ struct CostLedgerPreservationTests {
         #expect(rows.first?.costUSD == 45)
     }
 
-    @Test func `a provider the Mac stops publishing still loses its history`() throws {
+    @Test func `a provider the Mac stops publishing keeps its history but no longer shows it`() throws {
         let context = try self.makeContext()
         try SwiftDataBridge.upsert(
             deviceSnapshots: [self.device([self.claude(email: "fixture@example.invalid", cost: 40, at: self.earlier)],
@@ -106,25 +106,39 @@ struct CostLedgerPreservationTests {
         let codex = ProviderUsageSnapshot(
             providerID: "codex", providerName: "Codex", primary: nil, secondary: nil, accountEmail: nil,
             loginMethod: nil, statusMessage: nil, isError: false, lastUpdated: self.later)
-        try SwiftDataBridge.upsert(deviceSnapshots: [self.device([codex], at: self.later)], into: context)
-        #expect(try self.rows(context).isEmpty)
+        let current = self.device([codex], at: self.later)
+        try SwiftDataBridge.upsert(deviceSnapshots: [current], into: context)
+        try SwiftDataBridge.deleteProviderRecords(named: ["studio|claude|fixture@example.invalid"], from: context)
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 365, in: context, asOf: self.later, userDefaults: UserDefaults(suiteName: UUID().uuidString)!)
+        #expect(try self.rows(context).count == 1, "turning a provider off must not erase what it cost")
+        let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: current, now: self.later)
+        #expect(insights.providerRows.isEmpty, "history without a live card is kept but not shown")
     }
 
-    @Test func `a renamed record keeps history and a removed provider drops it`() throws {
+    @Test func `a renamed record keeps history`() throws {
         let context = try self.makeContext()
         let old = self.claude(email: "fixture@example.invalid", cost: 40, at: self.earlier)
         try SwiftDataBridge.upsert(deviceSnapshots: [self.device([old], at: self.earlier)], into: context)
-
         // Same delta: the account-less record arrives, then the old record name is deleted.
         try SwiftDataBridge.upsertIncrementalCacheMirror(
             cacheDeviceSnapshots: [self.device([self.claude(email: nil, cost: nil, at: self.later)], at: self.later)],
             deletedRecordNames: ["studio|claude|fixture@example.invalid"],
             into: context)
-        #expect(try self.rows(context).count == 1)
+        #expect(try self.rows(context).first?.costUSD == 40)
+    }
 
-        try SwiftDataBridge.deleteProviderRecords(named: ["studio|claude|_"], from: context)
-        _ = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
-            windowDays: 365, in: context, asOf: self.later, userDefaults: UserDefaults(suiteName: UUID().uuidString)!)
-        #expect(try self.rows(context).isEmpty)
+    @Test func `a clear tombstone without a new owner keeps the history`() throws {
+        let context = try self.makeContext()
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([self.claude(email: "fixture@example.invalid", cost: 40, at: self.earlier)],
+                                          at: self.earlier)],
+            into: context)
+        let tombstone = ProviderUsageSnapshot(
+            providerID: "claude", providerName: "Claude", primary: nil, secondary: nil,
+            accountEmail: "fixture@example.invalid", loginMethod: "Max", statusMessage: nil, isError: false,
+            lastUpdated: self.later, costSummaryCleared: true)
+        try SwiftDataBridge.upsert(deviceSnapshots: [self.device([tombstone], at: self.later)], into: context)
+        #expect(try self.rows(context).first?.costUSD == 40)
     }
 }
