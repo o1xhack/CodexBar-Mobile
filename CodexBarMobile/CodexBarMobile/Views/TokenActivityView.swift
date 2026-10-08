@@ -16,7 +16,10 @@ struct TokenActivitySection: View {
     @State private var loadedScope: String?
     private var scope: String {
         self.providers
-            .map { $0.cardIdentityKey + CostLedgerService.accountIdentityKeys(for: $0).sorted().joined(separator: ",") }
+            .map {
+                $0.cardIdentityKey + CostLedgerService.accountIdentityKeys(for: $0).sorted().joined(separator: ",")
+                    + "+" + ($0.sourceReport?.absorbedAccountIdentities ?? []).joined(separator: ",")
+            }
             .joined(separator: "|")
             + "|\(self.useLedger)|\(self.isDemoMode)|\(self.clearedAt)|\(TimeZone.current.identifier)"
             + self.sourceSnapshots.compactMap(\.deviceID).sorted().joined(separator: "|")

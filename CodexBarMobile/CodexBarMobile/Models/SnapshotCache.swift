@@ -469,7 +469,12 @@ struct SnapshotCache: Sendable {
             // Real-email entries, mocks, and stable provider-level system
             // envelopes are immune from the nil-email orphan TTL. Cost
             // freshness is qualified separately from its source timestamps.
-            return hasEmail || isMock || provider.isProviderLevelCostEnvelope
+            // An entry the Mac still reports as failing is actively written, not a ghost; its
+            // `lastUpdated` is the age of the data it kept, which may lag the device's other
+            // providers by hours. Dropping it would leave only another Mac's error visible.
+            // Bounded so a ghost left by an old Mac with a final error cannot stay forever.
+            let activeError = provider.isError && provider.lastUpdated >= deviceFreshest.addingTimeInterval(-7 * 86400)
+            return hasEmail || isMock || provider.isProviderLevelCostEnvelope || activeError
                 || provider.lastUpdated >= staleCutoff
         }
     }

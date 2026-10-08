@@ -16,6 +16,8 @@ struct ProviderUsageView: View {
     /// (RawProviderDetailView previews, tests) that still drive a single
     /// snapshot through the card.
     var duplicateOrdinal: Int?
+    /// Which Mac supplied the card's data when another Mac failed to refresh more recently.
+    var sourceStatus: ProviderSourceStatus?
     /// **Phase G:** when the row represents a multi-account group, this
     /// is the count (≥ 2). The card renders a small "· N" badge after
     /// the provider name so the user knows "tap → see N tabs". `nil`
@@ -237,9 +239,24 @@ struct ProviderUsageView: View {
                 }
             }
 
-            Text(self.provider.lastUpdated.formatted(.relative(presentation: .named)))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 4) {
+                Text(self.provider.lastUpdated.formatted(.relative(presentation: .named)))
+                if let status = self.sourceStatus, let device = status.sourceDeviceName,
+                   status.showsDataFromAnotherMac(at: Date())
+                {
+                    // Another Mac is failing; say whose data this is. Orange only once the data is old.
+                    if status.isWarning(at: Date()) {
+                        Image(systemName: "exclamationmark.circle")
+                            .foregroundStyle(.orange)
+                            .accessibilityHidden(true)
+                    }
+                    Text(String(format: String(localized: "from %@"), device))
+                        .lineLimit(1)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .accessibilityElement(children: .combine)
         }
     }
 

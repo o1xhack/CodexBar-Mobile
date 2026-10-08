@@ -774,6 +774,7 @@ private struct ProviderListView: View {
                             provider: card.snapshot,
                             costReferenceDate: self.costReferenceDate,
                             duplicateOrdinal: card.accountOrdinal,
+                            sourceStatus: self.isDemoMode ? nil : ProviderSourceStatus.resolve(provider: card.snapshot),
                             accountCount: card.isAccountCard || !card.providerGroup.hasMultipleAccounts
                                 ? nil : card.providerGroup.accounts.count,
                             isPinned: isPinned,
@@ -1117,6 +1118,7 @@ private struct CostTab: View {
                     $0.cardIdentityKey,
                     $0.accountEmail ?? "",
                     CostLedgerService.accountIdentityKeys(for: $0).sorted().joined(separator: ","),
+                    ($0.sourceReport?.absorbedAccountIdentities ?? []).joined(separator: ","),
                 ].joined(separator: ":")
             }.sorted().joined(separator: ";"),
             self.usageData.providerLinkages.map {
@@ -4634,7 +4636,11 @@ private struct CostDiagnosticsView: View {
             activeDeviceIDs: self.activeDeviceIDsForLedger,
             snapshots: self.usageData.deviceSnapshots,
             clearTombstone: self.cwlBlobSeedClearedAt,
-            currentDayKey: self.ledgerRefreshDayKey)
+            currentDayKey: self.ledgerRefreshDayKey) + "|\(self.ledgerAccountLinks)"
+    }
+
+    private var ledgerAccountLinks: [CostLedgerAccountLink] {
+        CostLedgerService.accountLinks(for: self.usageData.snapshot?.providers ?? [])
     }
 
     @MainActor
@@ -4647,7 +4653,8 @@ private struct CostDiagnosticsView: View {
         let aggregation = try? await CostHistoryWorker.shared.aggregate(
             windowDays: max(1, self.cwlWindowDays),
             activeDeviceIDs: self.activeDeviceIDsForLedger,
-            sourceSnapshots: self.usageData.deviceSnapshots)
+            sourceSnapshots: self.usageData.deviceSnapshots,
+            accountLinks: self.ledgerAccountLinks)
         guard !Task.isCancelled, signature == self.ledgerRefreshSignature else { return }
         self.cachedLedgerAggregation = aggregation
         self.cachedLedgerSignature = signature
@@ -4957,6 +4964,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Claude cloud credits show the remaining amount, a progress bar, and when they expire. Expired credits are marked as expired."),
                     String(
                         localized: "Provider details show progress bars where your Mac reports both used and total amounts."),
+                    String(
+                        localized: "With more than one Mac, a Mac that can't refresh a provider no longer hides another Mac's data. Details show which Mac the data came from, how old it is, and any refresh errors."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

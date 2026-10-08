@@ -1165,6 +1165,65 @@ extension KeyedDecodingContainer {
     }
 }
 
+/// iPhone-local explanation of a merged provider card: which Mac supplied the shown observation and
+/// which Macs reported newer refresh failures. Computed by the iOS merger; Macs never publish it.
+public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
+    public struct Failure: Codable, Sendable, Equatable {
+        public let deviceID: String
+        public let deviceName: String
+        public let reportedAt: Date
+        public let message: String?
+        /// When the failing Mac last synced at all; a Mac that stopped syncing is no longer reported.
+        public let deviceSyncedAt: Date?
+
+        public init(
+            deviceID: String,
+            deviceName: String,
+            reportedAt: Date,
+            message: String?,
+            deviceSyncedAt: Date? = nil)
+        {
+            self.deviceID = deviceID
+            self.deviceName = deviceName
+            self.reportedAt = reportedAt
+            self.message = message
+            self.deviceSyncedAt = deviceSyncedAt
+        }
+    }
+
+    /// Nil when no Mac has an observation for this account (every contribution failed).
+    public let sourceDeviceID: String?
+    public let sourceDeviceName: String?
+    public let sourceCapturedAt: Date?
+    /// Failures reported after the shown observation was captured (all failures when none exists), newest first.
+    public let failures: [Failure]
+    /// Number of distinct Macs that contributed an entry to this card.
+    public let deviceCount: Int
+    /// Identities of identity-less failures folded into this card, so local cost history recorded
+    /// under them still belongs to this card.
+    public let absorbedAccountIdentities: [String]
+
+    public var allFailed: Bool {
+        self.sourceDeviceID == nil
+    }
+
+    public init(
+        sourceDeviceID: String?,
+        sourceDeviceName: String?,
+        sourceCapturedAt: Date?,
+        failures: [Failure],
+        deviceCount: Int,
+        absorbedAccountIdentities: [String] = [])
+    {
+        self.sourceDeviceID = sourceDeviceID
+        self.sourceDeviceName = sourceDeviceName
+        self.sourceCapturedAt = sourceCapturedAt
+        self.failures = failures
+        self.deviceCount = deviceCount
+        self.absorbedAccountIdentities = absorbedAccountIdentities
+    }
+}
+
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// Stable pseudo-account used only to transport provider-level OpenRouter
@@ -1210,6 +1269,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let details: [SyncProviderDetailSection]
     public let providerIconMonogram: String?
     public let providerIconTintHex: String?
+    /// iPhone-local merge explanation; never published by a Mac and nil on per-device snapshots.
+    /// Decoded tolerantly so a locally encoded merged snapshot round-trips; the merger recomputes it.
+    public var sourceReport: SyncProviderSourceReport?
 
     /// Mac-side stable identifiers for the logical account this snapshot
     /// represents. iOS uses these as grouping evidence: any two snapshots
@@ -1759,6 +1821,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             maximumCount: SyncProviderDetailSection.maximumSectionsPerSnapshot)
         self.providerIconMonogram = try container.decodeIfPresent(String.self, forKey: .providerIconMonogram)
         self.providerIconTintHex = try container.decodeIfPresent(String.self, forKey: .providerIconTintHex)
+        self.sourceReport = try? container.decodeIfPresent(SyncProviderSourceReport.self, forKey: .sourceReport)
     }
 }
 

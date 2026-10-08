@@ -124,9 +124,27 @@ struct CostLedgerDiagnostics: Equatable, Sendable {
     let estimatedBytes: Int
 }
 
+/// Accounts the iPhone merger folded into one card: an identity-less failure absorbed into the
+/// provider's only observed account. The ledger joins their rows so that card keeps that Mac's costs.
+struct CostLedgerAccountLink: Hashable, Sendable {
+    let providerID: String
+    let identities: [String]
+}
+
 // MARK: - CostLedgerService
 
 enum CostLedgerService {
+    static func accountLinks(for providers: [ProviderUsageSnapshot]) -> [CostLedgerAccountLink] {
+        providers.compactMap { provider in
+            guard let absorbed = provider.sourceReport?.absorbedAccountIdentities, !absorbed.isEmpty else {
+                return nil
+            }
+            return CostLedgerAccountLink(
+                providerID: provider.providerID,
+                identities: Self.accountIdentityKeys(for: provider) + absorbed)
+        }
+    }
+
     static func accountIdentityKey(for provider: ProviderUsageSnapshot) -> String {
         ProviderSnapshotMerger.effectiveIdentifiers(for: provider).first
             ?? "\(provider.providerID):legacy-no-identity"
@@ -513,6 +531,7 @@ enum CostLedgerService {
         asOf: Date = Date(),
         activeDeviceIDs: Set<String>? = nil,
         sourceSnapshots: [SyncedUsageSnapshot] = [],
+        accountLinks: [CostLedgerAccountLink] = [],
         readerTimeZone: TimeZone = .current) throws -> CostLedgerAggregation
     {
         let windowDays = max(1, min(windowDays, 365))
@@ -545,7 +564,7 @@ enum CostLedgerService {
             windowDays: windowDays,
             asOf: asOf,
             readerTodayDayKey: readerTodayKey)
-        let accountGrouping = Self.makeAccountGrouping(rows: rows, decoder: decoder)
+        let accountGrouping = Self.makeAccountGrouping(rows: rows, decoder: decoder, accountLinks: accountLinks)
         var groupedRows: [LedgerGroupKey: [DailyCostPoint]] = [:]
         for (index, row) in rows.enumerated() {
             guard let normalizedDayKey = Self.readerRelativeDayKey(
@@ -662,6 +681,7 @@ enum CostLedgerService {
         asOf: Date = Date(),
         activeDeviceIDs: Set<String>? = nil,
         sourceSnapshots: [SyncedUsageSnapshot] = [],
+        accountLinks: [CostLedgerAccountLink] = [],
         readerTimeZone: TimeZone = .current,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
@@ -677,6 +697,7 @@ enum CostLedgerService {
             asOf: asOf,
             activeDeviceIDs: activeDeviceIDs,
             sourceSnapshots: sourceSnapshots,
+            accountLinks: accountLinks,
             readerTimeZone: readerTimeZone)
     }
 
@@ -692,6 +713,7 @@ enum CostLedgerService {
         asOf: Date = Date(),
         activeDeviceIDs: Set<String>? = nil,
         sourceSnapshots: [SyncedUsageSnapshot] = [],
+        accountLinks: [CostLedgerAccountLink] = [],
         readerTimeZone: TimeZone = .current) throws -> CostLedgerProviderRollup
     {
         let full = try Self.aggregate(
@@ -700,6 +722,7 @@ enum CostLedgerService {
             asOf: asOf,
             activeDeviceIDs: activeDeviceIDs,
             sourceSnapshots: sourceSnapshots,
+            accountLinks: accountLinks,
             readerTimeZone: readerTimeZone)
         let rollupKey = Self.rollupKey(
             providerID: providerID,
@@ -1131,7 +1154,8 @@ enum CostLedgerService {
 
     private static func makeAccountGrouping(
         rows: [DailyCostPoint],
-        decoder: JSONDecoder) -> AccountGrouping
+        decoder: JSONDecoder,
+        accountLinks: [CostLedgerAccountLink] = []) -> AccountGrouping
     {
         var unionFind = LedgerUnionFind(count: rows.count)
         var firstSeen: [String: Int] = [:]
@@ -1146,6 +1170,12 @@ enum CostLedgerService {
                 }
             }
         }
+        for link in accountLinks {
+            let anchors = link.identities.compactMap { firstSeen["\(link.providerID)|\($0)"] }
+            for anchor in anchors.dropFirst() {
+                unionFind.union(anchor, anchors[0])
+            }
+        }
 
         let roots = rows.indices.map { unionFind.find($0) }
         var identitySets: [Int: Set<String>] = [:]
@@ -1153,10 +1183,19 @@ enum CostLedgerService {
         for index in rows.indices {
             let root = roots[index]
             identitySets[root, default: []].formUnion(identities[index])
-            if rows[index].accountIdentityKey != nil,
-               preferredRows[root].map({ $0.lastUpdated < rows[index].lastUpdated }) ?? true
-            {
-                preferredRows[root] = rows[index]
+            // A linked group keeps the observed account's key, not an absorbed failure's placeholder.
+            if let key = rows[index].accountIdentityKey {
+                let isPlaceholder = key == "\(rows[index].providerID):legacy-no-identity"
+                let preferred = preferredRows[root]
+                let preferredIsPlaceholder = preferred.map {
+                    $0.accountIdentityKey == "\($0.providerID):legacy-no-identity"
+                } ?? true
+                let replaces = preferred == nil
+                    || (preferredIsPlaceholder && !isPlaceholder)
+                    || (preferredIsPlaceholder == isPlaceholder && preferred!.lastUpdated < rows[index].lastUpdated)
+                if replaces {
+                    preferredRows[root] = rows[index]
+                }
             }
         }
         return AccountGrouping(
