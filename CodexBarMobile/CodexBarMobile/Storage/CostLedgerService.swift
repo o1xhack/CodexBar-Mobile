@@ -505,17 +505,34 @@ enum CostLedgerService {
     }
 
     /// One total order for choosing among rows of the same day: a row whose cost is known (a known
-    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the larger
-    /// amount and token count. Every key is part of the row's payload, so it travels with a merge that
-    /// copies the winner into another row, and repeated merges stay transitive and order independent.
-    /// Rows equal on every key carry the same values, so either choice is the same day.
+    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the rest of
+    /// the copied payload (amount, tokens, token availability, estimate flag, breakdown bytes). Every
+    /// key is part of the payload a merge copies, so repeated merges stay transitive and independent
+    /// of order, and rows equal on every key carry identical values.
     static func dayPrecedes(_ lhs: DailyCostPoint, _ rhs: DailyCostPoint) -> Bool {
         let lhsKnown = lhs.costIsKnown != false
         let rhsKnown = rhs.costIsKnown != false
         if lhsKnown != rhsKnown { return !lhsKnown }
         if lhs.lastUpdated != rhs.lastUpdated { return lhs.lastUpdated < rhs.lastUpdated }
         if lhs.costUSD != rhs.costUSD { return lhs.costUSD < rhs.costUSD }
-        return lhs.totalTokens < rhs.totalTokens
+        if lhs.totalTokens != rhs.totalTokens { return lhs.totalTokens < rhs.totalTokens }
+        let lhsTokensKnown = lhs.tokenCountIsKnown != false
+        let rhsTokensKnown = rhs.tokenCountIsKnown != false
+        if lhsTokensKnown != rhsTokensKnown { return !lhsTokensKnown }
+        let lhsMeasured = lhs.isEstimated != true
+        let rhsMeasured = rhs.isEstimated != true
+        if lhsMeasured != rhsMeasured { return !lhsMeasured }
+        for (left, right) in [
+            (lhs.modelBreakdownsData, rhs.modelBreakdownsData),
+            (lhs.serviceBreakdownsData, rhs.serviceBreakdownsData),
+            (lhs.modelsUsedData, rhs.modelsUsedData),
+        ] where left != right {
+            // More detail wins; otherwise compare bytes so the choice is still deterministic.
+            guard let left else { return true }
+            guard let right else { return false }
+            return left.lexicographicallyPrecedes(right)
+        }
+        return false
     }
 
     /// Whether a merged day takes `candidate`'s values (see `dayPrecedes`).

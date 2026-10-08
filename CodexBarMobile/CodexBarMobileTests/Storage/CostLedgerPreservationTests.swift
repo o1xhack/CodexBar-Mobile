@@ -347,5 +347,23 @@ struct CostLedgerPreservationTests {
         #expect(forward.0 == backward.0 && forward.1 == backward.1)
         #expect(forward.0 == 12)
     }
+
+    @Test func `equal rows that differ only in payload details still pick one deterministically`() throws {
+        let context = try self.makeContext()
+        func point(_ device: String, tokensKnown: Bool?, breakdown: Data?) -> DailyCostPoint {
+            let row = DailyCostPoint(
+                deviceID: device, providerID: "openai", accountEmail: "a@example.invalid", dayKey: self.day,
+                costUSD: 5, totalTokens: 9, tokenCountIsKnown: tokensKnown, costIsKnown: true,
+                modelBreakdownsData: breakdown, lastUpdated: self.later)
+            context.insert(row)
+            return row
+        }
+        let detailed = point("mac-a", tokensKnown: true, breakdown: Data("[1]".utf8))
+        let bare = point("mac-b", tokensKnown: true, breakdown: nil)
+        let unknownTokens = point("mac-c", tokensKnown: false, breakdown: Data("[2]".utf8))
+        for order in [[detailed, bare, unknownTokens], [unknownTokens, bare, detailed], [bare, unknownTokens, detailed]] {
+            #expect(CostLedgerService.preferredDay(in: order) === detailed)
+        }
+    }
 }
 
