@@ -12,6 +12,14 @@
 - Sync upstream v0.73.0, retaining the complete upstream provider, cost, and settings changes listed below.
 - Cost caches written by published fork releases (0.49.2.1 through 0.72.0.1) are rebuilt instead of adopted, so rows corrupted by the 0.72 request-ledger migration cannot survive the upgrade.
 - Keep the fork's family fallback pricing for unqualified OpenAI models (for example GPT-6 Luna) alongside upstream's provider-qualified pricing.
+- Langdock reaches the iPhone (Mobile 2.6.0 build 237) with its brand tint, detail localization and quota alerts.
+
+### Fixed
+
+- Failed iCloud pushes retry on their own after 30 seconds, 1, 2, then every 5 minutes until one succeeds, instead of waiting for the next provider refresh; push operations run at user-initiated priority so a busy Mac no longer times them out.
+- A Claude refresh that ends with neither usage data nor an error tells the iPhone that usage limits are not available on this Mac instead of sending an unexplained empty card.
+- Claude: keep Enterprise monthly Extra usage visible in Compact Overview when quota limits are unavailable, respecting the optional-usage preference (#4320). Thanks @wrick17!
+- Claude: distinguish insights-only CLI reports from subscription-only notices so failed direct fallbacks preserve the original PTY error, and log that error before fallback (#4083). Thanks @sczhui!
 
 ## 0.73.0 — 2026-10-07
 

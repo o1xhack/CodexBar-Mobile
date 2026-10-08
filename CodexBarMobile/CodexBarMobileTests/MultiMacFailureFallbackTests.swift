@@ -502,6 +502,12 @@ struct MultiMacFailureFallbackTests {
         let status = try #require(ProviderSourceStatus.resolve(provider: card))
         #expect(status.sourceDeviceName == "MacBook Pro")
         #expect(status.failures(at: self.now).first?.message?.contains("not available") == true)
+        // An explanation is not an error: informational notice, its own wording, no fix-it hint.
+        #expect(status.isWarning(at: self.now.addingTimeInterval(7 * 3600)) == false)
+        let content = try #require(ProviderSourceNoticeContent(status: status, now: self.now, locale: Locale(identifier: "en")))
+        #expect(content.isWarning == false)
+        #expect(content.lines.contains { $0.text == "Mac Studio has no usage data for this account." })
+        #expect(!content.lines.contains { $0.text == ProviderSourceNoticeContent.resolutionHintKey })
     }
 
     @Test func `an identity-less empty entry is absorbed into the observed account`() throws {

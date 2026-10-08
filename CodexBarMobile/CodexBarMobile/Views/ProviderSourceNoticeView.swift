@@ -52,12 +52,13 @@ struct ProviderSourceNoticeContent: Equatable {
         let failures = status.failures(at: now)
         for failure in failures {
             let message = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
-            lines.append(Line(
-                text: format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)]),
-                detail: message?.isEmpty == false ? message : nil))
+            let text = failure.isError == false
+                ? format("%@ has no usage data for this account.", [failure.deviceName])
+                : format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)])
+            lines.append(Line(text: text, detail: message?.isEmpty == false ? message : nil))
         }
         if let sourceDeviceID = status.report.sourceDeviceID,
-           failures.contains(where: { $0.deviceID != sourceDeviceID })
+           failures.contains(where: { $0.deviceID != sourceDeviceID && $0.isError != false })
         {
             lines.append(Line(
                 text: MobileLocalizedString.value(

@@ -344,7 +344,8 @@ enum ProviderSnapshotMerger {
                 deviceName: deviceNames[position],
                 reportedAt: reportedAt[position],
                 message: group[position].statusMessage,
-                deviceSyncedAt: deviceSyncedAt?[position])
+                deviceSyncedAt: deviceSyncedAt?[position],
+                isError: group[position].isError)
         }
         .sorted { $0.reportedAt == $1.reportedAt ? $0.deviceID > $1.deviceID : $0.reportedAt > $1.reportedAt }
         return SyncProviderSourceReport(

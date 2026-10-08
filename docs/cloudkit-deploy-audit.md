@@ -88,6 +88,17 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 
 对照最新 published `v0.70.0.1-mobile.2.4.0`：`Shared/iCloud/CloudConstants.swift` 与 `Scripts/cloudkit/` 无 diff，`providerPayloadVersion=1`。新增 `SyncRateWindow.balanceDescription`、`SyncProviderDetailSection.Row.id/progress/usageValue` 均为既有 `DeviceProviderSnapshot.payload` 内的 optional JSON（nil 不编码）。`QuotaProviderList` 追加 `museai`、`workbuddy` 只增加运行时 private zone 与 zone subscription，沿用已部署的 `QuotaTransition` type/fields。上游 fleet `CloudSyncEngine` 移植（#4147/#4161）沿用已部署的 `CodexBarSync` zone 与 `ProviderIntent`/`Preferences`/`Device`/`AccountSnapshot` record types；上游 push 注册只在签名含 `com.apple.developer.aps-environment` 时触发，CKSyncEngine 自管 database subscription，fork 打包不含该 entitlement。判定 `NO_DEPLOY`。Mac 打包与 iOS entitlements 仍为 Production。本轮未调用 Production schema export、deploy 或实际数据库读写。
 
+## v0.73.0.1 候选代码审计（2026-10-08，尚未发布）
+
+对照最新 published `v0.72.0.1-mobile.2.6.0`（appcast 已于 10-07 撤回该版本，回到 0.70.0.1）：
+- **schema 定义**：`Shared/iCloud/CloudConstants.swift` 与 `Scripts/cloudkit/` 无 diff，`providerPayloadVersion=1`。
+- **新增类型**：`SyncProviderSourceReport`（含 `Failure.isError`、`absorbedAccountIdentities`），只作为 `ProviderUsageSnapshot.sourceReport` 存在于 iPhone 本地合并结果，Mac 从不设置，nil 时不编码，不进入 CloudKit。
+- **`QuotaProviderList`**：追加 `langdock`，只增加运行时私有 zone 与 zone subscription，沿用已部署的 `QuotaTransition` type 与 fields。
+- **推送 QoS**：Mac 推送改为 userInitiated，只是运行时属性。
+- **Mac 说明文字**：Claude 额度不可用的说明复用既有 `statusMessage` 字段。
+
+判定 `NO_DEPLOY`。Mac 打包与 iOS entitlements 仍为 Production。本轮没有调用 Production schema export、deploy，也没有读写实际数据库。
+
 ## 注意事项
 
 - **`providerPayloadVersion` bump = 强制全量重写**。看到 commit 改它必须警惕：除了 CK deploy，还会触发用户首次启动新版后 CPU/网络 spike。Phase B 加 6 个 optional 字段时**故意不 bump** 就是为了避这个。

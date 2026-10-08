@@ -47,7 +47,7 @@ enum ProviderDetailLocalization {
         "Premium weekly",
         "Professional voices", "Project", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
-        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Session", "Shared",
+        "Included limits", "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Session", "Shared",
         "Rest of organization", "Reviews", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
         "Spend history", "Spending limit", "Spent", "Spent this month", "Stored", "Subscription",
         "Subscription credits", "Team credits", "Top-up credits",
@@ -172,6 +172,9 @@ enum ProviderDetailLocalization {
             return MobileLocalizedString.value(key, defaultValue: value, locale: locale)
         case "workbuddy":
             return self.localizedCreditsLeft(value, locale: locale) ?? value
+        case "langdock":
+            guard value == "No included usage limits available" else { return value }
+            return MobileLocalizedString.value("langdock_value_no_included_limits", defaultValue: value, locale: locale)
         case "museai":
             return self.localizedAmountLeft(value, locale: locale) ?? value
         case "kiro":

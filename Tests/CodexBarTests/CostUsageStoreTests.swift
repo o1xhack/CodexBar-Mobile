@@ -1320,8 +1320,12 @@ extension CostUsageStoreTests {
 
     @Test(arguments: [
         "834522608c1b0457", // Published 0.49.2.1.
-        "1bd2d8ec2fd2dcf2", // v0.52 candidate.
+        "a5a0cf92c6361f6e", // Published 0.52.0.1.
+        "1bd2d8ec2fd2dcf2", // v0.52 candidate, once a compatible predecessor.
         "8b9bc662426a8aab", // Published 0.54.0.1.
+        "c6ecfbe76f4248db", // Published 0.56.0.1.
+        "d6190f4e899a6d66", // Published 0.58.0.1.
+        "4586197300ff9f67", // Published 0.66.0.1.
         "6fbe90ca603fb1e4", // Published 0.68.0.1.
         "11b5eaedd0f337a7", // Published 0.70.0.1.
         "c3e4a66c1b7f0a59", // Published 0.72.0.1.
