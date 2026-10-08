@@ -44,10 +44,11 @@ struct ProviderSourceNoticeContent: Equatable {
                     locale: locale)
             lines.append(Line(text: format("Data from %@, updated %@.", [device, relative(captured)]), detail: nil))
         } else {
-            self.title = MobileLocalizedString.value(
-                "No Mac could refresh this provider",
-                defaultValue: "No Mac could refresh this provider",
-                locale: locale)
+            // Every Mac answered without data; it is a failure only when one of them reported an error.
+            let key = status.errors(at: now).isEmpty
+                ? "No Mac has usage data for this account"
+                : "No Mac could refresh this provider"
+            self.title = MobileLocalizedString.value(key, defaultValue: key, locale: locale)
         }
         let failures = status.failures(at: now)
         for failure in failures {
