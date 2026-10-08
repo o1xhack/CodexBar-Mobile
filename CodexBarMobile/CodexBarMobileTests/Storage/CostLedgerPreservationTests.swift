@@ -215,7 +215,7 @@ struct CostLedgerPreservationTests {
         let knownNew = point(40, known: true, at: self.later)
         #expect(CostLedgerService.replacesDay(knownOld, with: knownNew) == true, "a known repricing still applies")
         let zeroOld = point(0, known: true, at: self.earlier)
-        #expect(CostLedgerService.replacesDay(zeroOld, with: unknownNew) == true)
+        #expect(CostLedgerService.replacesDay(zeroOld, with: unknownNew) == false, "a known $0 is still known")
     }
 
     @Test func `the per-day pick across Macs is order independent and prefers the newest known amount`() throws {
@@ -239,6 +239,31 @@ struct CostLedgerPreservationTests {
         }
         let olderUnknown = point("mac-d", 0, known: false, at: self.earlier)
         #expect(CostLedgerService.preferredDay(in: [olderUnknown, unknown]) === unknown)
+    }
+
+    @Test func `sequential merges in any order land on the same day as the total order`() throws {
+        let context = try self.makeContext()
+        func point(_ owner: String, _ cost: Double, known: Bool, at date: Date) -> DailyCostPoint {
+            let row = DailyCostPoint(
+                deviceID: "studio", providerID: "claude", accountEmail: owner, dayKey: self.day,
+                costUSD: cost, totalTokens: 1, costIsKnown: known, lastUpdated: date)
+            context.insert(row)
+            return row
+        }
+        let rows = [
+            point("a@example.invalid", 20, known: true, at: self.earlier),
+            point("b@example.invalid", 0, known: true, at: self.later),
+            point("c@example.invalid", 0, known: false, at: self.later.addingTimeInterval(60)),
+        ]
+        let expected = try #require(CostLedgerService.preferredDay(in: rows))
+        #expect(expected === rows[1])
+        for order in [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]] {
+            var kept = rows[order[0]]
+            for index in order.dropFirst() where CostLedgerService.replacesDay(kept, with: rows[index]) {
+                kept = rows[index]
+            }
+            #expect(kept === expected, "order \(order)")
+        }
     }
 
     @Test func `every kept day moves to the next local owner and is counted once`() throws {

@@ -504,24 +504,25 @@ enum CostLedgerService {
         incomingCostIsKnown == false && Self.hasKnownAmount(existing)
     }
 
-    /// Whether a merged day takes `candidate`'s values: an unknown day never replaces a known positive
-    /// amount, a known positive amount always replaces an unknown day, otherwise the newer one wins.
-    static func replacesDay(_ current: DailyCostPoint, with candidate: DailyCostPoint) -> Bool {
-        if candidate.costIsKnown == false, Self.hasKnownAmount(current) { return false }
-        if current.costIsKnown == false, Self.hasKnownAmount(candidate) { return true }
-        return candidate.lastUpdated > current.lastUpdated
+    /// One total order for choosing among rows of the same day: a row whose cost is known (a known
+    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the record
+    /// key. Being a total order, every merge and pick is transitive and independent of fetch order.
+    static func dayPrecedes(_ lhs: DailyCostPoint, _ rhs: DailyCostPoint) -> Bool {
+        let lhsKnown = lhs.costIsKnown != false
+        let rhsKnown = rhs.costIsKnown != false
+        if lhsKnown != rhsKnown { return !lhsKnown }
+        if lhs.lastUpdated != rhs.lastUpdated { return lhs.lastUpdated < rhs.lastUpdated }
+        return lhs.compositeKey < rhs.compositeKey
     }
 
-    /// Deterministic pick for one account and day across rows: the newest row whose cost is known
-    /// (a known $0 is an authoritative correction), otherwise the newest unknown row. Unlike pairwise
-    /// `replacesDay` this is a total order, so the result never depends on fetch order.
+    /// Whether a merged day takes `candidate`'s values (see `dayPrecedes`).
+    static func replacesDay(_ current: DailyCostPoint, with candidate: DailyCostPoint) -> Bool {
+        Self.dayPrecedes(current, candidate)
+    }
+
+    /// The row a day keeps across Macs or former owners (see `dayPrecedes`).
     static func preferredDay(in rows: [DailyCostPoint]) -> DailyCostPoint? {
-        let newest = { (lhs: DailyCostPoint, rhs: DailyCostPoint) in
-            lhs.lastUpdated != rhs.lastUpdated
-                ? lhs.lastUpdated < rhs.lastUpdated
-                : lhs.compositeKey < rhs.compositeKey
-        }
-        return rows.filter { $0.costIsKnown != false }.max(by: newest) ?? rows.max(by: newest)
+        rows.max(by: Self.dayPrecedes)
     }
 
     /// Distinct accounts that own ledger rows for one device and provider.
