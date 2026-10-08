@@ -54,8 +54,9 @@
 
 ### 2.4 选项内容
 
-- **来源**：所选服务商最近一次同步的窗口里，用量已知的窗口（`usageKnown`），按卡片顺序（原生槽位在前，附加窗口在后）。没有 id 的旧 Mac 数据按位置叫 `primary` / `secondary` / `tertiary`。同一服务商多个账号的窗口取并集。
-- **标题**：和 App 的服务商卡片同一套 `ProviderWindowLabel`（从 App target 挪到 `CodexBarWidgetShared`，App 和小组件共用），普通槽位名（Session、Weekly）再走一次和小组件曲线标签相同的 `ProviderDetailLocalization`。没有 label 的窗口先按时长命名（7 天叫“每周”），再按槽位。四种语言的标题由 App 写进 catalogue，Intents 扩展按自己的首选语言取。
+- **来源**：所选服务商最近一次同步的窗口里，用量已知的窗口（`usageKnown`），按卡片顺序（原生槽位在前，附加窗口在后）。没有 id 的旧 Mac 数据保留它原来的槽位名：只有 `primary` / `secondary` 字段时按字段名，`rateWindows` 里按位置叫 `primary` / `secondary` / `tertiary` / `window-N`。同一服务商多个账号的窗口取并集。
+- **什么时候列出窗口**：有两个及以上窗口时全部列出；只有一个窗口且时长至少一天（Codex、muse.ai 的每周）时，默认已经就是它，只给“默认（每周）”；只有一个窗口但不足一天、或没有时长时也列出来，因为默认走不到它，只能手动选。
+- **标题**：和 App 的服务商卡片同一套 `ProviderWindowLabel`（从 App target 挪到 `CodexBarWidgetShared`，App 和小组件共用），普通槽位名（Session、Weekly）再走一次和小组件曲线标签相同的 `ProviderDetailLocalization`。没有 label 的窗口和卡片用同一套兜底名：第 1 个叫“当前周期”、第 2 个叫“每周”、之后叫“限额 N”；Aixy 叫“预算 / 次级预算”，xkiro 第 1 个叫“每日免费 Token”。所以没有 label 的 muse.ai 每周窗口和卡片一样叫“当前周期”。四种语言的标题由 App 写进 catalogue，Intents 扩展按自己的首选语言取。
 - **时长**：每个选项的副标题是窗口时长（例如“7 天”“5 小时”），用系统的 `DateComponentsFormatter` 本地化。两个选项标题相同时，标题后面再加时长区分。
 - 例子：
   - Claude：默认（每周）、当前周期、每周、仅 Fable。
@@ -68,49 +69,59 @@
 
 ## 3. 设计
 
-### 3.1 默认窗口
+### 3.1 默认窗口与自动选择
 
-`QuotaPaceWindowSelection.defaultWindowID(for:now:)`，只考虑用量已知、还没重置的窗口：
+**两套规则**（2026-10-08 本地 review 后的取舍，方案 a）：
 
-1. 原来的配速窗口（`QuotaPace.window(for:)`，原生 secondary → tertiary → primary）是每周的，就用它。Codex、Claude 都在这一步。
-2. 否则找每周窗口（`windowMinutes == 10080`，或没有时长但 `period == .weekly`）：先原生槽位，再附加窗口。Antigravity 没有原生槽位，用第一个每周窗口（例如 Gemini · 每周）。
-3. 否则沿用 Research/065：原来的配速窗口有配速就用它（例如只有月度窗口的服务商）。
-4. 都没有：保持原来的“按曲线车道回退”（例如每周用量未知时显示当前周期的曲线）。
+- **自动选择服务商**（服务商为“未选择”，包括所有升级前添加、没选服务商的小组件）：完全保持 Research/065。数据、排序、门槛都不变：门槛仍是 `QuotaPace(provider:) != nil` 或有曲线（`isAutomaticCandidate`），显示的仍是 065 的配速窗口或曲线车道。只有附加窗口里才有每周额度的服务商（Antigravity）不会因为“默认每周”拿到新配速，也就不会因此参与自动排序。
+- **手动选定服务商**（包括升级前添加、已选服务商的小组件）：按所选窗口；没选时按下面的默认窗口。
 
-用户没选、选了“默认”、选项属于别的服务商、选的窗口已经不在数据里，都走这个默认。
+**默认窗口**（`QuotaPaceWindowSelection.defaultWindowID(for:now:)`，只考虑用量已知、还没重置的窗口）：
+
+1. 原来的配速窗口（`QuotaPace.window(for:)`）是每周的、且不是 Claude 的模型限定额度，就用它。Codex、Claude 都在这一步，和以前一样。
+2. 否则按 Mac 端每周切换器的规则（`UsageSnapshot+SwitcherWeeklyWindow` 的 `mostConstrainedSwitcherWeeklyWindow`）：所有时长 7 天的窗口里取**用得最多的那个**（最受限）；Claude 排除 tertiary（Sonnet/Opus 每周）、`claude-weekly-scoped-*`（仅 Fable 等）和 `claude-routines`。Antigravity 取最受限的每周桶；MiniMax 类（secondary 是 Today、tertiary 是每周）取 tertiary 的每周，和以前显示 Today 不同，这是用户要的“默认每周”。
+3. 否则沿用 Research/065：原来的配速窗口有配速、且不是 Claude 的模型限定额度时用它（例如只有月度窗口的服务商）。
+4. 都没有：跟随有曲线的账号窗口（每周，其次当前周期）；再没有就显示“暂无配速数据”。不会落到 Claude 的 Sonnet/Opus 曲线上。
+
+**选择失效时静默回退**：用户没选、选了“默认”、选项属于别的服务商（换了服务商）、选的窗口已经不在数据里，都直接按上面的默认显示，小组件上不提示“原选择已失效”。窗口名会显示在主数字旁边（见 3.3），用户能看出现在跟的是哪个窗口。
+
+**多账号**：选了窗口时，只在有这个窗口的账号里挑；没有账号有这个窗口时，所有账号都按默认窗口再挑。挑的时候“有配速”优先，其次“所跟窗口自己有曲线”（没有曲线的窗口不再因为别的曲线加分）。
 
 ### 3.2 小组件数据
 
-- `CodexBarWidgetPaceSummary` 新增 `windows`（每个窗口的 id、label、period、时长、配速、剩余、重置时间、对应的曲线车道）、`windowID`（当前描述的窗口）、`isExplicitWindow`。`pace` / `paceRemainingPercent` / `paceResetsAt` 仍表示当前描述的窗口，原有调用不变。`selecting(windowID:)` 返回指向所选窗口的同一份数据。
-- 配速仍用 `QuotaPace(window:capturedAt:referenceDate:providerID:)`，按 Mac 观测时间算，和详情页同一个公式；不到一天的窗口（5 小时当前周期）不出配速，和 App 一致。OpenCodeGo 估算用量不出配速的规则对所有窗口生效。
+- `CodexBarWidgetPaceSummary` 新增 `windows`（每个窗口的 id、label、period、时长、配速、剩余、重置时间、对应的曲线车道、在卡片里的位置）、`windowID`（当前描述的窗口）、`windowSource`（`automatic` / `defaultWindow` / `chosen`）、`automaticWindowID`、`defaultWindowID`。刚建出来的数据是 065 的自动数据；`configured(windowID:)` 返回手动选定服务商时要显示的数据。`pace` / `paceRemainingPercent` / `paceResetsAt` 始终表示当前描述的窗口。
+- 跟随某个窗口时（`defaultWindow` / `chosen`），`primaryLane` 只取这个窗口自己的曲线，没有就是 nil，保证标签、数字、曲线是同一个窗口。
+- 配速仍用 `QuotaPace(window:capturedAt:referenceDate:providerID:)`，按 Mac 观测时间算，和详情页同一个公式；不到一天的窗口（5 小时当前周期）不出配速，和 App 一致。OpenCodeGo 估算用量不出配速的规则抽成 `QuotaPace.allowsPace(for:)`，自动数据和每个窗口共用。
 - 曲线只有 Codex、Claude 的原生槽位有观测历史（`MobileQuotaBurndown.resolvedLanes`），窗口和车道按同一个 `SyncRateWindow` 对应。
-- 自动选择服务商时不看窗口选择，用默认窗口；候选条件仍是“有配速或有曲线”（`isAutomaticCandidate`），所以只有短窗口的服务商仍不会被自动选中。
+- 自动选择服务商时不看窗口选择，见 3.1。
 - 解码兼容：新字段都用 `decodeIfPresent`，旧数据解码为空。
 
 ### 3.3 显示
 
-- 小：选了窗口时，主数字后面写窗口名（“29% 仅 Fable · 剩余”）；默认时保持原样。
-- 中：主数字后的标签用所选窗口名；有曲线就画曲线，没有曲线（仅 Fable、Antigravity）就在右栏画剩余进度条，并且不再显示当前周期那一行，免得进度条被看成当前周期的。
+- 小：选了窗口、或默认窗口和以前显示的窗口不同时，主数字后面写窗口名（“29% 仅 Fable · 剩余”）；默认窗口和以前相同时保持原样。
+- 中：跟随某个窗口时，主数字后的标签用这个窗口的名字；它有曲线就画曲线，没有曲线（仅 Fable、Antigravity）就在右栏画剩余进度条，并且不再显示当前周期那一行，免得进度条被看成当前周期的。
 - 大：所选窗口有曲线时，显示包含它的前两条曲线（当前周期和每周）；没有曲线时显示主数字和进度条。
 - 超大：两列，每列只画所选窗口的曲线。
-- 重置时间：不到一天的窗口改成按小时（“2.4小时”），新增文案 `%@h` 四语言。
+- 重置时间：不到一天的窗口改成按小时（“2.4小时”，不到 0.1 小时显示“<0.1小时”），新增文案 `%@h`、`<0.1h` 四语言。
 
 ### 3.4 兼容性
 
 | 情况 | 行为 |
 | --- | --- |
-| 237 之前添加的额度消耗趋势小组件 | 编辑面板没有“额度窗口”参数（配置结构存死），一直走默认（每周）。Codex、Claude 和以前一样 |
+| 237 之前添加、没选服务商的小组件 | 自动选择，和以前完全一样 |
+| 237 之前添加、选了服务商的小组件 | 编辑面板没有“额度窗口”参数（配置结构存死），按 3.1 的默认窗口。Codex、Claude 和以前一样；MiniMax 类改为每周、Antigravity 改为最受限的每周桶 |
 | 旧 catalogue（App 还没在新版本里刷新过） | 服务商只给“默认（每周）” |
 | 新窗口出现（例如 Antigravity 新桶） | App 下次同步刷新后写入 catalogue，编辑面板才有 |
-| 改了服务商 | 原窗口选项不属于新服务商，走默认 |
-| 窗口消失 | 走默认 |
+| 改了服务商 | 原窗口选项不属于新服务商（系统不会清空它），静默走默认 |
+| 窗口消失 | 静默走默认 |
+| catalogue 读不出来 | 编辑面板仍给“默认（每周）” |
 | 选的窗口暂时没有用量 | 显示服务商名和“暂无配速数据”（和服务商不可用时一样） |
 
-**行为变化**：附加窗口里才有每周额度的服务商（Antigravity 等），以前没有配速、不会被自动选中；现在默认用每周窗口，有了配速，会参与自动选择（排在 Codex、Claude 之后，因为它们还有曲线）。
+**行为变化**：只发生在手动选定服务商的小组件上（见 3.1）：附加窗口里才有每周额度的服务商（Antigravity）现在显示最受限的每周桶和配速；MiniMax 类从 Today 改为每周。自动选择不变。
 
 ## 4. 主要文件
 
-- `CodexBarWidgetShared/Base.lproj/WidgetStatus.intentdefinition`：`SelectQuotaPaceWidget` 加参数 `quotaWindow`（tag 3，类型 `QuotaPaceWindowOption`，父参数 `provider` / `HasAnyValue`，动态选项），`INIntentLastParameterTag` 2 → 3；四个 `WidgetStatus.strings` 加 `CBPacequotaWindow`、`CBPaceQuotaWindowType`（额度窗口 / 額度區間 / 表示するクォータ）。
+- `CodexBarWidgetShared/Base.lproj/WidgetStatus.intentdefinition`：`SelectQuotaPaceWidget` 加参数 `quotaWindow`（tag 3，类型 `QuotaPaceWindowOption`，父参数 `provider` / `HasAnyValue`，动态选项），`INIntentLastParameterTag` 2 → 3；四个 `WidgetStatus.strings` 加 `CBPacequotaWindow`、`CBPaceQuotaWindowType`（额度窗口 / 額度時段 / 表示するクォータ）。
 - `CodexBarMobileWidgetOptions/IntentHandler.swift`：`provideQuotaWindowOptionsCollection`、`defaultQuotaWindow`；`Localizable.xcstrings` 加“Default (Weekly)”四语言。
 - `CodexBarWidgetShared/WidgetProviderCatalogue.swift`：`WidgetProviderWindowRecord`、`QuotaPaceWindowChoice`（identifier 编解码、选项生成）、按服务商合并窗口。
 - `CodexBarWidgetShared/QuotaPaceWindowSelection.swift`：窗口列表、默认窗口、catalogue 标题。
@@ -120,12 +131,14 @@
 
 ## 5. 测试
 
-- 新增 `QuotaPaceWindowPickerTests`（Swift Testing，16 项）：
-  - 选项：Claude 三个窗口（id、英文标题、简繁日标题、时长副标题）；Codex、muse.ai 只有默认；Antigravity 多个窗口按卡片顺序、排除用量未知的窗口；标题重复时加时长；没选服务商、未知服务商、旧 catalogue 只有默认；多账号合并窗口并能写读 catalogue。
-  - 默认：Claude、Codex 用每周，配速与详情页 `QuotaPace(provider:)` 相同；Antigravity 用第一个每周窗口；只有月度窗口时沿用原来的配速窗口；只有短窗口时默认不显示、不参与自动选择，但手动选了能显示剩余。
-  - 选择：Claude 选当前周期（剩余 80%、无配速、当前周期曲线）、选仅 Fable（剩余 30%、配速与按该窗口计算的 `QuotaPace` 相同、无曲线）；从合并快照到 `WidgetProviderSelection.pace` 的完整路径；窗口消失、属于别的服务商、选“默认”、自动选服务商时都回到每周；选的窗口没有用量时显示不可用。
+- 新增 `QuotaPaceWindowPickerTests`（Swift Testing）：
+  - 选项：Claude 三个窗口（id、英文标题、简繁日标题、时长副标题）；Codex、muse.ai 只有默认；只有一个短窗口或没有时长的窗口时会列出，并且经过 `options()` 选出的选项能让小组件显示它（端到端）；Antigravity 多个窗口按卡片顺序、排除用量未知的窗口；没有 label 的窗口和卡片同名（当前周期 / 每周 / 限额 3，Aixy 预算）；旧数据只有 `secondary` 时仍叫 `secondary`；标题重复时加时长；没选服务商、未知服务商、旧 catalogue 只有默认；多账号合并窗口；catalogue 没变时不重写文件。
+  - 默认：手动选定 Claude、Codex 时是每周，配速与详情页 `QuotaPace(provider:)` 相同；Antigravity 是最受限的每周桶；Claude 的每周过期、Sonnet/仅 Fable 仍有效时不选它们，也不画 Sonnet 曲线，改跟当前周期；Claude 每周不存在时同样；`claude-routines` 被排除，普通附加每周窗口可以；默认窗口没有曲线时不借别的曲线；只有月度窗口时沿用原来的配速窗口；只有短窗口时默认不显示，手动选了能显示剩余。
+  - 自动选择：Codex、Claude、MiniMax 类逐个对比，自动数据和 065 的算法完全相同；MiniMax 类手动选定后改为每周；Antigravity 不会因附加每周窗口进入自动选择，只有曲线的 Claude 仍被选中，手动选定 Antigravity 时才显示每周配速。
+  - 多账号：两个 Claude 账号，只有 A 有仅 Fable（B 有曲线、默认排名更高），选仅 Fable 时两种顺序都选 A，且不给曲线加分；选了一个谁都没有的窗口时回到默认每周。
+  - 选择：Claude 选当前周期（剩余 80%、无配速、当前周期曲线）、选仅 Fable（剩余 30%、配速与按该窗口计算的 `QuotaPace` 相同、无曲线）；从合并快照到 `WidgetProviderSelection.pace` 的完整路径；窗口消失、属于别的服务商、选“默认”时回到每周；自动选服务商时忽略窗口选择；选的窗口没有用量时显示不可用。
   - 兼容：identifier 只对本服务商生效；没有 `quotaWindow` 的旧意图、选“默认”的意图都返回 nil；旧格式的配速数据能解码；占位数据带 Claude 三个窗口。
-- `QuotaPaceWidgetTests` 一项改写：只有短窗口时，原来断言“没有数据”，现在断言“默认不显示、不参与自动选择”（窗口仍可手动选）。
+- `QuotaPaceWidgetTests` 一项改写：只有短窗口时，原来断言“没有数据”，现在断言“默认不显示、不参与自动选择”，手动选择由上面的端到端测试覆盖。
 - 渲染矩阵新增 `testQuotaPaceChosenWindowsRenderAcrossFamilies`：Claude 选当前周期、选仅 Fable，四种尺寸 × 浅色 / 深色 / tinted × 单色 / 彩色，全部可见；彩色和 tinted 的图片作为附件保存。
 - 全量 iOS 单测、i18n 审计结果见第 6 节。
 
@@ -135,6 +148,7 @@
 
 - **全量 iOS 单测**（`-only-testing:CodexBarMobileTests`）：Swift Testing 1018 项（63 个 suite）+ XCTest 59 项全部通过；提交后在 HEAD 上再跑一次结果相同。`full1.log`、`full2.log`（及对应 `.xcresult`）。
 - **小组件相关单测再跑**（窗口选择、Quota pace、小组件配置、服务商选择、WidgetSnapshotBuilder、渲染矩阵）：Swift Testing 58 项 + XCTest 19 项通过。`focused3.log`、`focused3.xcresult`；渲染图附件见 `focused2.xcresult`（导出到 `attach2/`）。
+- **本地 review 修复后**（提交 `d699e6b10`）：全量 iOS 单测 Swift Testing 1025 项 + XCTest 59 项通过（`fix-full1.log`）；小组件相关（窗口选择 23 项、Quota pace、小组件配置、服务商选择、WidgetSnapshotBuilder、配速文案、渲染矩阵）77 + 19 项通过（`fix-focused2.log`）；`lint-macos` 的 i18n 审计通过（`fix-lint-macos.log`）。SpringBoard 截图是修复前的，选项列表和 Claude 仅 Fable 的显示不受这次修复影响，没有重拍。
 - **i18n 审计**：`Scripts/lint.sh lint-macos`（含 xcstrings 审计）通过，两个 xcstrings 全部翻译、406 个源 key 都在目录里。`lint-macos.log`。`Scripts/lint.sh lint` 在 portable checks 的 `test_swift_test_process_cleanup.py` 上失败（`fixture must exit before drain begins`，计时类断言，机器 load average 约 530；本次没有改 `Scripts/`），所以 xcstrings 审计用 `lint-macos` 跑。swiftlint 本机未安装，且仓库 swiftlint/swiftformat 范围只有 `Sources`、`Tests`；新文件单独用 swiftformat 检查过。
 - **SpringBoard（新添加的小组件）**：App Group 里写入测试用 catalogue（Claude 三个窗口、Codex 一个、Antigravity 四个），小组件扩展在模拟器里用内置的模拟数据。
   - 添加中尺寸“额度消耗趋势”，编辑面板依次是颜色样式、服务商、**额度窗口**（`sb-config-default.png`）。
