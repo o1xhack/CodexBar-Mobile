@@ -102,6 +102,7 @@
 		5DFAECF3632BC6007531C423 /* UsageCardOrganizationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9DF1F07200AC53DA52483E4 /* UsageCardOrganizationUITests.swift */; };
 		5F2D9A30A52D927A22BE6A8A /* ProviderDetailLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EBCCACB7D410FD3499739C1 /* ProviderDetailLocalization.swift */; };
 		5F6266E4F1AA20536278C5C2 /* WidgetProviderSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C84584F7A18675D8A2E8A81 /* WidgetProviderSelectionTests.swift */; };
+		61126D6A32586D2C74971021 /* CostLedgerPreservationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7B9BFC6A914D5C7C08DA17 /* CostLedgerPreservationTests.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6286CAAFBB5488AB41199E18 /* TokenActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318F0CC046A3AFB53D6A216F /* TokenActivity.swift */; };
 		638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */; };
@@ -507,6 +508,7 @@
 		A9F340DA45364A878F1BB616 /* V027Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V027Snapshots.swift; sourceTree = "<group>"; };
 		AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramUsageCard.swift; sourceTree = "<group>"; };
 		AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailRedaction.swift; sourceTree = "<group>"; };
+		AB7B9BFC6A914D5C7C08DA17 /* CostLedgerPreservationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostLedgerPreservationTests.swift; sourceTree = "<group>"; };
 		AB977DCDF12430DF8C08DEFD /* UsageCardPreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardPreferencesStore.swift; sourceTree = "<group>"; };
 		AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareCardView.swift; sourceTree = "<group>"; };
 		AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAdminUsageCard.swift; sourceTree = "<group>"; };
@@ -772,6 +774,7 @@
 			isa = PBXGroup;
 			children = (
 				05C1218407426AA0AB7E2D32 /* CostHistoryWorkerTests.swift */,
+				AB7B9BFC6A914D5C7C08DA17 /* CostLedgerPreservationTests.swift */,
 				7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */,
 				79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */,
 				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
@@ -1284,6 +1287,7 @@
 				A20347E744A9E2CFB5EC511F /* CostDiagnosticsReportTests.swift in Sources */,
 				BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */,
 				19C6DB1C4B2EE4AB9A9D206B /* CostHistoryWorkerTests.swift in Sources */,
+				61126D6A32586D2C74971021 /* CostLedgerPreservationTests.swift in Sources */,
 				7FE9B2381025A654D758FD62 /* CostShareServiceTests.swift in Sources */,
 				79CB19B99E02908405F7DA54 /* CostTabInsightsResolverTests.swift in Sources */,
 				FD2364635784A71AE994402E /* DeviceLifecycleEventTests.swift in Sources */,

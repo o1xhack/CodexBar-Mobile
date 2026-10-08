@@ -301,6 +301,13 @@ enum CostLedgerService {
             existing.accountRecordKey = accountRecordKey
             existing.accountIdentityKey = accountIdentityKey
             existing.accountIdentitiesData = identityData
+            // A publication that cannot price this day (for example a Mac whose pricing or parser
+            // regressed) must not erase an amount the ledger already knows. Keep the known row; a
+            // later publication that knows the cost still replaces it. A legacy row without the
+            // availability field counts as known only when it carries an amount.
+            if costIsKnown == false, existing.costIsKnown ?? (existing.costUSD > 0) {
+                return
+            }
             // Token-cost publications can change without advancing the
             // provider usage timestamp. Keep the ledger byte-for-byte aligned
             // with the current blob whenever an equal-time pricing/catch-up
@@ -490,6 +497,27 @@ enum CostLedgerService {
     /// its latest bounded provider blob temporarily carries no cost summary.
     /// Ownership migration must consult both stores: the blob describes the
     /// current window, while CWL can retain older days independently.
+    /// Distinct accounts that own ledger rows for one device and provider.
+    static func ledgerOwners(
+        deviceID: String,
+        providerID: String,
+        in context: ModelContext) throws -> [(accountEmail: String?, accountRecordKey: String?)]
+    {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        var seen = Set<String>()
+        var owners: [(accountEmail: String?, accountRecordKey: String?)] = []
+        for row in try context.fetch(descriptor) {
+            let key = row.accountRecordKey.map { "record:\($0)" } ?? "email:\(row.accountEmail ?? "_")"
+            if seen.insert(key).inserted {
+                owners.append((row.accountEmail, row.accountRecordKey))
+            }
+        }
+        return owners
+    }
+
     static func hasRows(
         deviceID: String,
         providerID: String,
@@ -954,20 +982,19 @@ enum CostLedgerService {
         return false
     }
 
+    /// Removes history only for a provider its device no longer publishes at all. A device that
+    /// still publishes the provider under another or no account keeps the history: the account
+    /// may be temporarily unknown (no credentials, failed refresh), and deleting would lose days
+    /// that exist nowhere else once the Mac's own logs age out.
     private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
-        let providerKeys = try Set(
+        let publishedProviders = try Set(
             context.fetch(FetchDescriptor<ProviderSnapshotModel>())
-                .map(\.compositeKey))
+                .map { "\($0.deviceID)|\($0.providerID)" })
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         var didDelete = false
         for row in rows {
-            let providerKey = ProviderSnapshotModel.makeCompositeKey(
-                deviceID: row.deviceID,
-                providerID: row.providerID,
-                accountEmail: row.accountEmail,
-                accountRecordKey: row.accountRecordKey)
-            if !providerKeys.contains(providerKey) {
+            if !publishedProviders.contains("\(row.deviceID)|\(row.providerID)") {
                 context.delete(row)
                 didDelete = true
             }

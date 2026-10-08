@@ -99,6 +99,7 @@ enum SwiftDataBridge {
     {
         guard !recordNames.isEmpty else { return }
 
+        var deletedKeys = Set<String>()
         for recordName in recordNames {
             guard let parsed = splitProviderRecordName(recordName) else {
                 continue
@@ -112,12 +113,22 @@ enum SwiftDataBridge {
             let providerDescriptor = FetchDescriptor<ProviderSnapshotModel>(
                 predicate: #Predicate { $0.compositeKey == compositeKey })
             for provider in try context.fetch(providerDescriptor) {
-                try CostLedgerService.deleteRows(
-                    deviceID: parsed.deviceID,
-                    providerID: parsed.providerID,
-                    accountEmail: provider.accountEmail,
-                    accountRecordKey: provider.accountRecordKey,
-                    in: context, saveChanges: false)
+                deletedKeys.insert(provider.compositeKey)
+                // A renamed record (the account key changed) leaves the provider on this device;
+                // only a provider the device no longer publishes loses its cost history.
+                let deviceID = parsed.deviceID
+                let providerID = parsed.providerID
+                let siblings = try context.fetch(FetchDescriptor<ProviderSnapshotModel>(
+                    predicate: #Predicate { $0.deviceID == deviceID && $0.providerID == providerID }))
+                let providerRemains = siblings.contains { !deletedKeys.contains($0.compositeKey) }
+                if !providerRemains {
+                    try CostLedgerService.deleteRows(
+                        deviceID: parsed.deviceID,
+                        providerID: parsed.providerID,
+                        accountEmail: provider.accountEmail,
+                        accountRecordKey: provider.accountRecordKey,
+                        in: context, saveChanges: false)
+                }
                 context.delete(provider)
             }
         }
@@ -251,6 +262,27 @@ enum SwiftDataBridge {
                     to: costOwner,
                     in: context)
             }
+
+            // History kept while the provider had no known account has no snapshot row any more.
+            // This machine's local costs belong to its single current owner, so move it there too;
+            // otherwise the same days could count under both the old and the new account.
+            for ledgerOwner in try CostLedgerService.ledgerOwners(
+                deviceID: deviceID, providerID: providerID, in: context)
+            {
+                let ledgerOwnerKey = ProviderSnapshotModel.makeCompositeKey(
+                    deviceID: deviceID,
+                    providerID: providerID,
+                    accountEmail: ledgerOwner.accountEmail,
+                    accountRecordKey: ledgerOwner.accountRecordKey)
+                guard ledgerOwnerKey != costOwnerKey, !incomingKeys.contains(ledgerOwnerKey) else { continue }
+                try CostLedgerService.migrateCostOwnership(
+                    deviceID: deviceID,
+                    providerID: providerID,
+                    fromAccountEmail: ledgerOwner.accountEmail,
+                    fromAccountRecordKey: ledgerOwner.accountRecordKey,
+                    to: costOwner,
+                    in: context)
+            }
         }
 
         for provider in snapshot.providers {
@@ -259,9 +291,14 @@ enum SwiftDataBridge {
 
         // Prune rows that belonged to this device but disappeared from the
         // incoming snapshot. Cascade delete on the provider → utilization
-        // relationship cleans up orphan entries automatically.
+        // relationship cleans up orphan entries automatically. Cost history is
+        // removed only when the device stops publishing the provider; an
+        // account that is temporarily unknown keeps its days (see
+        // `CostLedgerService.pruneLedgerRowsMissingProviderSnapshots`).
+        let incomingProviderIDs = Set(snapshot.providers.map(\.providerID))
         for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
             context.delete(existing)
+            guard !incomingProviderIDs.contains(existing.providerID) else { continue }
             try CostLedgerService.deleteRows(
                 deviceID: existing.deviceID,
                 providerID: existing.providerID,
