@@ -85,6 +85,9 @@ extension CodexAccountScopedRefreshTests {
         settings.refreshFrequency = .manual
         settings.multiAccountMenuLayout = .segmented
         settings.accountWidgetsEnabled = false
+        // Fork: iCloud sync fans out to every visible Codex account for the iPhone; this fixture
+        // exercises upstream's selected-account refresh, so keep that fan-out off.
+        settings.iCloudSyncEnabled = false
         settings.codexUsageDataSource = .oauth
         settings.codexCookieSource = .off
         let saved = try (0..<2).map { index in

@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 070 | v0.73.0 上游同步 + Mac 0.72.0.1 成本回归修复（Codex ledger 迁移、已发布 fork 缓存重建、Claude 空条目、推送重试、Langdock） | `in-progress` | Mac 0.73.0.1 / iOS 2.6.0 (237)；本地 review 已修复，待 PR、发布与数据恢复 | [070-v073-upstream-sync/00-overview.md](070-v073-upstream-sync/00-overview.md) | 2026-10-08 |
 | 069 | 成本账本：数据缺失或无法定价时不再丢历史（未知不覆盖已知、缺失不删除、本地成本随新归属迁移） | `done` | iOS 2.6.0 (237) PR #184；已丢失数据需 Mac 0.73.0.1 重新发布与 Air 备份补回 | [069-ledger-history-preservation.md](069-ledger-history-preservation.md) | 2026-10-08 |
 | 068 | 多台 Mac：一台刷新失败不再覆盖另一台的数据（合并器只取真实观测、吸收无身份失败并保留成本、详情页说明数据来源与失败） | `done` | 2.6.0 (236) PR #183；TestFlight VALID，已重新送审（WAITING_FOR_REVIEW，MANUAL） | [068-multi-mac-failure-fallback.md](068-multi-mac-failure-fallback.md) | 2026-10-07 |
 | 067 | v0.71.0–v0.72.0 single upstream sync (#177/#178/#179) + iOS 2.6.0 (235) | `done` | Mac 0.72.0.1 已公开发布（PR #180 clean CR、Final CI 绿、appcast 已更新，#177–#179 已关闭）；iOS 2.6.0 (235) 已上传并提交审核（WAITING_FOR_REVIEW）；16 组合为替代验证，实体四设备/Production/APNs 未验证 | [067-v072-upstream-sync/00-overview.md](067-v072-upstream-sync/00-overview.md) | 2026-10-06 |
