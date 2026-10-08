@@ -505,14 +505,17 @@ enum CostLedgerService {
     }
 
     /// One total order for choosing among rows of the same day: a row whose cost is known (a known
-    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the record
-    /// key. Being a total order, every merge and pick is transitive and independent of fetch order.
+    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the larger
+    /// amount and token count. Every key is part of the row's payload, so it travels with a merge that
+    /// copies the winner into another row, and repeated merges stay transitive and order independent.
+    /// Rows equal on every key carry the same values, so either choice is the same day.
     static func dayPrecedes(_ lhs: DailyCostPoint, _ rhs: DailyCostPoint) -> Bool {
         let lhsKnown = lhs.costIsKnown != false
         let rhsKnown = rhs.costIsKnown != false
         if lhsKnown != rhsKnown { return !lhsKnown }
         if lhs.lastUpdated != rhs.lastUpdated { return lhs.lastUpdated < rhs.lastUpdated }
-        return lhs.compositeKey < rhs.compositeKey
+        if lhs.costUSD != rhs.costUSD { return lhs.costUSD < rhs.costUSD }
+        return lhs.totalTokens < rhs.totalTokens
     }
 
     /// Whether a merged day takes `candidate`'s values (see `dayPrecedes`).

@@ -316,5 +316,36 @@ struct CostLedgerPreservationTests {
         #expect(byAccount["a@example.invalid"]?.first?.costUSD == 20)
         #expect(byAccount["b@example.invalid"]?.first?.costUSD == 5)
     }
+
+    @Test func `migrating several former owners with equal timestamps keeps the same day in any order`() throws {
+        // Former owners b and c both hold a known day at the same time; the target copies the winner.
+        func run(_ order: [String]) throws -> (Double, Int) {
+            let context = try self.makeContext()
+            let amounts = ["b@example.invalid": (12.0, 30), "c@example.invalid": (9.0, 50)]
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "studio", providerID: "claude", accountEmail: "a@example.invalid", dayKey: self.day,
+                costUSD: 1, totalTokens: 1, costIsKnown: true, isEstimated: nil,
+                modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: self.earlier, in: context)
+            for owner in order {
+                let (cost, tokens) = try #require(amounts[owner])
+                try CostLedgerService.upsertDayPoint(
+                    deviceID: "studio", providerID: "claude", accountEmail: owner, dayKey: self.day,
+                    costUSD: cost, totalTokens: tokens, costIsKnown: true, isEstimated: nil,
+                    modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: self.later, in: context)
+            }
+            let target = self.claude(email: "a@example.invalid", cost: nil, at: self.later)
+            for owner in order {
+                try CostLedgerService.migrateCostOwnership(
+                    deviceID: "studio", providerID: "claude", fromAccountEmail: owner, fromAccountRecordKey: nil,
+                    to: target, in: context)
+            }
+            let row = try #require(try self.rows(context).first { $0.accountEmail == "a@example.invalid" })
+            return (row.costUSD, row.totalTokens)
+        }
+        let forward = try run(["b@example.invalid", "c@example.invalid"])
+        let backward = try run(["c@example.invalid", "b@example.invalid"])
+        #expect(forward.0 == backward.0 && forward.1 == backward.1)
+        #expect(forward.0 == 12)
+    }
 }
 
