@@ -301,6 +301,12 @@ enum CostLedgerService {
             existing.accountRecordKey = accountRecordKey
             existing.accountIdentityKey = accountIdentityKey
             existing.accountIdentitiesData = identityData
+            // A publication that cannot price this day (for example a Mac whose pricing or parser
+            // regressed) must not erase an amount the ledger already knows. Keep the known row; a
+            // later publication that knows the cost still replaces it.
+            if Self.keepsKnownDay(existing, incomingCostIsKnown: costIsKnown) {
+                return
+            }
             // Token-cost publications can change without advancing the
             // provider usage timestamp. Keep the ledger byte-for-byte aligned
             // with the current blob whenever an equal-time pricing/catch-up
@@ -397,7 +403,7 @@ enum CostLedgerService {
             if let existing = try context.fetch(existingDescriptor).first,
                existing !== legacy
             {
-                if legacy.lastUpdated > existing.lastUpdated {
+                if Self.replacesDay(existing, with: legacy) {
                     existing.costUSD = legacy.costUSD
                     existing.totalTokens = legacy.totalTokens
                     existing.tokenCountIsKnown = legacy.tokenCountIsKnown
@@ -460,7 +466,7 @@ enum CostLedgerService {
             if let target = try context.fetch(targetDescriptor).first,
                target !== source
             {
-                if source.lastUpdated > target.lastUpdated {
+                if Self.replacesDay(target, with: source) {
                     target.costUSD = source.costUSD
                     target.totalTokens = source.totalTokens
                     target.tokenCountIsKnown = source.tokenCountIsKnown
@@ -484,6 +490,80 @@ enum CostLedgerService {
                 source.accountIdentitiesData = targetIdentityData
             }
         }
+    }
+
+    /// A positive amount the ledger knows for a day. A known $0 or an unknown day has none to protect.
+    static func hasKnownAmount(_ row: DailyCostPoint) -> Bool {
+        (row.costIsKnown ?? true) && row.costUSD > 0
+    }
+
+    /// A publication that cannot price a day (for example a Mac whose pricing or parser regressed)
+    /// keeps the positive amount the ledger already knows, with its tokens, until a publication that
+    /// knows the cost arrives. Shared by the writer and the seed check so a kept day is not reseeded.
+    static func keepsKnownDay(_ existing: DailyCostPoint, incomingCostIsKnown: Bool?) -> Bool {
+        incomingCostIsKnown == false && Self.hasKnownAmount(existing)
+    }
+
+    /// One total order for choosing among rows of the same day: a row whose cost is known (a known
+    /// $0 is an authoritative correction) beats an unknown row; then the newer row; then the rest of
+    /// the copied payload (amount, tokens, token availability, estimate flag, breakdown bytes). Every
+    /// key is part of the payload a merge copies, so repeated merges stay transitive and independent
+    /// of order, and rows equal on every key carry identical values.
+    static func dayPrecedes(_ lhs: DailyCostPoint, _ rhs: DailyCostPoint) -> Bool {
+        let lhsKnown = lhs.costIsKnown != false
+        let rhsKnown = rhs.costIsKnown != false
+        if lhsKnown != rhsKnown { return !lhsKnown }
+        if lhs.lastUpdated != rhs.lastUpdated { return lhs.lastUpdated < rhs.lastUpdated }
+        if lhs.costUSD != rhs.costUSD { return lhs.costUSD < rhs.costUSD }
+        if lhs.totalTokens != rhs.totalTokens { return lhs.totalTokens < rhs.totalTokens }
+        let lhsTokensKnown = lhs.tokenCountIsKnown != false
+        let rhsTokensKnown = rhs.tokenCountIsKnown != false
+        if lhsTokensKnown != rhsTokensKnown { return !lhsTokensKnown }
+        let lhsMeasured = lhs.isEstimated != true
+        let rhsMeasured = rhs.isEstimated != true
+        if lhsMeasured != rhsMeasured { return !lhsMeasured }
+        for (left, right) in [
+            (lhs.modelBreakdownsData, rhs.modelBreakdownsData),
+            (lhs.serviceBreakdownsData, rhs.serviceBreakdownsData),
+            (lhs.modelsUsedData, rhs.modelsUsedData),
+        ] where left != right {
+            // More detail wins; otherwise compare bytes so the choice is still deterministic.
+            guard let left else { return true }
+            guard let right else { return false }
+            return left.lexicographicallyPrecedes(right)
+        }
+        return false
+    }
+
+    /// Whether a merged day takes `candidate`'s values (see `dayPrecedes`).
+    static func replacesDay(_ current: DailyCostPoint, with candidate: DailyCostPoint) -> Bool {
+        Self.dayPrecedes(current, candidate)
+    }
+
+    /// The row a day keeps across Macs or former owners (see `dayPrecedes`).
+    static func preferredDay(in rows: [DailyCostPoint]) -> DailyCostPoint? {
+        rows.max(by: Self.dayPrecedes)
+    }
+
+    /// Distinct accounts that own ledger rows for one device and provider.
+    static func ledgerOwners(
+        deviceID: String,
+        providerID: String,
+        in context: ModelContext) throws -> [(accountEmail: String?, accountRecordKey: String?)]
+    {
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate {
+                $0.deviceID == deviceID && $0.providerID == providerID
+            })
+        var seen = Set<String>()
+        var owners: [(accountEmail: String?, accountRecordKey: String?)] = []
+        for row in try context.fetch(descriptor) {
+            let key = row.accountRecordKey.map { "record:\($0)" } ?? "email:\(row.accountEmail ?? "_")"
+            if seen.insert(key).inserted {
+                owners.append((row.accountEmail, row.accountRecordKey))
+            }
+        }
+        return owners
     }
 
     /// Whether this account still owns accumulated ledger history even when
@@ -593,7 +673,9 @@ enum CostLedgerService {
                     accountIdentityKeys: identityKeys,
                     decoder: decoder)
             }
-            guard let latest = group.max(by: { $0.lastUpdated < $1.lastUpdated }) else {
+            // Account-level spend keeps one row per day: the newest known amount from any Mac,
+            // otherwise the newest publication.
+            guard let latest = Self.preferredDay(in: group) else {
                 return nil
             }
             return AggregatedDailyCostPoint(
@@ -685,8 +767,6 @@ enum CostLedgerService {
         readerTimeZone: TimeZone = .current,
         userDefaults: UserDefaults = .standard) throws -> CostLedgerAggregation
     {
-        try self.pruneLedgerRowsMissingProviderSnapshots(in: context)
-
         let clearedAt = Self.blobSeedClearedAt(userDefaults: userDefaults)
         if try Self.hasMissingSeedableCostBlobRows(in: context, newerThan: clearedAt) {
             try Self.seedFromExistingBlobs(in: context, newerThan: clearedAt)
@@ -891,7 +971,7 @@ enum CostLedgerService {
             newerThan: self.blobSeedClearedAt(userDefaults: userDefaults))
     }
 
-    private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
+    static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -921,6 +1001,7 @@ enum CostLedgerService {
                 guard let existing = try context.fetch(descriptor).first else {
                     return true
                 }
+                if Self.keepsKnownDay(existing, incomingCostIsKnown: point.costIsKnown) { continue }
                 if existing.lastUpdated < costUpdatedAt {
                     return true
                 }
@@ -952,29 +1033,6 @@ enum CostLedgerService {
             }
         }
         return false
-    }
-
-    private static func pruneLedgerRowsMissingProviderSnapshots(in context: ModelContext) throws {
-        let providerKeys = try Set(
-            context.fetch(FetchDescriptor<ProviderSnapshotModel>())
-                .map(\.compositeKey))
-
-        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        var didDelete = false
-        for row in rows {
-            let providerKey = ProviderSnapshotModel.makeCompositeKey(
-                deviceID: row.deviceID,
-                providerID: row.providerID,
-                accountEmail: row.accountEmail,
-                accountRecordKey: row.accountRecordKey)
-            if !providerKeys.contains(providerKey) {
-                context.delete(row)
-                didDelete = true
-            }
-        }
-        if didDelete {
-            try context.save()
-        }
     }
 
     private static func blobSeedClearedAt(userDefaults: UserDefaults) -> Date? {

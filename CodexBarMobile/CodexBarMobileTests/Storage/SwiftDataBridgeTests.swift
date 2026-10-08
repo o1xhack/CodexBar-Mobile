@@ -168,7 +168,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test
-    func `Incremental cache mirror prunes filtered providers and their ledger rows`() throws {
+    func `Incremental cache mirror prunes filtered provider snapshots but keeps their cost history`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -230,8 +230,9 @@ struct SwiftDataBridgeTests {
         #expect(providers.first?.providerName == "Codex Updated")
 
         let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        #expect(ledgerRows.count == 1)
-        #expect(ledgerRows.first?.providerID == "codex")
+        // Filtered providers lose their snapshot row only; cost history stays (Research 069).
+        #expect(ledgerRows.count == 2)
+        #expect(Set(ledgerRows.map(\.providerID)) == ["codex", "claude"])
     }
 
     @Test
@@ -322,8 +323,9 @@ struct SwiftDataBridgeTests {
         #expect(Set(providers.map(\.providerID)) == ["codex", "gemini"])
 
         let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        #expect(ledgerRows.count == 1)
-        #expect(ledgerRows.first?.providerID == "codex")
+        // The deleted record's snapshot goes; its cost history stays (Research 069).
+        #expect(ledgerRows.count == 2)
+        #expect(ledgerRows.contains { $0.providerID == "codex" })
     }
 
     @Test
@@ -400,11 +402,11 @@ struct SwiftDataBridgeTests {
             named: ["device-A|claude|\(emailLabel)"], from: context)
 
         #expect(try context.fetch(FetchDescriptor<ProviderSnapshotModel>()).isEmpty)
-        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+        #expect(try !context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty, "record deletion keeps cost history")
     }
 
     @Test
-    func `Full upsert prunes missing providers and their ledger rows`() throws {
+    func `Full upsert prunes missing provider snapshots but keeps their cost history`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -460,8 +462,9 @@ struct SwiftDataBridgeTests {
         #expect(providers.first?.providerName == "Codex Replay")
 
         let ledgerRows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        #expect(ledgerRows.count == 1)
-        #expect(ledgerRows.first?.providerID == "codex")
+        // Missing providers lose their snapshot row only; cost history stays (Research 069).
+        #expect(ledgerRows.count == 2)
+        #expect(ledgerRows.contains { $0.providerID == "codex" })
     }
 
     @Test
@@ -916,9 +919,10 @@ struct SwiftDataBridgeTests {
             into: context)
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        #expect(rows.count == 1)
-        #expect(rows.first?.accountRecordKey == "alice-record")
-        #expect(rows.first?.costUSD == 3)
+        // Bob's account-native spend stays with Bob (not moved to Alice) and is kept, not deleted.
+        #expect(rows.count == 2)
+        #expect(rows.first { $0.accountRecordKey == "alice-record" }?.costUSD == 3)
+        #expect(rows.first { $0.accountRecordKey == "bob-record" }?.costUSD == 2)
     }
     @Test
     @MainActor

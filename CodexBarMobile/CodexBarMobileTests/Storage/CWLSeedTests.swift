@@ -263,8 +263,8 @@ struct CWLSeedTests {
         #expect(aggregation.totalTokens == 800)
     }
 
-    @Test("T10: default-on aggregate prunes ledger rows for removed provider snapshots")
-    func testDefaultOnAggregatePrunesRemovedProviderRows() throws {
+    @Test("T10: default-on aggregate keeps ledger history for removed provider snapshots")
+    func testDefaultOnAggregateKeepsRemovedProviderHistory() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -306,14 +306,14 @@ struct CWLSeedTests {
             asOf: asOf)
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
-        #expect(aggregation.totalCostUSD == 5.0)
+        // Turning claude off keeps its history (Research 069); no live claude card shows it.
+        #expect(aggregation.providerRollups["claude|_"]?.totalCostUSD == 6.0)
         #expect(aggregation.providerRollups["codex|_"]?.totalCostUSD == 5.0)
-        #expect(aggregation.providerRollups["claude|_"] == nil)
-        #expect(rows.map(\.providerID) == ["codex"])
+        #expect(Set(rows.map(\.providerID)) == ["codex", "claude"])
     }
 
-    @Test("T10: default-on aggregate prunes ledger rows when no provider snapshots remain")
-    func testDefaultOnAggregatePrunesRowsWhenLastProviderRemoved() throws {
+    @Test("T10: default-on aggregate keeps ledger history when no provider snapshots remain")
+    func testDefaultOnAggregateKeepsHistoryWhenLastProviderRemoved() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -336,9 +336,9 @@ struct CWLSeedTests {
             in: context,
             asOf: asOf)
 
-        #expect(aggregation.totalCostUSD == 0)
-        #expect(aggregation.providerRollups.isEmpty)
-        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+        // History stays even when no provider snapshot remains; nothing live displays it.
+        #expect(!aggregation.providerRollups.isEmpty)
+        #expect(try !context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
     }
 
     @Test("T10: default-on aggregate does not reseed blobs older than explicit clear")
