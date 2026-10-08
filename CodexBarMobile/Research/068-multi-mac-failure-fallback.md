@@ -1,6 +1,6 @@
 # 多台 Mac：一台刷新失败时不再覆盖另一台的有效数据
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-10-07
 Version: iOS 2.6.0 (236)（2.6.0 撤回审核后同版本修复）
 
@@ -62,10 +62,18 @@ Version: iOS 2.6.0 (236)（2.6.0 撤回审核后同版本修复）
 ## 测试证据
 
 - `MultiMacFailureFallbackTests` 23 项通过：覆盖上表全部场景、四语言提示、缓存 TTL 豁免及 7 天边界、CWL 账本端到端（成本页 15 = 10 + 5、Token 活动合计）、经 `DeviceSnapshotResolver` 的别名完整链路、多账号与取消合并保留单独报错、同机新旧 ID 不重复计算成本、新鲜数据旁持续失败为信息样式、停止同步的 Mac 不再列出、TTL 6.9/8 天边界、账本首选身份键、报告编解码往返。
-- iOS 完整单测、Mac 构建与同步相关测试、冻结旧/新 Shared 16 组合、lint 结果见 PR。
+- 最终 head `335d85f`：iOS 完整单测 981 项通过；Mac 同步相关 416 项通过；Mac 全量 `Scripts/test.sh` 1593 个选择/144 组首轮全部通过；冻结旧/新 Shared（对 `v0.72.0.1-mobile.2.6.0`）16 组合通过；lint 其余步骤全部通过，负载敏感的 `test_swift_test_sharding.sh` 进程清理计时套件在负载 70–100 时偶发失败，单独重跑通过（`Scripts/` 未改动）。日志在 BuildScratch `upstream-v072/`。
 
 ## Review
 
 - 第一轮本地独立 review：1 阻塞（丢弃失败组会丢本地成本）、3 重要（成本信封/mock 吞掉报错、同 Mac 别名合并被盖、界面反推来源与分组不一致）及若干建议，均已按上文修订并补测试。
 - 第二轮本地独立 review：确认第一轮问题已修复、`sourceReport` 不进入 CloudKit，也不影响去重和写盘。另发现 1 阻塞（CWL 账本丢失被吸收 Mac 的成本）和 1 重要（失败按时间过滤导致提示闪烁），已按上文修订；建议项也已处理（同 Mac 标题、Kimi 采集时间、Codable 对称、文档注释、空提示间距、TTL 边界测试）。用户对无身份条目与该账号做过“取消合并”时不吸收，保留单独的报错卡。
 - 第三轮本地独立 review（b1d358d8c）：0 阻塞；2 重要：同一台 Mac 新旧 ID 吸收会重复计算本地成本，改为同机失败不吸收；持续失败导致无法消除的长期警告，改为新鲜数据时降为信息样式、附处理方式、7 天未同步的 Mac 不再列出，并更正 TTL 兜底说法。建议项已处理：账本首选键断言、`aggregateProvider` 链接参数、Token 活动刷新键、TTL 边界测试。账户级 provider 的链接保留（与卡片“最新者胜出”的成本语义一致）。
+
+## PR 与发布
+
+- PR #183：Codex Review 第 1 轮无问题（head `335d85f`），`check_pr_review_gate.sh` 通过，PR Fast Checks 绿；`--merge --match-head-commit` 合并为 `05a315553`（合并树与 PR head 完全一致）。
+- TestFlight：iOS 2.6.0 (236)，源提交 `05a315553`，App 与 3 个扩展均为 236。上传前预检 lint 再次被上述计时套件拦下；因代码树与已验证 head 一致，使用去掉预检 lint 的同款上传脚本（其余步骤相同）。Archive：`BuildScratch/CodexBar/TestFlight-20261007-173550/CodexBarMobile.xcarchive`。ASC build `9b4643e6-5c4e-43a7-8f06-6c54b3384b10` 为 `VALID`（2026-10-07 17:41 PDT 上传）。
+- 图标三层验收：1024 源图无 Alpha 且内容正确；archive 内 `AppIcon60x60@2x.png` 120×120 与源图一致；Apple CDN `iconAssetToken` 图标正确。
+- 未重新提交审核：App Store 2.6.0 版本仍为 `DEVELOPER_REJECTED`（撤回后可编辑），仍绑定 build 235；送审前需改绑 236。
+- 剩余验证缺口：真实两台 Mac + iPhone 的端到端观察（muse.ai 场景）需在 TestFlight 包上实机确认。
