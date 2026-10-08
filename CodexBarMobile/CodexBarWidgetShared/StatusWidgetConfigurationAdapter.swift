@@ -25,6 +25,16 @@ enum StatusWidgetConfigurationAdapter {
             providers: self.providers([intent.provider]))
     }
 
+    /// The Quota pace widget's window choice (Research/071); nil for the
+    /// default (weekly) window and for widgets added before the parameter
+    /// existed.
+    static func paceWindowChoice(from intent: SelectQuotaPaceWidgetIntent) -> String? {
+        guard let identifier = intent.quotaWindow?.identifier, !identifier.isEmpty,
+              identifier != QuotaPaceWindowChoice.defaultIdentifier
+        else { return nil }
+        return identifier
+    }
+
     private static func colorStyle(_ style: StatusWidgetColorStyle) -> CodexBarWidgetColorStyle {
         style == .colorful ? .colorful : .mono
     }

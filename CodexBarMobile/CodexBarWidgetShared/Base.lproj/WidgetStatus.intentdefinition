@@ -392,7 +392,7 @@
 			<key>INIntentKeyParameter</key>
 			<string>provider</string>
 			<key>INIntentLastParameterTag</key>
-			<integer>2</integer>
+			<integer>3</integer>
 			<key>INIntentName</key>
 			<string>SelectQuotaPaceWidget</string>
 			<key>INIntentParameters</key>
@@ -461,6 +461,37 @@
 					<key>INIntentParameterType</key>
 					<string>Object</string>
 				</dict>
+				<dict>
+					<key>INIntentParameterConfigurable</key>
+					<true/>
+					<key>INIntentParameterDisplayName</key>
+					<string>Quota Window</string>
+					<key>INIntentParameterDisplayNameID</key>
+					<string>CBPacequotaWindow</string>
+					<key>INIntentParameterDisplayPriority</key>
+					<integer>3</integer>
+					<key>INIntentParameterName</key>
+					<string>quotaWindow</string>
+					<key>INIntentParameterObjectType</key>
+					<string>QuotaPaceWindowOption</string>
+					<key>INIntentParameterObjectTypeNamespace</key>
+					<string>CBStatus240</string>
+					<key>INIntentParameterRelationship</key>
+					<dict>
+						<key>INIntentParameterRelationshipParentName</key>
+						<string>provider</string>
+						<key>INIntentParameterRelationshipPredicateName</key>
+						<string>HasAnyValue</string>
+					</dict>
+					<key>INIntentParameterRequiresDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterSupportsDynamicEnumeration</key>
+					<true/>
+					<key>INIntentParameterTag</key>
+					<integer>3</integer>
+					<key>INIntentParameterType</key>
+					<string>Object</string>
+				</dict>
 			</array>
 			<key>INIntentResponse</key>
 			<dict>
@@ -497,6 +528,16 @@
 			<string>CBStatusProviderType</string>
 			<key>INTypeName</key>
 			<string>StatusWidgetProvider</string>
+			<key>INTypeProperties</key>
+			<array/>
+		</dict>
+		<dict>
+			<key>INTypeDisplayName</key>
+			<string>Quota Window</string>
+			<key>INTypeDisplayNameID</key>
+			<string>CBPaceQuotaWindowType</string>
+			<key>INTypeName</key>
+			<string>QuotaPaceWindowOption</string>
 			<key>INTypeProperties</key>
 			<array/>
 		</dict>

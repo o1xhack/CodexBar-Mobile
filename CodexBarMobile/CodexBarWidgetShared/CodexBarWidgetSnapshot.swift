@@ -59,6 +59,25 @@ struct CodexBarWidgetProviderSummary: Codable, Equatable, Identifiable, Sendable
         self.quotaPace = quotaPace
     }
 
+    /// The same provider with its pace data pointed at another window.
+    func withQuotaPace(_ quotaPace: CodexBarWidgetPaceSummary?) -> CodexBarWidgetProviderSummary {
+        CodexBarWidgetProviderSummary(
+            id: self.id,
+            providerName: self.providerName,
+            providerID: self.providerID,
+            loginMethod: self.loginMethod,
+            usagePercent: self.usagePercent,
+            resetsAt: self.resetsAt,
+            todayCostUSD: self.todayCostUSD,
+            todayCostIsLowerBound: self.todayCostIsLowerBound,
+            thirtyDayCostUSD: self.thirtyDayCostUSD,
+            tokensToday: self.tokensToday,
+            isError: self.isError,
+            statusMessage: self.statusMessage,
+            lastUpdated: self.lastUpdated,
+            quotaPace: quotaPace)
+    }
+
     var displaySubtitle: String? {
         if let loginMethod, !loginMethod.isEmpty {
             return loginMethod
@@ -96,6 +115,52 @@ struct CodexBarWidgetPaceLane: Codable, Equatable, Sendable {
     }
 }
 
+/// One selectable quota window of a provider (Research/071), evaluated with
+/// the same reducers as the provider detail page.
+struct CodexBarWidgetPaceWindow: Codable, Equatable, Sendable {
+    let id: String
+    /// Raw Mac label; the view localizes it like the provider cards.
+    let label: String?
+    let period: SyncRateWindowPeriod?
+    let windowMinutes: Int?
+    let pace: QuotaPace?
+    /// Nil when usage is unknown or the window has already reset.
+    let remainingPercent: Double?
+    let resetsAt: Date?
+    /// The observed lane drawn for this window (Codex and Claude native slots).
+    let laneSeriesName: String?
+
+    init(
+        id: String,
+        label: String?,
+        period: SyncRateWindowPeriod? = nil,
+        windowMinutes: Int?,
+        pace: QuotaPace?,
+        remainingPercent: Double?,
+        resetsAt: Date?,
+        laneSeriesName: String?)
+    {
+        self.id = id
+        self.label = label
+        self.period = period
+        self.windowMinutes = windowMinutes
+        self.pace = pace
+        self.remainingPercent = remainingPercent
+        self.resetsAt = resetsAt
+        self.laneSeriesName = laneSeriesName
+    }
+
+    func title(providerID: String, locale: Locale = .current) -> String {
+        QuotaPaceWindowSelection.title(
+            label: self.label,
+            windowID: self.id,
+            windowMinutes: self.windowMinutes,
+            period: self.period,
+            providerID: providerID,
+            locale: locale)
+    }
+}
+
 /// Pace and burndown data for one provider (Research/065). Computed with the
 /// same shared reducers as the provider detail page.
 struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
@@ -105,22 +170,51 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
     let paceResetsAt: Date?
     /// Observed lanes (Codex and Claude only), session first.
     let lanes: [CodexBarWidgetPaceLane]
+    /// Every window the provider reports (Research/071).
+    let windows: [CodexBarWidgetPaceWindow]
+    /// The window the pace, remaining percent and reset describe; nil keeps
+    /// the Research/065 charted-lane fallback.
+    let windowID: String?
+    /// True when the widget configuration picked `windowID` explicitly.
+    let isExplicitWindow: Bool
 
     init(
         pace: QuotaPace?,
         paceRemainingPercent: Double?,
         paceResetsAt: Date?,
-        lanes: [CodexBarWidgetPaceLane])
+        lanes: [CodexBarWidgetPaceLane],
+        windows: [CodexBarWidgetPaceWindow] = [],
+        windowID: String? = nil,
+        isExplicitWindow: Bool = false)
     {
         self.pace = pace
         self.paceRemainingPercent = paceRemainingPercent
         self.paceResetsAt = paceResetsAt
         self.lanes = lanes
+        self.windows = windows
+        self.windowID = windowID
+        self.isExplicitWindow = isExplicitWindow
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case pace, paceRemainingPercent, paceResetsAt, lanes, windows, windowID, isExplicitWindow
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.pace = try container.decodeIfPresent(QuotaPace.self, forKey: .pace)
+        self.paceRemainingPercent = try container.decodeIfPresent(Double.self, forKey: .paceRemainingPercent)
+        self.paceResetsAt = try container.decodeIfPresent(Date.self, forKey: .paceResetsAt)
+        self.lanes = try container.decode([CodexBarWidgetPaceLane].self, forKey: .lanes)
+        self.windows = try container.decodeIfPresent([CodexBarWidgetPaceWindow].self, forKey: .windows) ?? []
+        self.windowID = try container.decodeIfPresent(String.self, forKey: .windowID)
+        self.isExplicitWindow = try container.decodeIfPresent(Bool.self, forKey: .isExplicitWindow) ?? false
+    }
+
+    /// Nil when the provider has neither pace, an observed lane, nor a window.
     init?(provider: ProviderUsageSnapshot, now: Date) {
-        let pace = QuotaPace(provider: provider, referenceDate: now)
-        let lanes = MobileQuotaBurndown.resolvedLanes(for: provider, referenceDate: now).map { resolved in
+        let resolved = MobileQuotaBurndown.resolvedLanes(for: provider, referenceDate: now)
+        let lanes = resolved.map { resolved in
             CodexBarWidgetPaceLane(
                 seriesName: resolved.lane.seriesName,
                 label: resolved.lane.label,
@@ -129,26 +223,88 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
                 points: MobileQuotaBurndown.downsample(resolved.model.samples, limit: CodexBarWidgetPaceLane.pointLimit)
                     .map { CodexBarWidgetPaceLane.Point(date: $0.date, remainingPercent: $0.remainingPercent) })
         }
-        guard pace != nil || !lanes.isEmpty else { return nil }
-        // Without a pace (fresh or unknown pace window) the hero falls back to
-        // the charted lane so it never shows a placeholder next to a chart.
-        let window = pace == nil ? nil : QuotaPace.window(for: provider)
+        // Mirrors the Mac's only `allowsEstimatedUsage: false` pace capability.
+        let paceAllowed = !(provider.providerID == "opencodego" && provider.usageDataConfidence == "estimated")
+        let windows = QuotaPaceWindowSelection.candidates(for: provider).map { candidate in
+            let window = candidate.window
+            return CodexBarWidgetPaceWindow(
+                id: candidate.id,
+                label: window.label,
+                period: window.period,
+                windowMinutes: window.windowMinutes,
+                pace: paceAllowed ? QuotaPace(
+                    window: window,
+                    capturedAt: provider.lastUpdated,
+                    referenceDate: now,
+                    providerID: provider.providerID) : nil,
+                remainingPercent: QuotaPaceWindowSelection.remainingPercent(of: window, now: now),
+                resetsAt: window.resetsAt,
+                laneSeriesName: resolved.first { $0.lane.window == window }?.lane.seriesName)
+        }
+        let defaultWindow = QuotaPaceWindowSelection.defaultWindowID(for: provider, now: now)
+            .flatMap { id in windows.first { $0.id == id } }
+        if let defaultWindow {
+            self.init(
+                pace: defaultWindow.pace,
+                paceRemainingPercent: defaultWindow.remainingPercent,
+                paceResetsAt: defaultWindow.resetsAt,
+                lanes: lanes,
+                windows: windows,
+                windowID: defaultWindow.id)
+            return
+        }
+        guard !lanes.isEmpty || !windows.isEmpty else { return nil }
+        // Without a default window the hero falls back to the charted lane
+        // so it never shows a placeholder next to a chart.
         let fallbackLane = lanes.first { $0.seriesName == "weekly" } ?? lanes.last
         self.init(
-            pace: pace,
-            paceRemainingPercent: window.map { max(0, 100 - min(100, $0.usedPercent)) }
-                ?? fallbackLane?.remainingPercent,
-            paceResetsAt: window?.resetsAt ?? fallbackLane?.reset,
-            lanes: lanes)
+            pace: nil,
+            paceRemainingPercent: fallbackLane?.remainingPercent,
+            paceResetsAt: fallbackLane?.reset,
+            lanes: lanes,
+            windows: windows)
+    }
+
+    /// The same data pointed at the configured window. An unknown id (the
+    /// window disappeared) keeps the default window.
+    func selecting(windowID: String?) -> CodexBarWidgetPaceSummary {
+        guard let windowID, let window = self.windows.first(where: { $0.id == windowID }) else { return self }
+        return CodexBarWidgetPaceSummary(
+            pace: window.pace,
+            paceRemainingPercent: window.remainingPercent,
+            paceResetsAt: window.resetsAt,
+            lanes: self.lanes,
+            windows: self.windows,
+            windowID: window.id,
+            isExplicitWindow: true)
+    }
+
+    /// The window the summary describes, if any.
+    var selectedWindow: CodexBarWidgetPaceWindow? {
+        self.windowID.flatMap { id in self.windows.first { $0.id == id } }
+    }
+
+    /// Automatic provider selection only considers a pace or a chart, as
+    /// before window selection existed.
+    var isAutomaticCandidate: Bool {
+        self.pace != nil || !self.lanes.isEmpty
+    }
+
+    /// Something to draw: a pace, a remaining percent, or a chart.
+    var hasDisplayableData: Bool {
+        self.pace != nil || self.paceRemainingPercent != nil || self.primaryLane != nil
     }
 
     /// Deterministic placeholder/preview data: a weekly lane `weeklyUsed`%
     /// used with `weeklyResetIn` days left, plus an optional session lane.
+    /// `extraWindows` adds selectable windows without a chart (for example
+    /// Claude's model-only weekly window).
     static func sample(
         now: Date,
         weeklyUsed: Double,
         weeklyResetIn days: Double,
-        sessionUsed: Double?) -> CodexBarWidgetPaceSummary
+        sessionUsed: Double?,
+        extraWindows: [(id: String, label: String, used: Double)] = []) -> CodexBarWidgetPaceSummary
     {
         let captured = now.addingTimeInterval(-120)
         func lane(name: String, label: String, minutes: Int, used: Double, resetIn: TimeInterval) -> (
@@ -178,16 +334,57 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
         let session = sessionUsed.map {
             lane(name: "session", label: "Session", minutes: 300, used: $0, resetIn: 2.4 * 3600).0
         }
+        let weeklyPace = QuotaPace(window: weekly.1, capturedAt: captured, referenceDate: now)
+        var windows: [CodexBarWidgetPaceWindow] = []
+        if let session, let sessionUsed {
+            windows.append(CodexBarWidgetPaceWindow(
+                id: "primary", label: "Session", windowMinutes: 300, pace: nil,
+                remainingPercent: 100 - sessionUsed, resetsAt: session.reset, laneSeriesName: "session"))
+        }
+        windows.append(CodexBarWidgetPaceWindow(
+            id: "secondary", label: "Weekly", windowMinutes: 10080, pace: weeklyPace,
+            remainingPercent: 100 - weeklyUsed, resetsAt: weekly.1.resetsAt, laneSeriesName: "weekly"))
+        for extra in extraWindows {
+            let window = SyncRateWindow(
+                usedPercent: extra.used,
+                windowMinutes: 10080,
+                resetsAt: weekly.1.resetsAt,
+                resetDescription: nil)
+            windows.append(CodexBarWidgetPaceWindow(
+                id: extra.id, label: extra.label, windowMinutes: 10080,
+                pace: QuotaPace(window: window, capturedAt: captured, referenceDate: now),
+                remainingPercent: 100 - extra.used, resetsAt: window.resetsAt, laneSeriesName: nil))
+        }
         return CodexBarWidgetPaceSummary(
-            pace: QuotaPace(window: weekly.1, capturedAt: captured, referenceDate: now),
+            pace: weeklyPace,
             paceRemainingPercent: 100 - weeklyUsed,
             paceResetsAt: weekly.1.resetsAt,
-            lanes: [session, weekly.0].compactMap(\.self))
+            lanes: [session, weekly.0].compactMap(\.self),
+            windows: windows,
+            windowID: "secondary")
     }
 
-    /// The lane the pace describes (weekly when available) for single-chart layouts.
+    /// The lane of the described window for single-chart layouts. An
+    /// explicitly chosen window without an observed lane (a model-only or
+    /// extra window) has no chart; otherwise weekly comes first.
     var primaryLane: CodexBarWidgetPaceLane? {
-        self.lanes.first { $0.seriesName == "weekly" } ?? self.lanes.last
+        if let name = self.selectedWindow?.laneSeriesName,
+           let lane = self.lanes.first(where: { $0.seriesName == name })
+        {
+            return lane
+        }
+        if self.isExplicitWindow { return nil }
+        return self.lanes.first { $0.seriesName == "weekly" } ?? self.lanes.last
+    }
+
+    /// Lanes for the two-chart layout: the first two lanes when they include
+    /// the described window's lane, else only that lane; nothing for an
+    /// explicitly chosen window without a lane.
+    var displayLanes: [CodexBarWidgetPaceLane] {
+        let leading = Array(self.lanes.prefix(2))
+        guard self.isExplicitWindow else { return leading }
+        guard let lane = self.primaryLane else { return [] }
+        return leading.contains(lane) ? leading : [lane]
     }
 }
 
@@ -279,7 +476,12 @@ struct CodexBarWidgetSnapshot: Codable, Equatable, Sendable {
                     isError: false,
                     statusMessage: nil,
                     lastUpdated: now.addingTimeInterval(-300),
-                    quotaPace: .sample(now: now, weeklyUsed: 54, weeklyResetIn: 3.6, sessionUsed: 17)),
+                    quotaPace: .sample(
+                        now: now,
+                        weeklyUsed: 54,
+                        weeklyResetIn: 3.6,
+                        sessionUsed: 17,
+                        extraWindows: [(id: "claude-weekly-scoped-fable", label: "Fable only", used: 71)])),
                 CodexBarWidgetProviderSummary(
                     id: "raycast|sample", providerName: "Raycast", providerID: "raycast",
                     loginMethod: nil, usagePercent: 30, resetsAt: now.addingTimeInterval(3.6 * 86400),

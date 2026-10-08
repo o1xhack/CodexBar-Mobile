@@ -208,6 +208,46 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    /// Research/071: Claude's session and Fable-only windows chosen in the
+    /// widget configuration render in every family and appearance.
+    func testQuotaPaceChosenWindowsRenderAcrossFamilies() {
+        let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let claude = [WidgetProviderEntity(id: "claude", name: "Claude")]
+        let appearances: [(name: String, scheme: ColorScheme, mode: WidgetRenderingMode)] = [
+            ("light", .light, .fullColor),
+            ("dark", .dark, .fullColor),
+            ("tinted", .dark, .accented),
+        ]
+        for choice in ["claude|primary", "claude|claude-weekly-scoped-fable"] {
+            let picked = WidgetProviderSelection.pace(
+                from: snapshot.topProviders, selected: claude, limit: 1, windowChoice: choice)
+            XCTAssertEqual(picked.first?.quotaPace?.isExplicitWindow, true, choice)
+            for family in self.families {
+                for appearance in appearances {
+                    for colorStyle in self.colorStyles {
+                        let image = self.renderWidget(
+                            mode: .quotaPace,
+                            colorStyle: colorStyle,
+                            colorScheme: appearance.scheme,
+                            renderingMode: appearance.mode,
+                            family: family.family,
+                            size: family.size,
+                            snapshot: snapshot,
+                            providers: claude,
+                            paceWindowChoice: choice)
+                        let context = "quotaPace-window/\(choice)/\(family.family)/\(appearance.name)/\(colorStyle)"
+                        _ = self.assertVisibleImage(image, context: context)
+                        guard let image, colorStyle == .colorful || appearance.name == "tinted" else { continue }
+                        let attachment = XCTAttachment(image: image)
+                        attachment.name = "Quota Pace window \(choice) \(family.family) \(appearance.name) \(colorStyle)"
+                        attachment.lifetime = .keepAlways
+                        self.add(attachment)
+                    }
+                }
+            }
+        }
+    }
+
     func testQuotaPaceExtraLargeKeepsAnUnavailableConfiguredProvider() {
         let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
         let selection = [
@@ -307,14 +347,18 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         renderingMode: WidgetRenderingMode = .fullColor,
         family: WidgetFamily,
         size: CGSize,
-        snapshot: CodexBarWidgetSnapshot
+        snapshot: CodexBarWidgetSnapshot,
+        providers: [WidgetProviderEntity]? = nil,
+        paceWindowChoice: String? = nil
     ) -> UIImage? {
         let entry = CodexBarWidgetEntry(
             date: Date(timeIntervalSince1970: 1_800_000_060),
             configuration: CodexBarWidgetConfigurationIntent(
                 mode: mode,
-                colorStyle: colorStyle),
-            snapshot: snapshot)
+                colorStyle: colorStyle,
+                providers: providers),
+            snapshot: snapshot,
+            paceWindowChoice: paceWindowChoice)
         let view = ZStack {
             // `containerBackground(for: .widget)` is supplied by WidgetKit at
             // runtime. In an off-screen ImageRenderer test it can be

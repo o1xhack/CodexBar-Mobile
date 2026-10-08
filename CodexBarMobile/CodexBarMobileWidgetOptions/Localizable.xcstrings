@@ -29,6 +29,35 @@
           }
         }
       }
+    },
+    "Default (Weekly)": {
+      "comment": "Quota pace widget window choice that follows the weekly quota when the provider has one.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default (Weekly)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认（每周）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設（每週）"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デフォルト（週間）"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -54,7 +54,8 @@ struct QuotaPaceTimelineProvider: IntentTimelineProvider {
         completion(CodexBarWidgetEntry(
             date: .now,
             configuration: StatusWidgetConfigurationAdapter.configuration(from: configuration),
-            snapshot: context.isPreview ? .placeholder() : .syncing()))
+            snapshot: context.isPreview ? .placeholder() : .syncing(),
+            paceWindowChoice: StatusWidgetConfigurationAdapter.paceWindowChoice(from: configuration)))
     }
 
     func getTimeline(
@@ -63,9 +64,12 @@ struct QuotaPaceTimelineProvider: IntentTimelineProvider {
         completion: @escaping @Sendable (Timeline<CodexBarWidgetEntry>) -> Void)
     {
         let configuration = StatusWidgetConfigurationAdapter.configuration(from: intent)
+        let windowChoice = StatusWidgetConfigurationAdapter.paceWindowChoice(from: intent)
         // Convert INIntent before crossing isolation, as the status widget does.
         Task {
-            await completion(CodexBarWidgetProvider.makeTimeline(configuration: configuration))
+            await completion(CodexBarWidgetProvider.makeTimeline(
+                configuration: configuration,
+                paceWindowChoice: windowChoice))
         }
     }
 }

@@ -44,6 +44,17 @@ enum WidgetProviderResetText {
     }
 }
 
+extension WidgetProviderResetText {
+    /// Hours until reset for windows shorter than a day (Research/071).
+    static func hours(_ resetsAt: Date?, now: Date) -> String? {
+        guard let resetsAt else { return nil }
+        let hours = resetsAt.timeIntervalSince(now) / 3600
+        guard hours > 0 else { return String(localized: "Now") }
+        let number = hours.formatted(.number.precision(.fractionLength(0...1)))
+        return String(format: String(localized: "%@h"), number)
+    }
+}
+
 enum WidgetProviderSelection {
     static func resolve(
         from providers: [CodexBarWidgetProviderSummary],
@@ -74,21 +85,33 @@ enum WidgetProviderSelection {
     }
 
     /// Providers for the Quota Pace widget. A configured provider is always
-    /// honored: without pace data it comes back without `quotaPace` (the view
-    /// says so) instead of silently showing another provider. Automatic
-    /// selection prefers providers with a pace, then a chart (Codex, Claude),
-    /// then the least remaining quota.
+    /// honored: without data for its window it comes back without
+    /// `quotaPace` (the view says so) instead of silently showing another
+    /// provider. Automatic selection prefers providers with a pace, then a
+    /// chart (Codex, Claude), then the least remaining quota.
+    ///
+    /// `windowChoice` (Research/071) points a configured provider at one of
+    /// its windows; a choice for another provider, an unknown window, or
+    /// automatic provider selection keep the default (weekly) window.
     static func pace(
         from providers: [CodexBarWidgetProviderSummary],
         selected: [WidgetProviderEntity]?,
         limit: Int,
+        windowChoice: String? = nil,
         now: Date = .now) -> [CodexBarWidgetProviderSummary]
     {
-        let candidates = providers.filter { !$0.isError && $0.quotaPace != nil }
         if let selected, !selected.isEmpty {
             var seen = Set<String>()
             return selected.filter { seen.insert($0.id).inserted }.prefix(limit).map { entity in
-                candidates.filter { $0.providerID == entity.id }
+                let windowID = QuotaPaceWindowChoice.windowID(from: windowChoice, providerID: entity.id)
+                return providers
+                    .filter { !$0.isError && $0.providerID == entity.id }
+                    .compactMap { provider -> CodexBarWidgetProviderSummary? in
+                        guard let pace = provider.quotaPace?.selecting(windowID: windowID),
+                              pace.hasDisplayableData
+                        else { return nil }
+                        return provider.withQuotaPace(pace)
+                    }
                     .max { Self.paceRank($0) < Self.paceRank($1) }
                     ?? CodexBarWidgetProviderSummary(
                         id: "unavailable|\(entity.id)",
@@ -104,6 +127,7 @@ enum WidgetProviderSelection {
                         lastUpdated: now)
             }
         }
+        let candidates = providers.filter { !$0.isError && $0.quotaPace?.isAutomaticCandidate == true }
         var seen = Set<String>()
         return candidates
             .sorted { lhs, rhs in
