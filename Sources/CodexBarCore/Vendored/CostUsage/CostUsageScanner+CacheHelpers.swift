@@ -14,8 +14,6 @@ extension CostUsageScanner {
         }
     }
 
-    }
-
     // MARK: - File cache construction
 
     static func needsCodexPricingMetadata(_ usage: CostUsageFileUsage, range: CostUsageDayRange) -> Bool {

@@ -102,7 +102,9 @@ public enum AccountIdentityComputer {
              .raycast, .xkiro,
              // Upstream v0.71-v0.72 browser-session providers stay per-device
              // until a cross-Mac account identifier is proven.
-             .museai, .lithosai, .workbuddy:
+             .museai, .lithosai, .workbuddy,
+             // Upstream v0.73.0 new provider; single-account card on iOS.
+             .langdock:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

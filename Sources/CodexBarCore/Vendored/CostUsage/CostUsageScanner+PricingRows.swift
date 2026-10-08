@@ -11,6 +11,7 @@ extension CostUsageScanner {
         var hasUnstableTokenRows = false
         var hasTokenOverflow = false
         var hasIncompletePricing = false
+        var hasEstimatedPricing = false
         /// Requests with tokens whose cost is known; marked or unresolvable requests are counted separately.
         var pricedRequestCount = 0
         var unpricedRequestCount = 0
@@ -97,6 +98,13 @@ extension CostUsageScanner {
                 continue
             }
             if hasTokens { breakdown.pricedRequestCount += 1 }
+            breakdown.hasEstimatedPricing = breakdown.hasEstimatedPricing
+                || self.codexPricingIsEstimated(
+                    for: row,
+                    priorityMetadata: priorityMetadata,
+                    modelsDevCatalog: modelsDevCatalog,
+                    customPricing: customPricing,
+                    pricingResolver: pricingResolver)
             if isPriority {
                 breakdown.priorityCostUSD += cost
                 breakdown.sawPriorityCost = true
