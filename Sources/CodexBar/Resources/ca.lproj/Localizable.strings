@@ -1694,7 +1694,7 @@
 "mobile_sync_status_syncing" = "Syncing…";
 "mobile_sync_status_syncing_elapsed_format" = "Syncing — %@ · %ds";
 "mobile_sync_status_syncing_phase_format" = "Syncing — %@…";
-"mobile_toggle_mock_subtitle" = "Envia 105 instantànies simulades estables de 95 identificadors de proveïdor a cada sincronització, inclosos els casos de diversos comptes, sub2api, Wayfinder i reserva per a proveïdors desconeguts. Els correus simulats fan servir el TLD `.test`, de manera que l’iPhone mostra una insígnia MOCK. Si ho desactives, CloudKit eliminarà els registres simulats en aproximadament un cicle de sincronització. Desactivat per defecte.";
+"mobile_toggle_mock_subtitle" = "Envia 106 instantànies simulades estables de 96 identificadors de proveïdor a cada sincronització, inclosos els casos de diversos comptes, sub2api, Wayfinder i reserva per a proveïdors desconeguts. Els correus simulats fan servir el TLD `.test`, de manera que l’iPhone mostra una insígnia MOCK. Si ho desactives, CloudKit eliminarà els registres simulats en aproximadament un cicle de sincronització. Desactivat per defecte.";
 "mobile_toggle_mock_title" = "Inject mock provider data";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
 "mobile_toggle_push_title" = "Push notifications to iOS";

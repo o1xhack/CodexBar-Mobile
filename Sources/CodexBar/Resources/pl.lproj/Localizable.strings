@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "Synchronizowanie…";
 "mobile_sync_status_syncing_elapsed_format" = "Synchronizacja — %@ · %d s";
 "mobile_sync_status_syncing_phase_format" = "Synchronizacja — %@";
-"mobile_toggle_mock_subtitle" = "Przy każdej synchronizacji wysyła 105 stabilnych migawek testowych obejmujących 95 identyfikatorów dostawców, w tym wiele kont, sub2api, Wayfinder i scenariusze zastępcze dla nieznanych dostawców. Testowe adresy e-mail używają domeny TLD `.test`, dzięki czemu iPhone wyświetla oznaczenie MOCK. Wyłączenie pozwala CloudKit usunąć testowe rekordy w ciągu około jednego cyklu synchronizacji. Domyślnie wyłączone.";
+"mobile_toggle_mock_subtitle" = "Przy każdej synchronizacji wysyła 106 stabilnych migawek testowych obejmujących 96 identyfikatorów dostawców, w tym wiele kont, sub2api, Wayfinder i scenariusze zastępcze dla nieznanych dostawców. Testowe adresy e-mail używają domeny TLD `.test`, dzięki czemu iPhone wyświetla oznaczenie MOCK. Wyłączenie pozwala CloudKit usunąć testowe rekordy w ciągu około jednego cyklu synchronizacji. Domyślnie wyłączone.";
 "mobile_toggle_mock_title" = "Wstrzyknij dane testowe dostawców";
 "mobile_toggle_push_subtitle" = "Gdy limit sesji zostanie wyczerpany lub przywrócony, wyślij widoczny alert push do aplikacji iOS companion przez iCloud. To niezależne od lokalnych powiadomień Maca — możesz wyciszyć Maca i nadal odbierać alerty na iPhonie.";
 "mobile_toggle_push_title" = "Powiadomienia push do iOS";

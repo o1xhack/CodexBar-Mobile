@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "Menyinkronkan…";
 "mobile_sync_status_syncing_elapsed_format" = "Menyinkronkan — %@ · %d dtk";
 "mobile_sync_status_syncing_phase_format" = "Menyinkronkan — %@";
-"mobile_toggle_mock_subtitle" = "Mendorong 105 snapshot tiruan stabil untuk 95 ID penyedia pada setiap sinkronisasi, termasuk kasus multiakun, sub2api, Wayfinder, dan fallback penyedia yang tidak dikenal. Email tiruan menggunakan TLD `.test` agar iPhone menampilkan lencana MOCK. Menonaktifkannya memungkinkan CloudKit menghapus rekaman tiruan dalam sekitar satu siklus sinkronisasi. Nonaktif secara default.";
+"mobile_toggle_mock_subtitle" = "Mendorong 106 snapshot tiruan stabil untuk 96 ID penyedia pada setiap sinkronisasi, termasuk kasus multiakun, sub2api, Wayfinder, dan fallback penyedia yang tidak dikenal. Email tiruan menggunakan TLD `.test` agar iPhone menampilkan lencana MOCK. Menonaktifkannya memungkinkan CloudKit menghapus rekaman tiruan dalam sekitar satu siklus sinkronisasi. Nonaktif secara default.";
 "mobile_toggle_mock_title" = "Suntikkan data penyedia tiruan";
 "mobile_toggle_push_subtitle" = "Saat kuota sesi habis atau dipulihkan, kirim peringatan push yang terlihat ke aplikasi pendamping iOS melalui iCloud. Ini terpisah dari notifikasi lokal Mac — Anda dapat membisukan Mac tetapi tetap menerima peringatan di iPhone.";
 "mobile_toggle_push_title" = "Notifikasi push ke iOS";

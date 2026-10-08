@@ -73,7 +73,12 @@ final class SyncCoordinator {
     /// refresh, so a slow or overloaded CloudKit path cannot leave the iPhone minutes behind.
     private var failedPushRetryTask: Task<Void, Never>?
     private(set) var consecutivePushFailures = 0
-    static let failedPushRetryDelays: [TimeInterval] = [30, 60, 120, 300]
+    static let defaultFailedPushRetryDelays: [TimeInterval] = [30, 60, 120, 300]
+    /// Backoff after consecutive failed pushes; the last delay repeats. Tests shorten it.
+    var failedPushRetryDelays: [TimeInterval] = SyncCoordinator.defaultFailedPushRetryDelays
+    var hasPendingPushRetry: Bool {
+        self.failedPushRetryTask != nil
+    }
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
@@ -2317,13 +2322,14 @@ final class SyncCoordinator {
         self.isObserving = false
         self.failedPushRetryTask?.cancel()
         self.failedPushRetryTask = nil
+        self.consecutivePushFailures = 0
     }
 
     /// One pending retry at a time; the delay grows with consecutive failures and resets on success.
     private func scheduleFailedPushRetry() {
         self.consecutivePushFailures += 1
         guard self.failedPushRetryTask == nil else { return }
-        let delays = Self.failedPushRetryDelays
+        let delays = self.failedPushRetryDelays
         let delay = delays[min(self.consecutivePushFailures - 1, delays.count - 1)]
         self.recordSyncEvent("Push failed; retrying in \(Int(delay)) seconds")
         self.failedPushRetryTask = Task { @MainActor [weak self] in

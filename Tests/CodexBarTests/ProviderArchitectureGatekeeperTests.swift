@@ -3739,7 +3739,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "jetbrains",
                 "kilo",
                 "kimi",
-                "kiro",
+                "kiro", "langdock",
                 "litellm",
                 "lithosai",
                 "llmman",
@@ -3788,7 +3788,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 90,
+            expectedReferenceCount: 91,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "codex@0",
@@ -3879,7 +3879,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "museai@37",
                 "raycast@37",
                 "workbuddy@37",
-                "xkiro@37",
+                "xkiro@37", "langdock@39",
             ],
             reason: "This debug-only preview fixture enumerates real provider IDs and provider-specific sample shapes; mock coverage verifies the catalog."),
         AllowedProviderConstruct(
@@ -4737,7 +4737,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "helmcode",
                 "huggingface",
                 "hyper",
-                "ibmbob",
+                "ibmbob", "langdock",
                 "lithosai",
                 "llmman",
                 "longcat",
@@ -4761,7 +4761,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 35,
+            expectedReferenceCount: 36,
             expectedReferenceFingerprint: [
                 "clinepass@0",
                 "deepinfra@0",
@@ -4797,7 +4797,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "xkiro@13",
                 "lithosai@16",
                 "museai@16",
-                "workbuddy@16",
+                "workbuddy@16", "langdock@18",
             ],
             reason: "Account identity keys follow provider-specific credential scope contracts."),
         AllowedProviderConstruct(

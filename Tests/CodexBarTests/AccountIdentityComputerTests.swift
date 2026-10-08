@@ -131,7 +131,7 @@ struct AccountIdentityComputerTests {
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
             .zai, .antigravity, .kilo, .kiro, .sakana, .qoder, .clawrouter,
             .clinepass, .deepinfra, .neuralwatt, .longcat, .sub2api, .wayfinder, .zenmux, .aiand,
-            .raycast, .xkiro, .museai, .lithosai, .workbuddy,
+            .raycast, .xkiro, .museai, .lithosai, .workbuddy, .langdock,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

@@ -112,7 +112,7 @@ struct MockProviderInjectorIntegrationTests {
         // then v0.36 added four more first-class provider IDs, and
         // v0.38/v0.39 added four more.
         #expect(
-            uniqueIDs.count == 95,
+            uniqueIDs.count == 96,
             "should be 95 distinct mock provider IDs (90 current + 3 legacy + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.legacyCompatibilityProviderIDs)

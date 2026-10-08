@@ -1592,7 +1592,7 @@
 "mobile_dev_restored" = "Restored";
 "mobile_sync_status_last_attempt_format" = "Last attempt: %@";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_toggle_mock_subtitle" = "每次同步會推送 105 個穩定的模擬快照，涵蓋 95 個 provider ID，包括多帳號、sub2api、Wayfinder 和未知 provider 的備援情境。模擬信箱使用 `.test` TLD，因此 iPhone 會顯示 MOCK 徽章。關閉後，CloudKit 會在大約一個同步週期內移除模擬記錄。預設關閉。";
+"mobile_toggle_mock_subtitle" = "每次同步會推送 106 個穩定的模擬快照，涵蓋 96 個 provider ID，包括多帳號、sub2api、Wayfinder 和未知 provider 的備援情境。模擬信箱使用 `.test` TLD，因此 iPhone 會顯示 MOCK 徽章。關閉後，CloudKit 會在大約一個同步週期內移除模擬記錄。預設關閉。";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

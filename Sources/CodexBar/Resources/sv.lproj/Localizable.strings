@@ -1558,7 +1558,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Skickar 105 stabila testsnapshots för 95 leverantörs-ID:n vid varje synkronisering, inklusive flera konton, sub2api, Wayfinder och reservfall för okända leverantörer. Testadresser använder toppdomänen `.test`, så iPhone visar ett MOCK-märke. När detta stängs av kan CloudKit ta bort testposterna inom ungefär en synkroniseringscykel. Av som standard.";
+"mobile_toggle_mock_subtitle" = "Skickar 106 stabila testsnapshots för 96 leverantörs-ID:n vid varje synkronisering, inklusive flera konton, sub2api, Wayfinder och reservfall för okända leverantörer. Testadresser använder toppdomänen `.test`, så iPhone visar ett MOCK-märke. När detta stängs av kan CloudKit ta bort testposterna inom ungefär en synkroniseringscykel. Av som standard.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

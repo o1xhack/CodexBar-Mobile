@@ -1560,7 +1560,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "При каждой синхронизации отправляет 105 стабильных тестовых снимков для 95 идентификаторов провайдеров, включая несколько учётных записей, sub2api, Wayfinder и резервный вариант для неизвестных провайдеров. Тестовые адреса используют домен верхнего уровня `.test`, поэтому iPhone показывает значок MOCK. После отключения CloudKit удалит тестовые записи примерно за один цикл синхронизации. По умолчанию отключено.";
+"mobile_toggle_mock_subtitle" = "При каждой синхронизации отправляет 106 стабильных тестовых снимков для 96 идентификаторов провайдеров, включая несколько учётных записей, sub2api, Wayfinder и резервный вариант для неизвестных провайдеров. Тестовые адреса используют домен верхнего уровня `.test`, поэтому iPhone показывает значок MOCK. После отключения CloudKit удалит тестовые записи примерно за один цикл синхронизации. По умолчанию отключено.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";

@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "Sincronizzazione…";
 "mobile_sync_status_syncing_elapsed_format" = "Sincronizzazione — %@ · %d s";
 "mobile_sync_status_syncing_phase_format" = "Sincronizzazione — %@";
-"mobile_toggle_mock_subtitle" = "Invia 105 snapshot simulati stabili per 95 ID provider a ogni sincronizzazione, inclusi i casi con più account, sub2api, Wayfinder e il fallback per provider sconosciuti. Le email simulate usano il TLD `.test`, così iPhone mostra un badge MOCK. Disattivando l’opzione, CloudKit rimuove i record simulati entro circa un ciclo di sincronizzazione. Disattivata per impostazione predefinita.";
+"mobile_toggle_mock_subtitle" = "Invia 106 snapshot simulati stabili per 96 ID provider a ogni sincronizzazione, inclusi i casi con più account, sub2api, Wayfinder e il fallback per provider sconosciuti. Le email simulate usano il TLD `.test`, così iPhone mostra un badge MOCK. Disattivando l’opzione, CloudKit rimuove i record simulati entro circa un ciclo di sincronizzazione. Disattivata per impostazione predefinita.";
 "mobile_toggle_mock_title" = "Inietta dati provider simulati";
 "mobile_toggle_push_subtitle" = "Quando la quota della sessione si esaurisce o viene ripristinata, invia una notifica push visibile all'app iOS companion tramite iCloud. È indipendente dalle notifiche locali del Mac: puoi tenere il Mac silenzioso e ricevere comunque avvisi su iPhone.";
 "mobile_toggle_push_title" = "Notifiche push verso iOS";
