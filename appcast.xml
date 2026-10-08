@@ -3,39 +3,6 @@
     <channel>
         <title>CodexBar</title>
         <item>
-            <title>0.72.0.1</title>
-            <pubDate>Wed, 07 Oct 2026 03:00:22 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>164.1.2.6.0</sparkle:version>
-            <sparkle:shortVersionString>0.72.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.72.0.1-Mobile 2.6.0</h2>
-<h3>Highlights</h3>
-<ul>
-<li>New providers: WorkBuddy, Muse (muse.ai), and LithosAI. Claude shows promotional cloud-session credits separately from prepaid credits, LithosAI shows its prepaid balance in the menu bar, and Grok reports purchased credits.</li>
-<li>Antigravity works again with Antigravity 2.19.1 and saved Google accounts; additional Gemini profile homes can be combined into local history.</li>
-<li>Safer by default: CodexBar no longer runs binaries from the current directory or relative PATH entries, and Codex discovery refuses unsafe Node environments.</li>
-<li>Much lighter cost tracking for Claude, Codex, Vertex, Pi, and Grok, and no more high CPU from hidden brand-icon animations.</li>
-<li>Opt-in reset notifications tell you when a session or weekly window resets. Usage & Spend keeps same-named projects apart and separates independent Codex chats.</li>
-<li>The iPhone companion (Mobile 2.6) receives the new providers, LithosAI and Grok balances, Claude cloud credits with expiry, and remaining-credit text next to reset times.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Sync upstream v0.71.0, v0.71.1, and v0.72.0 in one fork release, retaining the complete upstream provider, security, cost, notification, sync, and widget changes listed below.</li>
-<li>Mac fleet iCloud Sync adopts the upstream removed-record recovery, push-registration gate, and atomic remote applies while keeping the fork engine invariants and CloudKit container.</li>
-<li>Preserve fork CloudKit Production publishing, mobile payloads, download entrypoints, and the fast PR / post-merge CI policy.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>iPhone quota alerts keep publishing restored transitions when the Mac shows a reset banner instead of a restored banner.</li>
-<li>Mobile snapshots publish provider balance descriptions, LithosAI prepaid and Grok purchased-credit balances, and detail-row progress and expiry metadata as optional fields older iPhones ignore.</li>
-<li>Invalidate semantic parser caches for the merged cost scanners while retaining compatible published cache predecessors.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.72.0.1-mobile.2.6.0/CodexBar-0.72.0.1-mobile.2.6.0.zip" length="82066696" type="application/octet-stream" sparkle:edSignature="Qx3ZVaByZaNDjvzk//28z5aK0JcsPBNEPbjmg3nwBBuKCld6eqV+yShp8Kl27wIwxh8/1c4XxUo3MyG9ROKsCQ=="/>
-        </item>
-        <item>
             <title>0.70.0.1</title>
             <pubDate>Sat, 03 Oct 2026 08:42:35 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
