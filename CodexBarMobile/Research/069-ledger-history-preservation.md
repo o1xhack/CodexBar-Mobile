@@ -65,6 +65,52 @@ Research 024 的原始产品规则是“Mac 卸载 provider 时旧 daily 点保�
 
 CWLSeedTests、SwiftDataBridgeTests 中原先断言“删除”的用例，已按新规则改为“保留、但不显示”。
 
+## 同步兼容矩阵（2 Mac × 2 iPhone）
+
+本次只改 iPhone 本地账本：Mac、Shared 和 CloudKit 都没有改动。因此：
+- 新旧 Mac 写出的 payload 完全相同（Mac old = new = 0.72.0.1 writer）。
+- 两台 iPhone 的账本各自独立，不经 CloudKit 同步。
+
+所以每个组合的结果只取决于那台 iPhone 本身是 old（2.6.0 build 236 及更早）还是 new（237）。两台实体 iPhone、两台 Mac 的新旧组合不具备实际复现条件（Mac 侧无差异，iPhone 之间无交互），全部记为 substituted。
+
+替代验证：
+- **iOS 单测**：`CostLedgerPreservationTests` 覆盖旧版 writer 的各种 payload 形态：
+  - legacy 无 `costIsKnown` 的金额；
+  - 未知成本；
+  - 记录改名删除；
+  - tombstone；
+  - 账号缺失；
+  - 多 Mac 同账号逐日选取；
+  - 本地成本归属迁移。
+
+  另有完整 iOS 单测。
+- **冻结 wire 检查**：对 `v0.72.0.1-mobile.2.6.0` 的 16 mask 重跑，PASS（`BuildScratch/CodexBar/ledger-fix/frozen.log`）。本次没有 wire 改动，这是回归证据。
+- **真实数据对照**：事故现场两台 iPhone 账本的只读拷贝（`diag-236/promax`、`diag-236/air`）印证了两种丢失路径，见“事故”一节。
+
+| Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
+|---:|---|---|---|---|---|---|---|
+| 1 | old | old | old | old | substituted | iPhone A：旧版行为不变；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 2 | old | old | old | new | substituted | iPhone A：旧版行为不变；iPhone B：新规则（单测 + 端到端） | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 3 | old | old | new | old | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 4 | old | old | new | new | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：新规则（单测 + 端到端） | 两台都是新版：都保留历史，各自账本收敛到相同的可见数据 |
+| 5 | old | new | old | old | substituted | iPhone A：旧版行为不变；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 6 | old | new | old | new | substituted | iPhone A：旧版行为不变；iPhone B：新规则（单测 + 端到端） | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 7 | old | new | new | old | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 8 | old | new | new | new | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：新规则（单测 + 端到端） | 两台都是新版：都保留历史，各自账本收敛到相同的可见数据 |
+| 9 | new | old | old | old | substituted | iPhone A：旧版行为不变；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 10 | new | old | old | new | substituted | iPhone A：旧版行为不变；iPhone B：新规则（单测 + 端到端） | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 11 | new | old | new | old | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 12 | new | old | new | new | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：新规则（单测 + 端到端） | 两台都是新版：都保留历史，各自账本收敛到相同的可见数据 |
+| 13 | new | new | old | old | substituted | iPhone A：旧版行为不变；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 14 | new | new | old | new | substituted | iPhone A：旧版行为不变；iPhone B：新规则（单测 + 端到端） | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 15 | new | new | new | old | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：旧版行为不变 | 旧版 iPhone 仍按旧规则在同样情况下丢历史，需要升级 |
+| 16 | new | new | new | new | substituted | iPhone A：新规则（单测 + 端到端）；iPhone B：新规则（单测 + 端到端） | 两台都是新版：都保留历史，各自账本收敛到相同的可见数据 |
+
+残余风险：
+- **旧版 iPhone**：在 Mac 发出未知成本或账号暂时缺失时，仍会按旧规则覆盖或删除历史，用户需要升级到 237。
+- **新版 iPhone**：保留的历史只有在匹配到当前卡片时才显示，所以中断期间总额可能暂时偏低，账号回来后自动恢复。
+- **Gate 结论**：16 个组合全部列出，均为 substituted，无 fail。
+
 ## Review
 
 - **第一轮本地 review**：0 个阻塞，3 个重要问题，均已处理：
@@ -82,3 +128,6 @@ CWLSeedTests、SwiftDataBridgeTests 中原先断言“删除”的用例，已�
   - build 升到 237；
   - CHANGELOG、App 内四语言 2.6.0 说明与 App Store 说明补上本修复；
   - 本文档状态改为 done。
+- **Codex Review（PR #184 第 2 轮）**：2 条 P1，均已修复：
+  - account-level 逐日选取改为“已知值（含已知 0 的更正）里取最新，全部未知才退回最新未知”；
+  - 补上 16 组合同步兼容矩阵记录。

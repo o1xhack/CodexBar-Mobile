@@ -218,7 +218,7 @@ struct CostLedgerPreservationTests {
         #expect(CostLedgerService.replacesDay(zeroOld, with: unknownNew) == true)
     }
 
-    @Test func `the per-day pick across Macs is order independent and keeps a known amount`() throws {
+    @Test func `the per-day pick across Macs is order independent and prefers the newest known amount`() throws {
         let context = try self.makeContext()
         func point(_ device: String, _ cost: Double, known: Bool, at date: Date) -> DailyCostPoint {
             let row = DailyCostPoint(
@@ -230,10 +230,15 @@ struct CostLedgerPreservationTests {
         let positive = point("mac-a", 20, known: true, at: self.earlier)
         let zero = point("mac-b", 0, known: true, at: self.later)
         let unknown = point("mac-c", 0, known: false, at: self.later.addingTimeInterval(60))
+        // A newer known $0 is an authoritative correction; only unknown rows fall back.
         for order in [[positive, zero, unknown], [unknown, zero, positive], [zero, unknown, positive]] {
+            #expect(CostLedgerService.preferredDay(in: order) === zero)
+        }
+        for order in [[positive, unknown], [unknown, positive]] {
             #expect(CostLedgerService.preferredDay(in: order) === positive)
         }
-        #expect(CostLedgerService.preferredDay(in: [zero, unknown]) === unknown)
+        let olderUnknown = point("mac-d", 0, known: false, at: self.earlier)
+        #expect(CostLedgerService.preferredDay(in: [olderUnknown, unknown]) === unknown)
     }
 
     @Test func `every kept day moves to the next local owner and is counted once`() throws {
