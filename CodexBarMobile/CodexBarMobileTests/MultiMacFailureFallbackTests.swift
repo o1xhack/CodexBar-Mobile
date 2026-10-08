@@ -543,5 +543,21 @@ struct MultiMacFailureFallbackTests {
         #expect(status.needsNotice(at: self.now) == false)
         #expect(status.isWarning(at: self.now) == false)
     }
+
+    @Test func `every Mac reporting no limits gets a neutral title`() throws {
+        let note = SyncStatusNote.limitsUnavailable
+        let providers = try self.merged([
+            self.device("Mac Studio", [self.emptyEntry(note: note, at: self.now)], at: self.now),
+            self.device("MacBook Pro", [self.emptyEntry(note: note, at: self.now.addingTimeInterval(-60))],
+                        at: self.now.addingTimeInterval(-60)),
+        ])
+        let card = try #require(providers.first)
+        let status = try #require(ProviderSourceStatus.resolve(provider: card))
+        #expect(status.allFailed)
+        #expect(status.isWarning(at: self.now) == false)
+        let content = try #require(ProviderSourceNoticeContent(status: status, now: self.now, locale: Locale(identifier: "en")))
+        #expect(content.title == "No Mac has usage data for this account")
+        #expect(content.isWarning == false)
+    }
 }
 
