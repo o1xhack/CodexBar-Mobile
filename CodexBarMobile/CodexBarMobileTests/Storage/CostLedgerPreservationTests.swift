@@ -141,4 +141,132 @@ struct CostLedgerPreservationTests {
         try SwiftDataBridge.upsert(deviceSnapshots: [self.device([tombstone], at: self.later)], into: context)
         #expect(try self.rows(context).first?.costUSD == 40)
     }
+
+    private func codex(cost: Double, known: Bool, tokens: Int, at date: Date, day: String? = nil) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex", primary: nil, secondary: nil,
+            accountEmail: "fixture@example.invalid", loginMethod: "Pro", statusMessage: nil, isError: false,
+            lastUpdated: date,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: known ? cost : nil, last30DaysTokens: tokens,
+                daily: [SyncDailyPoint(
+                    dayKey: day ?? self.day, costUSD: known ? cost : 0, totalTokens: tokens, costIsKnown: known)],
+                sourceUpdatedAt: date))
+    }
+
+    @Test func `a Mac publishing an unknown day keeps the known amount end to end and does not reseed`() throws {
+        let context = try self.makeContext()
+        let defaults = try #require(UserDefaults(suiteName: UUID().uuidString))
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([self.codex(cost: 363.1, known: true, tokens: 781, at: self.earlier)],
+                                          at: self.earlier)],
+            into: context)
+        let regressed = self.device([self.codex(cost: 0, known: false, tokens: 1531, at: self.later)], at: self.later)
+        try SwiftDataBridge.upsert(deviceSnapshots: [regressed], into: context)
+
+        #expect(try CostLedgerService.hasMissingSeedableCostBlobRows(in: context, newerThan: nil) == false)
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 365, in: context, asOf: self.later, userDefaults: defaults)
+        let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: regressed, now: self.later)
+        #expect(insights.providerRows.first?.thirtyDayCost == 363.1)
+        let row = try #require(try self.rows(context).first)
+        #expect(row.totalTokens == 781, "a kept day keeps its tokens with its amount")
+
+        // The fixed Mac republishes the known amount (and corrected tokens) for that day.
+        let fixedAt = self.later.addingTimeInterval(60)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([self.codex(cost: 371.2, known: true, tokens: 793, at: fixedAt)], at: fixedAt)],
+            into: context)
+        #expect(try self.rows(context).first?.costUSD == 371.2)
+    }
+
+    @Test func `a known zero or a legacy amount follows the protection rules`() throws {
+        let context = try self.makeContext()
+        func upsert(_ cost: Double, known: Bool?, at date: Date, day: String) throws {
+            try CostLedgerService.upsertDayPoint(
+                deviceID: "studio", providerID: "codex", dayKey: day,
+                costUSD: cost, totalTokens: 10, costIsKnown: known, isEstimated: nil,
+                modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: date, in: context)
+        }
+        try upsert(0, known: true, at: self.earlier, day: "2026-09-01")
+        try upsert(0, known: false, at: self.later, day: "2026-09-01")
+        try upsert(12, known: nil, at: self.earlier, day: "2026-09-02")
+        try upsert(0, known: false, at: self.later, day: "2026-09-02")
+        let rows = Dictionary(uniqueKeysWithValues: try self.rows(context).map { ($0.dayKey, $0) })
+        #expect(rows["2026-09-01"]?.costIsKnown == false, "a known $0 has nothing to protect")
+        #expect(rows["2026-09-02"]?.costUSD == 12, "a legacy positive amount is known")
+    }
+
+    @Test func `merging days prefers a known amount and otherwise the newer row`() throws {
+        let context = try self.makeContext()
+        func point(_ cost: Double, known: Bool?, at date: Date) -> DailyCostPoint {
+            let row = DailyCostPoint(
+                deviceID: "studio", providerID: "codex", accountEmail: nil, dayKey: self.day,
+                costUSD: cost, totalTokens: 10, isEstimated: nil, modelBreakdownsData: nil,
+                serviceBreakdownsData: nil, lastUpdated: date)
+            row.costIsKnown = known
+            context.insert(row)
+            return row
+        }
+        let knownOld = point(50, known: true, at: self.earlier)
+        let unknownNew = point(0, known: false, at: self.later)
+        #expect(CostLedgerService.replacesDay(knownOld, with: unknownNew) == false)
+        #expect(CostLedgerService.replacesDay(unknownNew, with: knownOld) == true)
+        let knownNew = point(40, known: true, at: self.later)
+        #expect(CostLedgerService.replacesDay(knownOld, with: knownNew) == true, "a known repricing still applies")
+        let zeroOld = point(0, known: true, at: self.earlier)
+        #expect(CostLedgerService.replacesDay(zeroOld, with: unknownNew) == true)
+    }
+
+    @Test func `every kept day moves to the next local owner and is counted once`() throws {
+        let context = try self.makeContext()
+        // The old owner has one day only the ledger still holds.
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "studio", providerID: "claude", accountEmail: "old@example.invalid", dayKey: "2026-06-01",
+            costUSD: 30, totalTokens: 10, costIsKnown: true, isEstimated: nil,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: self.earlier, in: context)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([self.claude(email: "old@example.invalid", cost: 40, at: self.earlier)],
+                                          at: self.earlier)],
+            into: context)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([self.claude(email: nil, cost: nil, at: self.later)], at: self.later)],
+            into: context)
+        let newOwnerAt = self.later.addingTimeInterval(60)
+        let current = self.device([self.claude(email: "new@example.invalid", cost: 45, at: newOwnerAt)], at: newOwnerAt)
+        try SwiftDataBridge.upsert(deviceSnapshots: [current], into: context)
+        let rows = try self.rows(context)
+        #expect(Set(rows.map(\.accountEmail)) == ["new@example.invalid"])
+        #expect(rows.count == 2)
+        let aggregation = try CostLedgerService.aggregateSeedingFromExistingBlobsIfNeeded(
+            windowDays: 365, in: context, asOf: newOwnerAt, userDefaults: UserDefaults(suiteName: UUID().uuidString)!)
+        let insights = CostDashboardInsights.fromLedger(aggregation: aggregation, snapshot: current, now: newOwnerAt)
+        #expect(insights.providerRows.count == 1)
+        #expect(insights.providerRows.first?.thirtyDayCost == 75)
+    }
+
+    @Test func `account-level spend never moves to another account`() throws {
+        let context = try self.makeContext()
+        func openai(_ email: String, cost: Double?, at date: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "openai", providerName: "OpenAI", primary: nil, secondary: nil,
+                accountEmail: email, loginMethod: nil, statusMessage: nil, isError: false, lastUpdated: date,
+                costSummary: cost.map {
+                    SyncCostSummary(
+                        sessionCostUSD: nil, sessionTokens: nil, last30DaysCostUSD: $0, last30DaysTokens: 1,
+                        daily: [SyncDailyPoint(dayKey: self.day, costUSD: $0, totalTokens: 1, costIsKnown: true)],
+                        sourceUpdatedAt: date)
+                })
+        }
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([openai("a@example.invalid", cost: 20, at: self.earlier)], at: self.earlier)],
+            into: context)
+        try SwiftDataBridge.upsert(
+            deviceSnapshots: [self.device([openai("b@example.invalid", cost: 5, at: self.later)], at: self.later)],
+            into: context)
+        let byAccount = Dictionary(grouping: try self.rows(context), by: { $0.accountEmail ?? "" })
+        #expect(byAccount["a@example.invalid"]?.first?.costUSD == 20)
+        #expect(byAccount["b@example.invalid"]?.first?.costUSD == 5)
+    }
 }
+

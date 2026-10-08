@@ -303,9 +303,8 @@ enum CostLedgerService {
             existing.accountIdentitiesData = identityData
             // A publication that cannot price this day (for example a Mac whose pricing or parser
             // regressed) must not erase an amount the ledger already knows. Keep the known row; a
-            // later publication that knows the cost still replaces it. A legacy row without the
-            // availability field counts as known only when it carries an amount.
-            if costIsKnown == false, existing.costIsKnown ?? (existing.costUSD > 0) {
+            // later publication that knows the cost still replaces it.
+            if Self.keepsKnownDay(existing, incomingCostIsKnown: costIsKnown) {
                 return
             }
             // Token-cost publications can change without advancing the
@@ -493,16 +492,23 @@ enum CostLedgerService {
         }
     }
 
-    /// Whether this account still owns accumulated ledger history even when
-    /// its latest bounded provider blob temporarily carries no cost summary.
-    /// Ownership migration must consult both stores: the blob describes the
-    /// current window, while CWL can retain older days independently.
-    /// Whether a merged day takes `candidate`'s amount: a known amount always beats an unknown one;
-    /// otherwise the newer publication wins.
+    /// A positive amount the ledger knows for a day. A known $0 or an unknown day has none to protect.
+    static func hasKnownAmount(_ row: DailyCostPoint) -> Bool {
+        (row.costIsKnown ?? true) && row.costUSD > 0
+    }
+
+    /// A publication that cannot price a day (for example a Mac whose pricing or parser regressed)
+    /// keeps the positive amount the ledger already knows, with its tokens, until a publication that
+    /// knows the cost arrives. Shared by the writer and the seed check so a kept day is not reseeded.
+    static func keepsKnownDay(_ existing: DailyCostPoint, incomingCostIsKnown: Bool?) -> Bool {
+        incomingCostIsKnown == false && Self.hasKnownAmount(existing)
+    }
+
+    /// Whether a merged day takes `candidate`'s values: an unknown day never replaces a known positive
+    /// amount, a known positive amount always replaces an unknown day, otherwise the newer one wins.
     static func replacesDay(_ current: DailyCostPoint, with candidate: DailyCostPoint) -> Bool {
-        let currentKnown = current.costIsKnown ?? (current.costUSD > 0)
-        let candidateKnown = candidate.costIsKnown ?? (candidate.costUSD > 0)
-        if currentKnown != candidateKnown { return candidateKnown }
+        if candidate.costIsKnown == false, Self.hasKnownAmount(current) { return false }
+        if current.costIsKnown == false, Self.hasKnownAmount(candidate) { return true }
         return candidate.lastUpdated > current.lastUpdated
     }
 
@@ -527,6 +533,10 @@ enum CostLedgerService {
         return owners
     }
 
+    /// Whether this account still owns accumulated ledger history even when
+    /// its latest bounded provider blob temporarily carries no cost summary.
+    /// Ownership migration must consult both stores: the blob describes the
+    /// current window, while CWL can retain older days independently.
     static func hasRows(
         deviceID: String,
         providerID: String,
@@ -630,7 +640,9 @@ enum CostLedgerService {
                     accountIdentityKeys: identityKeys,
                     decoder: decoder)
             }
-            guard let latest = group.max(by: { $0.lastUpdated < $1.lastUpdated }) else {
+            // Account-level spend keeps one row per day: a known amount from either Mac beats an
+            // unknown one, otherwise the newest publication wins.
+            guard let latest = group.max(by: { Self.replacesDay($0, with: $1) }) else {
                 return nil
             }
             return AggregatedDailyCostPoint(
@@ -926,7 +938,7 @@ enum CostLedgerService {
             newerThan: self.blobSeedClearedAt(userDefaults: userDefaults))
     }
 
-    private static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
+    static func hasMissingSeedableCostBlobRows(in context: ModelContext, newerThan: Date?) throws -> Bool {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
@@ -956,6 +968,7 @@ enum CostLedgerService {
                 guard let existing = try context.fetch(descriptor).first else {
                     return true
                 }
+                if Self.keepsKnownDay(existing, incomingCostIsKnown: point.costIsKnown) { continue }
                 if existing.lastUpdated < costUpdatedAt {
                     return true
                 }

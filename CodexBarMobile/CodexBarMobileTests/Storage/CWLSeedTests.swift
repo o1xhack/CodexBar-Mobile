@@ -264,7 +264,7 @@ struct CWLSeedTests {
     }
 
     @Test("T10: default-on aggregate keeps ledger history for removed provider snapshots")
-    func testDefaultOnAggregatePrunesRemovedProviderRows() throws {
+    func testDefaultOnAggregateKeepsRemovedProviderHistory() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -313,7 +313,7 @@ struct CWLSeedTests {
     }
 
     @Test("T10: default-on aggregate keeps ledger history when no provider snapshots remain")
-    func testDefaultOnAggregatePrunesRowsWhenLastProviderRemoved() throws {
+    func testDefaultOnAggregateKeepsHistoryWhenLastProviderRemoved() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

@@ -226,8 +226,12 @@ enum SwiftDataBridge {
                 providerID: providerID,
                 accountEmail: costOwner.accountEmail,
                 accountRecordKey: costOwner.accountRecordKey)
+            // Only a machine's local cost follows its owner; account-level spend stays with the
+            // account that incurred it (Research 069).
+            let movesMachineCost = ProviderSnapshotMerger.usesLocalCostMerge(providerID: providerID)
             for oldOwner in existingForDevice where
-                oldOwner.providerID == providerID
+                movesMachineCost
+                && oldOwner.providerID == providerID
                 && oldOwner.compositeKey != costOwnerKey
                 && !incomingKeys.contains(oldOwner.compositeKey)
             {
@@ -252,10 +256,10 @@ enum SwiftDataBridge {
             // A machine's local costs belong to its single current owner, so move it there too;
             // otherwise the same days could count under both the old and the new account.
             // Account-level spend (API dashboards) is never moved between accounts.
-            for ledgerOwner in try CostLedgerService.ledgerOwners(
-                deviceID: deviceID, providerID: providerID, in: context)
-            where ProviderSnapshotMerger.usesLocalCostMerge(providerID: providerID)
-            {
+            let ledgerOnlyOwners = movesMachineCost
+                ? try CostLedgerService.ledgerOwners(deviceID: deviceID, providerID: providerID, in: context)
+                : []
+            for ledgerOwner in ledgerOnlyOwners {
                 let ledgerOwnerKey = ProviderSnapshotModel.makeCompositeKey(
                     deviceID: deviceID,
                     providerID: providerID,
@@ -272,22 +276,8 @@ enum SwiftDataBridge {
             }
         }
 
-        // A clear tombstone may drop leftovers only where this snapshot named the single new
-        // owner and its history was just moved there; otherwise the days stay in the ledger.
-        let movedCostProviderIDs = Set(
-            Dictionary(grouping: snapshot.providers, by: \.providerID)
-                .filter { providerID, providers in
-                    providers.count(where: { $0.costSummary != nil }) == 1
-                        && !Self.usesAccountNativeCostOwnership(providerID: providerID)
-                }
-                .keys)
         for provider in snapshot.providers {
-            try Self.upsertProvider(
-                provider,
-                deviceID: deviceID,
-                device: device,
-                clearedHistoryWasMoved: movedCostProviderIDs.contains(provider.providerID),
-                in: context)
+            try Self.upsertProvider(provider, deviceID: deviceID, device: device, in: context)
         }
 
         // Prune snapshot rows that belonged to this device but disappeared from
@@ -340,7 +330,6 @@ enum SwiftDataBridge {
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
         device: DeviceRecord,
-        clearedHistoryWasMoved: Bool,
         in context: ModelContext) throws
     {
         let compositeKey = ProviderSnapshotModel.makeCompositeKey(
@@ -445,19 +434,12 @@ enum SwiftDataBridge {
         // even with CWL on, the ledger and blob stay in sync (blob acts as the
         // authoritative current-window snapshot, ledger accumulates a longer
         // rolling history).
-        // A wire tombstone is authoritative even while the optional ledger UI
-        // is disabled. Otherwise stale rows survive and reappear if CWL is
-        // enabled later. Contradictory payloads fail closed: clear wins over a
-        // simultaneously supplied summary.
-        if provider.costSummaryCleared == true {
-            guard clearedHistoryWasMoved else { return }
-            try CostLedgerService.deleteRows(
-                deviceID: deviceID,
-                providerID: provider.providerID,
-                accountEmail: provider.accountEmail,
-                accountRecordKey: provider.accountRecordKey,
-                in: context, saveChanges: false)
-        } else if CostLedgerService.isEnabled() {
+        // A clear tombstone says this entry no longer owns the shared local cost.
+        // Its history was already moved to the single new owner above when one
+        // exists; otherwise it stays with this account until an owner appears.
+        // A tombstone never deletes history (Research 069): a Mac bug or a
+        // contradictory payload must not erase days the Mac may no longer hold.
+        if provider.costSummaryCleared != true, CostLedgerService.isEnabled() {
             try CostLedgerService.upsertFromSnapshot(
                 provider, deviceID: deviceID, in: context)
         }
