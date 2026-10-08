@@ -87,7 +87,7 @@ struct QuotaPaceWindowPickerTests {
         _ provider: ProviderUsageSnapshot,
         localization: String = "en") -> [QuotaPaceWindowChoice.Option]
     {
-        let record = WidgetActivityPublisher.catalogueEntities(from: [provider]).first
+        let record = WidgetActivityPublisher.catalogueEntities(from: [provider], now: Self.now).first
         return QuotaPaceWindowChoice.options(
             for: record,
             preferredLocalizations: [localization],
@@ -154,6 +154,46 @@ struct QuotaPaceWindowPickerTests {
         #expect(chosen.first?.quotaPace?.windowID == "primary")
         #expect(chosen.first?.quotaPace?.paceRemainingPercent == 50)
         #expect(chosen.first?.quotaPace?.pace == nil)
+    }
+
+    @Test
+    func `A single window the default does not reach is listed`() {
+        // Claude reporting only a carve-out: the default never follows it.
+        let sonnet = Self.window("tertiary", "Sonnet", used: 10, minutes: 10080, resetIn: 3 * 86400)
+        for window in [sonnet, Self.claudeFable] {
+            let provider = Self.provider("claude", [window])
+            #expect(QuotaPaceWindowSelection.defaultWindowID(for: provider, now: Self.now) == nil)
+            #expect(Self.options(provider).map(\.identifier) == [
+                QuotaPaceWindowChoice.defaultIdentifier, "claude|\(window.id ?? "")",
+            ])
+        }
+    }
+
+    @Test
+    func `The widget names an unlabeled weekly window Weekly`() throws {
+        let en = Locale(identifier: "en")
+        // muse.ai: configured with its single unlabeled weekly window. The
+        // picker keeps the card's name; the widget never says "Session".
+        let muse = try #require(CodexBarWidgetPaceSummary(
+            provider: Self.provider("museai", [Self.window("primary", nil, used: 12, minutes: 10080, resetIn: 86400)]),
+            now: Self.now)).configured(windowID: nil)
+        #expect(muse.windowSource == .defaultWindow)
+        #expect(muse.namesWindow == false)
+        #expect(muse.heroLabel(providerID: "museai", locale: en) == nil)
+        #expect(muse.selectedWindow?.title(providerID: "museai", locale: en) == "Session")
+        #expect(muse.selectedWindow?.widgetTitle(providerID: "museai", locale: en) == "Weekly")
+        #expect(muse.selectedWindow?.widgetTitle(providerID: "museai", locale: Locale(identifier: "zh-Hans"))
+            == "每周")
+
+        // Chosen explicitly next to another window, the hero says Weekly.
+        let pair = try #require(CodexBarWidgetPaceSummary(
+            provider: Self.provider("fictitious", [
+                Self.window(nil, nil, used: 12, minutes: 10080, resetIn: 86400),
+                Self.window(nil, nil, used: 40, minutes: 300, resetIn: 3600),
+            ]),
+            now: Self.now))
+        #expect(pair.configured(windowID: "primary").heroLabel(providerID: "fictitious", locale: en) == "Weekly")
+        #expect(pair.configured(windowID: "secondary").heroLabel(providerID: "fictitious", locale: en) == "Weekly")
     }
 
     @Test
@@ -286,6 +326,21 @@ struct QuotaPaceWindowPickerTests {
         #expect(antigravity.paceRemainingPercent == 45)
         #expect(antigravity.pace != nil)
         #expect(antigravity.namesWindow)
+    }
+
+    @Test
+    func `Antigravity defaults to its most constrained quota-summary bucket`() {
+        let windows = [
+            Self.window("gemini-3-pro", "Gemini 3 Pro", used: 90, minutes: 10080, resetIn: 86400),
+            Self.window("antigravity-quota-summary-b-weekly", "B weekly", used: 40, minutes: 10080, resetIn: 86400),
+            Self.window("antigravity-quota-summary-a-weekly", "A weekly", used: 40, minutes: 10080, resetIn: 86400),
+        ]
+        // Model rows only count without summary buckets; ties take the smaller id.
+        #expect(QuotaPaceWindowSelection.defaultWindowID(for: Self.provider("antigravity", windows), now: Self.now)
+            == "antigravity-quota-summary-a-weekly")
+        #expect(QuotaPaceWindowSelection.defaultWindowID(
+            for: Self.provider("antigravity", Array(windows.prefix(1))),
+            now: Self.now) == "gemini-3-pro")
     }
 
     @Test

@@ -86,14 +86,23 @@ enum QuotaPaceWindowSelection {
         {
             return match.id
         }
-        let weekly = current.filter {
+        var weekly = current.filter {
             self.isWeekly($0.window) && self.isAccountWeeklyCandidate($0, providerID: provider.providerID)
         }
-        // Most constrained first; ties keep card order.
+        // Antigravity's quota-summary buckets are its account allowance
+        // (`AntigravityProviderDescriptor.mostConstrained`); its model rows
+        // count only without them. Ties go to the smaller id, as on the Mac.
+        let summaryPrefix = "antigravity-quota-summary-"
+        let isAntigravity = provider.providerID == "antigravity"
+        if isAntigravity, weekly.contains(where: { $0.id.hasPrefix(summaryPrefix) }) {
+            weekly = weekly.filter { $0.id.hasPrefix(summaryPrefix) }
+        }
+        // Most constrained first; ties keep card order (Antigravity: smaller id).
         if let mostConstrained = weekly.enumerated().max(by: { lhs, rhs in
-            lhs.element.window.usedPercent == rhs.element.window.usedPercent
-                ? lhs.offset > rhs.offset
-                : lhs.element.window.usedPercent < rhs.element.window.usedPercent
+            if lhs.element.window.usedPercent != rhs.element.window.usedPercent {
+                return lhs.element.window.usedPercent < rhs.element.window.usedPercent
+            }
+            return isAntigravity ? lhs.element.id > rhs.element.id : lhs.offset > rhs.offset
         }) {
             return mostConstrained.element.id
         }
@@ -154,6 +163,23 @@ enum QuotaPaceWindowSelection {
             locale: locale)
         guard let label, title == label else { return title }
         return ProviderDetailLocalization.localized(label, providerID: providerID, locale: locale)
+    }
+
+    /// The name shown on the widget itself: like the card, except that an
+    /// unlabeled weekly window is called "Weekly" (the card's slot name,
+    /// "Session" for a first slot, would contradict its length).
+    static func widgetTitle(
+        label: String?,
+        windowMinutes: Int?,
+        cardIndex: Int?,
+        period: SyncRateWindowPeriod?,
+        providerID: String,
+        locale: Locale = .current) -> String
+    {
+        if label == nil, windowMinutes == 10080 || (windowMinutes == nil && period == .weekly) {
+            return MobileLocalizedString.value("Weekly", defaultValue: "Weekly", locale: locale)
+        }
+        return self.title(label: label, cardIndex: cardIndex, period: period, providerID: providerID, locale: locale)
     }
 
     /// The card's name for an unlabeled window at `cardIndex`.

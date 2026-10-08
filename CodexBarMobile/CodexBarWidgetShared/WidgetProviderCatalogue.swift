@@ -36,11 +36,19 @@ struct WidgetProviderRecord: Codable, Hashable, Sendable {
     /// Selectable quota windows (Research/071). Nil in catalogues written
     /// before 2.6.0 (237); such providers only offer the default window.
     let windows: [WidgetProviderWindowRecord]?
+    /// The window the default choice follows, when there is one.
+    let defaultWindowID: String?
 
-    init(id: String, name: String, windows: [WidgetProviderWindowRecord]? = nil) {
+    init(
+        id: String,
+        name: String,
+        windows: [WidgetProviderWindowRecord]? = nil,
+        defaultWindowID: String? = nil)
+    {
         self.id = id
         self.name = name
         self.windows = windows
+        self.defaultWindowID = defaultWindowID
     }
 }
 
@@ -79,10 +87,10 @@ enum QuotaPaceWindowChoice {
 
     /// Picker options for the configured provider: the default (weekly)
     /// choice first, then every window when the provider has more than one.
-    /// A single window of at least a day (Codex, muse.ai weekly) is what the
-    /// default already follows, so there is nothing to choose; a single
-    /// shorter window, or one without a length, is listed because the
-    /// default never reaches it.
+    /// A single window is listed only when the default does not reach it
+    /// (a lone 5-hour window, or Claude with only a Sonnet or Fable-only
+    /// limit); Codex and muse.ai, whose single weekly window is the default,
+    /// have nothing to choose.
     static func options(
         for record: WidgetProviderRecord?,
         preferredLocalizations: [String],
@@ -91,7 +99,7 @@ enum QuotaPaceWindowChoice {
     {
         let defaultOption = Option(identifier: self.defaultIdentifier, title: defaultTitle, subtitle: nil)
         guard let record, let windows = record.windows, !windows.isEmpty else { return [defaultOption] }
-        if windows.count == 1, let minutes = windows[0].windowMinutes, minutes >= 1440 { return [defaultOption] }
+        if windows.count == 1, windows[0].id == record.defaultWindowID { return [defaultOption] }
         let titles = windows.map { $0.title(preferredLocalizations: preferredLocalizations) }
         var counts: [String: Int] = [:]
         for title in titles {
@@ -152,7 +160,11 @@ enum WidgetProviderCatalogue {
             var windows = existing.windows ?? []
             var seen = Set(windows.map(\.id))
             windows += extra.filter { seen.insert($0.id).inserted }
-            byID[provider.id] = WidgetProviderRecord(id: existing.id, name: existing.name, windows: windows)
+            byID[provider.id] = WidgetProviderRecord(
+                id: existing.id,
+                name: existing.name,
+                windows: windows,
+                defaultWindowID: existing.defaultWindowID ?? provider.defaultWindowID)
         }
         return order.compactMap { byID[$0] }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }

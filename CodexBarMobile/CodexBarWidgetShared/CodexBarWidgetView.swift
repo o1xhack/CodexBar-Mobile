@@ -1647,13 +1647,9 @@ extension CodexBarWidgetView {
         return WidgetProviderResetText.days(pace?.paceResetsAt, now: self.entry.date)
     }
 
-    /// The described window's name: for a configured provider the followed
-    /// window's card title (Research/071), otherwise the charted lane.
+    /// The hero's window name, shared by every size (Research/071).
     private func paceWindowLabel(_ pace: CodexBarWidgetPaceSummary?, providerID: String) -> String? {
-        if pace?.followsWindow == true, let window = pace?.selectedWindow {
-            return window.title(providerID: providerID)
-        }
-        return pace?.primaryLane.map { self.paceLaneLabel($0, providerID: providerID) }
+        pace?.heroLabel(providerID: providerID)
     }
 
     /// Same lane-label localization as the app's Quota pace section.

@@ -88,12 +88,16 @@ enum WidgetActivityPublisher {
         Self.publish(projection)
     }
 
-    static func catalogueEntities(from providers: [ProviderUsageSnapshot]) -> [WidgetProviderRecord] {
+    static func catalogueEntities(
+        from providers: [ProviderUsageSnapshot],
+        now: Date = .now) -> [WidgetProviderRecord]
+    {
         providers.filter { !$0.isProviderLevelCostEnvelope }.map {
             WidgetProviderRecord(
                 id: $0.providerID,
                 name: $0.providerName,
-                windows: QuotaPaceWindowSelection.catalogueWindows(for: $0))
+                windows: QuotaPaceWindowSelection.catalogueWindows(for: $0),
+                defaultWindowID: QuotaPaceWindowSelection.defaultWindowID(for: $0, now: now))
         }
     }
 

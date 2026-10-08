@@ -154,6 +154,18 @@ struct CodexBarWidgetPaceWindow: Codable, Equatable, Sendable {
         self.laneSeriesName = laneSeriesName
     }
 
+    /// The name next to the widget's hero number (Research/071).
+    func widgetTitle(providerID: String, locale: Locale = .current) -> String {
+        QuotaPaceWindowSelection.widgetTitle(
+            label: self.label,
+            windowMinutes: self.windowMinutes,
+            cardIndex: self.cardIndex,
+            period: self.period,
+            providerID: providerID,
+            locale: locale)
+    }
+
+    /// The name in the configuration picker (same as the provider card).
     func title(providerID: String, locale: Locale = .current) -> String {
         QuotaPaceWindowSelection.title(
             label: self.label,
@@ -355,6 +367,18 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
         case .automatic: false
         case .chosen: true
         case .defaultWindow: self.windowID != self.automaticWindowID
+        }
+    }
+
+    /// The label next to the hero number in every size: the followed
+    /// window's widget name when the hero names it, otherwise the charted
+    /// lane (nil without one).
+    func heroLabel(providerID: String, locale: Locale = .current) -> String? {
+        if self.namesWindow, let window = self.selectedWindow {
+            return window.widgetTitle(providerID: providerID, locale: locale)
+        }
+        return self.primaryLane.map {
+            ProviderDetailLocalization.localized($0.label, providerID: providerID, locale: locale)
         }
     }
 
