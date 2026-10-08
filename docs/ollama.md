@@ -15,7 +15,8 @@ included-credit utilization. Older pages with session/hourly and weekly quota wi
 
 - **Plan badge**: Reads the plan tier (Free/Pro/Max) from the Included usage or legacy Cloud Usage header.
 - **Monthly usage**: Converts the reported included dollar credits (for example, `$7.50 of $60 used`) to utilization
-  (`12.5%`). The primary quota bar is labeled **Monthly**; this is not a token-cost or spend estimate.
+  (`12.5%`). Free plans label the same included-credit meter **Free usage**; both labels map to the primary
+  **Monthly** quota bar. This is not a token-cost or spend estimate.
 - **Legacy usage**: Retains session/hourly and weekly percentage parsing for older settings pages.
 - **Reset timestamps**: Uses the `data-time` attribute on the “Resets in …” elements.
 - **API key auth**: Verifies direct `https://ollama.com/api` access with `OLLAMA_API_KEY` or a configured key.
@@ -57,6 +58,7 @@ Keychain access is disabled in Advanced settings. CodexBar does not switch cooki
 - Parses:
   - Plan badge under **Included usage** or **Cloud Usage**.
   - **Monthly usage** dollar credits, falling back to a valid meter width in the same usage block when necessary.
+  - **Free usage** percentage meter, the free-plan label for the same included-credit window.
   - Legacy **Session usage**, **Hourly usage**, and **Weekly usage** percentages.
   - `data-time` ISO timestamps for reset times.
 - Monthly pace uses an inferred calendar billing window anchored to the reported reset, not a fixed 30-day session.

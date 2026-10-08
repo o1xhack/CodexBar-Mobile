@@ -173,6 +173,56 @@ struct CostUsageClaudeResolverTests {
         #expect(work.snapshot().catalogModelMisses == CostUsagePricing.ClaudeResolver.memoEntryLimit + 2)
     }
 
+    @Test
+    func `explicit provider and model pricing uses the catalog entry and shares the token formula`() throws {
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
+        {
+          "fixture-host": {"models": {
+            "vendor/fixture-model": {"id":"vendor/fixture-model", "cost":{"input":2,"output":4}},
+            "cached-model": {"id":"cached-model", "cost":{"input":2,"output":4,"cache_read":0.5}}
+          }}
+        }
+        """#.utf8))
+        let resolver = CostUsagePricing.ClaudeResolver(catalog: catalog)
+        // Without a cache read rate, cache reads bill at the input rate.
+        let uncachedRateCost: Double = 100 * 2e-6 + 50 * 2e-6 + 10 * 4e-6
+        let cachedRateCost: Double = 100 * 2e-6 + 50 * 0.5e-6 + 10 * 4e-6
+        #expect(Self.explicitCost(resolver, providerID: "fixture-host", modelID: "vendor/fixture-model")
+            == uncachedRateCost)
+        #expect(Self.explicitCost(resolver, providerID: "fixture-host", modelID: "cached-model") == cachedRateCost)
+        // The provider ID is normalized like every other catalog lookup.
+        #expect(Self.explicitCost(resolver, providerID: " Fixture-Host ", modelID: "vendor/fixture-model")
+            == uncachedRateCost)
+    }
+
+    @Test
+    func `explicit provider and model pricing is nil for an absent provider or model`() throws {
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(#"""
+        {
+          "fixture-host": {"models": {
+            "vendor/fixture-model": {"id":"vendor/fixture-model", "cost":{"input":2,"output":4}}
+          }}
+        }
+        """#.utf8))
+        let resolver = CostUsagePricing.ClaudeResolver(catalog: catalog)
+        #expect(Self.explicitCost(resolver, providerID: "absent-host", modelID: "vendor/fixture-model") == nil)
+        #expect(Self.explicitCost(resolver, providerID: "fixture-host", modelID: "vendor/absent-model") == nil)
+    }
+
+    static func explicitCost(
+        _ resolver: CostUsagePricing.ClaudeResolver,
+        providerID: String,
+        modelID: String) -> Double?
+    {
+        resolver.costUSD(
+            model: modelID,
+            providerID: providerID,
+            inputTokens: 100,
+            cacheReadInputTokens: 50,
+            cacheCreationInputTokens: 0,
+            outputTokens: 10)
+    }
+
     static func cost(_ resolver: CostUsagePricing.ClaudeResolver, model: String) -> Double? {
         resolver.costUSD(
             model: model,

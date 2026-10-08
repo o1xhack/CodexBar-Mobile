@@ -106,6 +106,9 @@ the cookie import.
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
   - `Always allow prompts`: allows interactive prompts in both user and background flows.
+- Explicit Refresh can repair Claude OAuth Keychain access when direct-read consent is enabled and the policy
+  allows user prompts. Ordinary OAuth fetches remain noninteractive, including with `Always allow prompts`;
+  that policy still governs the existing delegated refresh and experimental reader paths.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
 - The policy also applies to the experimental `/usr/bin/security` reader and delegated OAuth refresh through
   `claude`: background operations that can prompt require `Always allow prompts`.
@@ -142,6 +145,8 @@ the cookie import.
   after a rejected cache write, the next refresh first clears the stale persistent entry, then reuses and persists
   an unexpired in-memory credential even after 30 minutes once that cleanup succeeds. Extended reuse requires
   evidence of that exact failed write and its original consent; an unrelated invalidation cannot authorize it.
+  Rejected writes during CodexBar-owned token refresh retain the same recovery, bound to the refreshed credential;
+  a delayed older write cannot replace a newer credential's recovery.
   This does not discover an external login or enable additional background reads of Claude Code's Keychain item.
 - For the default CLI profile, expired cached or file credentials can adopt a fresh CLI Keychain token after file fallback, even when its fingerprint was already observed during an earlier repair. Existing direct-read consent, prompt policy, cooldown, one-minute freshness-check throttle, and noninteractive-read checks still apply. Custom profiles are not recovered from the unscoped global item, and CLI credentials are never rewritten by this synchronization. Background recovery still requires the Always allow prompts policy; the default Only on user action policy requires an explicit Refresh.
 - Credential selection does not rank unrelated sources by the largest `expiresAt`: expiry establishes validity,
@@ -410,7 +415,7 @@ Model-scoped weekly-window proof (synthetic data, no real accounts or credential
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
 - The bundled watchdog is discovered only in the running executable's resolved app bundle; launching through a CLI symlink preserves that association.
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
-- Both PTY probes and the non-PTY `/usage` fallback pass `--settings '{"remoteControlAtStartup":false}'` to disable Remote Control startup for the probe process. This process-local override leaves the user's saved settings unchanged; Claude's managed-settings policy still applies.
+- Both PTY probes and the non-PTY `/usage` fallback pass `--settings '{"remoteControlAtStartup":false,"disableAllHooks":true}'` to disable Remote Control startup and user hooks for the probe process. This process-local override leaves the user's saved settings unchanged; Claude's managed-settings policy still applies.
 - Both launches use `--strict-mcp-config` to skip the user's configured MCP servers. Saved nonessential-traffic restrictions remain in force.
 - A PTY timeout or usage-loading failure can trigger the non-PTY `/usage` fallback. Cancellation and rate limits stop the probe; a subscription-only notice from the fallback takes precedence over the original PTY failure.
 - Transient CLI timeouts and loading stalls preserve availability already established for that account, so a later
@@ -447,7 +452,8 @@ Model-scoped weekly-window proof (synthetic data, no real accounts or credential
   - Surfaces CLI errors (e.g. token expired) directly.
   - Some Education and organization-managed subscriptions return only a subscription notice, with no numeric
     session or weekly quota fields. CodexBar reports those limits as unavailable, keeps local cost/token history
-    visible, and never derives quota percentages from spend or token totals.
+    visible, and never derives quota percentages from spend or token totals. Logs and diagnostics classify this as
+    a configuration issue and recommend checking the provider source/settings, rather than re-authenticating.
 
 ## Cost usage (local log scan)
 - Source roots:

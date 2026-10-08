@@ -9,6 +9,7 @@ struct TokenAccountMetadataUpdateTests {
     func `metadata updates distinguish preservation clearing and replacement`() throws {
         let changes: [(update: String??, expected: String?)] = [
             (nil, "original"), (.some(nil), nil), (.some(" \n"), nil), (.some(" updated \n"), "updated"),
+            (.some(" 'quoted' \n"), "'quoted'"),
         ]
         for change in changes {
             let settings = testSettingsStore(

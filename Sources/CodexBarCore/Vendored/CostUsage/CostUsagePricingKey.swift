@@ -52,24 +52,20 @@ enum CostUsagePricingKey {
                     "provider=\(providerID)",
                     "model=\(modelKey)",
                     model.id,
-                    self.optionalDoubleFingerprint(cost?.input),
-                    self.optionalDoubleFingerprint(cost?.output),
-                    self.optionalDoubleFingerprint(cost?.cacheRead),
-                    self.optionalDoubleFingerprint(cost?.cacheWrite),
+                    CostUsagePricing.optionalPricingFingerprint(cost?.input),
+                    CostUsagePricing.optionalPricingFingerprint(cost?.output),
+                    CostUsagePricing.optionalPricingFingerprint(cost?.cacheRead),
+                    CostUsagePricing.optionalPricingFingerprint(cost?.cacheWrite),
                     contextOver200K == nil ? "contextOver200K=absent" : "contextOver200K=present",
-                    self.optionalDoubleFingerprint(contextOver200K?.input),
-                    self.optionalDoubleFingerprint(contextOver200K?.output),
-                    self.optionalDoubleFingerprint(contextOver200K?.cacheRead),
-                    self.optionalDoubleFingerprint(contextOver200K?.cacheWrite),
+                    model.pricing(providerID: providerID, providerName: nil)?.thresholdTokens.map(String.init) ?? "nil",
+                    CostUsagePricing.optionalPricingFingerprint(contextOver200K?.input),
+                    CostUsagePricing.optionalPricingFingerprint(contextOver200K?.output),
+                    CostUsagePricing.optionalPricingFingerprint(contextOver200K?.cacheRead),
+                    CostUsagePricing.optionalPricingFingerprint(contextOver200K?.cacheWrite),
                 ].joined(separator: "|"))
             }
         }
         return parts.joined(separator: "\n")
-    }
-
-    private static func optionalDoubleFingerprint(_ value: Double?) -> String {
-        guard let value else { return "nil" }
-        return String(format: "%.17g", value)
     }
 
     private static func sha256Hex(_ data: Data) -> String {

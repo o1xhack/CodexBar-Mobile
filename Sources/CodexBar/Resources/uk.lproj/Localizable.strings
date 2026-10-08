@@ -1568,6 +1568,8 @@
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Cumulative" = "Наростаючим підсумком";
 "Token activity" = "Активність токенів";
+"Earlier activity" = "Раніша активність";
+"More recent activity" = "Новіша активність";
 "View" = "Вигляд";
 "in the last year" = "за останній рік";
 "No activity in the last 12 months" = "Немає активності за останні 12 місяців";
@@ -1709,6 +1711,11 @@
 "account_widgets_title" = "Оновлювати дані облікових записів для віджетів";
 "account_widgets_description" = "Виберіть обліковий запис у кожному віджеті Account Usage. Оновлює до шести облікових записів для кожного постачальника.";
 
+/* Spend time zone */
+"Statistics time zone" = "Часовий пояс статистики";
+"Use Mac's current time zone" = "Використати поточний часовий пояс Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Використання за день обчислюється у фіксованому часовому поясі. Його зміна може перенести частину використання на інший день.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Локальне використання × публічні ціни API · це не рахунки та не кредити Antigravity";
 "antigravity_quota_window_note" = "Вартість вікна охоплює всі моделі · показано вікно найбільш обмеженої родини";
@@ -1730,3 +1737,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Підтримувані браузери: %@. Для інших браузерів використовуйте ручний режим.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Вставте заголовок Cookie із запиту Chrome до www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Зарезервовано";
+
+/* Selected browser profile */
+"Browser profile" = "Профіль браузера";
+"Unavailable profile: %@" = "Профіль недоступний: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Читати лише вибраний профіль %@. Облікові записи ніколи не вибираються автоматично.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Зафіксовані витрати";
+"Highest recorded spend" = "Найвищі зафіксовані витрати";
+"Previous day" = "Попередній день";
+"Next day" = "Наступний день";
+"Click to isolate a source. Click again to show all." = "Натисніть для перегляду одного джерела. Натисніть знову для перегляду всіх.";
+"Recorded hourly spend" = "Записані погодинні витрати";
+"Highest spend" = "Найбільші витрати";
+"Models for this day" = "Моделі за цей день";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Натисніть на стовпчик для перегляду деталей. Точні суми доступні в меню нижче.";

@@ -3,6 +3,48 @@ import Testing
 @testable import CodexBarCore
 
 struct CostUsageCodexReportPricingWorkTests {
+    @Test
+    func `refresh projections reuse scoped report preparation`() throws {
+        let fixture = try Self.fixture(fileCount: 4, rowsPerFile: 16)
+        let work = CostUsageStoreReadWorkRecorder(databaseURL: URL(fileURLWithPath: "/synthetic/unused.sqlite"))
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.readWorkRecorder = work
+        let reports = CostUsageStoreTestHooks.$current.withValue(hooks) {
+            CostUsageScanner.buildCodexReportProjectionsFromCache(
+                cache: fixture.cache, range: fixture.range, modelsDevCatalog: ModelsDevCatalog(providers: [:]))
+        }
+        #expect(reports.daily.summary?.totalTokens == 4 * 16 * 13)
+        #expect(reports.projects.count == 1)
+        #expect(reports.projects.first?.totalTokens == 4 * 16 * 13)
+        #expect(reports.sessions.count == 4)
+        #expect(reports.sessions.allSatisfy { $0.totalTokens == 16 * 13 })
+        #expect(work.snapshot().reportBuilds == 6)
+    }
+
+    @Test
+    func `new projections use their own window roots and cache`() throws {
+        let fixture = try Self.fixture(fileCount: 4, rowsPerFile: 16)
+        let catalog = ModelsDevCatalog(providers: [:])
+        let first = CostUsageScanner.buildCodexReportProjectionsFromCache(
+            cache: fixture.cache, range: fixture.range, modelsDevCatalog: catalog)
+        let now = try #require(fixture.range.calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 2, hour: 12)))
+        let nextDay = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: fixture.range.calendar)
+        let later = CostUsageScanner.buildCodexReportProjectionsFromCache(
+            cache: fixture.cache, range: nextDay, modelsDevCatalog: catalog)
+        #expect(later.daily.data.isEmpty)
+        #expect(later.projects.isEmpty)
+        #expect(later.sessions.isEmpty)
+        let scoped = CostUsageScanner.buildCodexReportProjectionsFromCache(
+            cache: fixture.cache,
+            range: fixture.range,
+            modelsDevCatalog: catalog,
+            sessionRoots: [URL(fileURLWithPath: "/another-synthetic-home")])
+        #expect(scoped.daily.data == first.daily.data)
+        #expect(scoped.projects == first.projects)
+        #expect(scoped.sessions.isEmpty)
+    }
+
     @Test(arguments: [1, 16])
     func `report pricing work scales with models rather than rows or files`(fileCount: Int) throws {
         let fixture = try Self.fixture(fileCount: fileCount, rowsPerFile: 256)
@@ -70,5 +112,62 @@ struct CostUsageCodexReportPricingWorkTests {
             CostUsageScanner.applyFileDays(cache: &cache, fileDays: usage.days, sign: 1)
         }
         return (cache, range)
+    }
+}
+
+extension CostUsageScanner {
+    static func buildCodexSessionBreakdownsFromCache(
+        cache: CostUsageCache,
+        range: CostUsageDayRange,
+        modelsDevCatalog: ModelsDevCatalog? = nil,
+        modelsDevCacheRoot: URL? = nil,
+        sessionRoots: [URL]? = nil,
+        priorityTurns: [String: CodexPriorityTurnMetadata]? = nil,
+        modelsDevCatalogLoader: (URL?) -> ModelsDevCatalog? = {
+            CostUsagePricing.modelsDevCatalog(cacheRoot: $0)
+        }) -> [CostUsageSessionBreakdown]
+    {
+        buildCodexReportProjectionsFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCatalog: modelsDevCatalog,
+            modelsDevCacheRoot: modelsDevCacheRoot,
+            sessionRoots: sessionRoots,
+            includeProjects: false,
+            priorityTurns: priorityTurns,
+            modelsDevCatalogLoader: modelsDevCatalogLoader).sessions
+    }
+
+    static func buildCodexProjectBreakdownsFromCache(
+        cache: CostUsageCache,
+        range: CostUsageDayRange,
+        modelsDevCatalog: ModelsDevCatalog? = nil,
+        modelsDevCacheRoot: URL? = nil,
+        priorityTurns: [String: CodexPriorityTurnMetadata]? = nil,
+        modelsDevCatalogLoader: (URL?) -> ModelsDevCatalog? = {
+            CostUsagePricing.modelsDevCatalog(cacheRoot: $0)
+        }) -> [CostUsageProjectBreakdown]
+    {
+        buildCodexReportProjectionsFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCatalog: modelsDevCatalog,
+            modelsDevCacheRoot: modelsDevCacheRoot,
+            priorityTurns: priorityTurns,
+            modelsDevCatalogLoader: modelsDevCatalogLoader).projects
+    }
+}
+
+extension CostUsageStoreReadView {
+    func projects(range: CostUsageScanner.CostUsageDayRange, cacheRoot: URL?) -> [CostUsageProjectBreakdown] {
+        self.reports(range: range, cacheRoot: cacheRoot, roots: []).projects
+    }
+
+    func sessions(
+        range: CostUsageScanner.CostUsageDayRange,
+        cacheRoot: URL?,
+        roots: [URL]) -> [CostUsageSessionBreakdown]
+    {
+        self.reports(range: range, cacheRoot: cacheRoot, roots: roots, includeProjects: false).sessions
     }
 }

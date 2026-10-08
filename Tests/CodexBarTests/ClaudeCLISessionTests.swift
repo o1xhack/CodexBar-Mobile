@@ -207,7 +207,7 @@ struct ClaudeCLISessionTests {
             "",
             "--strict-mcp-config",
             "--settings",
-            #"{"remoteControlAtStartup":false}"#,
+            #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#,
             "--session-id",
             first.uuidString.lowercased(),
         ])

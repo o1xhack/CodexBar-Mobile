@@ -437,3 +437,84 @@ extension CostUsageStore {
         }
     }
 }
+
+extension CostUsageStoreReadWorkTests {
+    @Test(arguments: [4, 400])
+    func `cached refresh shares each file report across projections`(fileCount: Int) async throws {
+        let fixture = try ReadWorkFixture(fileCount: fileCount, rowsPerFile: 20)
+        defer { fixture.remove() }
+        let recorder = CostUsageStoreReadWorkRecorder(databaseURL: fixture.store.databaseURL)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.readWorkRecorder = recorder
+        let snapshot = try await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            try #require(await fixture.cachedSnapshot(details: true))
+        }
+        #expect(snapshot.snapshot == fixture.fullCachedSnapshot())
+        let work = recorder.snapshot()
+        let projectCount = snapshot.snapshot.projects.count
+        print("[refresh-work] files=\(fileCount) builds=\(work.reportBuilds) expected=\(1 + fileCount + projectCount)")
+        #expect(work.reportBuilds == 1 + fileCount + projectCount)
+    }
+}
+
+extension CostUsageStoreReadWorkTests {
+    @Test
+    func `later cached refresh sees changed prices and removed files in every projection`() async throws {
+        let fixture = try ReadWorkFixture(fileCount: 4, rowsPerFile: 20)
+        defer { fixture.remove() }
+        let original = try #require(await fixture.cachedSnapshot(details: true)).snapshot
+        var changed = fixture.canonical
+        let paths = changed.files.keys.sorted()
+        for path in paths {
+            var usage = try #require(changed.files[path])
+            usage.codexRows = usage.codexRows?.map { row in
+                var row = row
+                row.knownCostNanos = 2_000_000
+                return row
+            }
+            changed.files[path] = usage
+        }
+        #expect(!fixture.save(changed).catchUpRequired)
+        let repriced = try #require(await fixture.cachedSnapshot(details: true)).snapshot
+        #expect(repriced.daily != original.daily)
+        #expect(repriced.projects != original.projects)
+        #expect(repriced.sessions != original.sessions)
+        #expect(repriced.sessionCostUSD == original.sessionCostUSD.map { $0 * 2 })
+        #expect(repriced == fixture.fullCachedSnapshot(cache: changed))
+
+        try changed.files.removeValue(forKey: #require(paths.first))
+        changed.days = [:]
+        for usage in changed.files.values {
+            CostUsageScanner.applyFileDays(cache: &changed, fileDays: usage.days, sign: 1)
+        }
+        #expect(!fixture.save(changed).catchUpRequired)
+        let removed = try #require(await fixture.cachedSnapshot(details: true)).snapshot
+        #expect(removed.sessions.count == 3)
+        #expect(removed.sessionTokens == 3 * 20 * 13)
+        #expect(removed.projects.first?.totalTokens == removed.sessionTokens)
+        #expect(removed == fixture.fullCachedSnapshot(cache: changed))
+    }
+
+    @Test
+    func `fresh refresh shares file reports after the scan report`() async throws {
+        let fixture = try ReadWorkFixture(fileCount: 4, rowsPerFile: 20)
+        defer { fixture.remove() }
+        let recorder = CostUsageStoreReadWorkRecorder(databaseURL: fixture.store.databaseURL)
+        var hooks = CostUsageStoreTestHooks.current
+        hooks.readWorkRecorder = recorder
+        let snapshot = try await CostUsageStoreTestHooks.$current.withValue(hooks) {
+            try await CostUsageFetcher.loadTokenSnapshot(
+                provider: .codex,
+                environment: [:],
+                now: fixture.now,
+                historyDays: 1,
+                allowPricingRefresh: false,
+                includePiSessions: false,
+                scannerOptions: fixture.options)
+        }
+        #expect(snapshot == fixture.fullCachedSnapshot())
+        // The scanner also builds its own daily report before the three publication projections.
+        print("[fresh-refresh-work] files=4 reportBuilds=\(recorder.snapshot().reportBuilds)")
+        #expect(recorder.snapshot().reportBuilds == 7)
+    }
+}

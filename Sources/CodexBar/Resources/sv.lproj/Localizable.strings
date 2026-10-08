@@ -1567,6 +1567,8 @@
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Cumulative" = "Kumulativt";
 "Token activity" = "Token-aktivitet";
+"Earlier activity" = "Tidigare aktivitet";
+"More recent activity" = "Senare aktivitet";
 "View" = "Vy";
 "in the last year" = "det senaste året";
 "No activity in the last 12 months" = "Ingen aktivitet de senaste 12 månaderna";
@@ -1708,6 +1710,11 @@
 "account_widgets_title" = "Håll konton uppdaterade för widgetar";
 "account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";
 
+/* Spend time zone */
+"Statistics time zone" = "Tidszon för statistik";
+"Use Mac's current time zone" = "Använd Macens aktuella tidszon";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Daglig användning grupperas i en fast tidszon. Om den ändras kan användning flyttas till en annan dag.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Lokal användning × publika API-priser · inte Antigravity-avgifter eller krediter";
 "antigravity_quota_window_note" = "Fönsterkostnaden omfattar alla modeller · fönstret som visas är den mest begränsade familjen";
@@ -1729,3 +1736,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Webbläsare som stöds: %@. Använd Manuellt för andra webbläsare.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Klistra in Cookie-headern från en Chrome-begäran till www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Reserverat";
+
+/* Selected browser profile */
+"Browser profile" = "Webbläsarprofil";
+"Unavailable profile: %@" = "Profilen är inte tillgänglig: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Läs endast den valda %@-profilen. Konton väljs aldrig automatiskt.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Registrerade utgifter";
+"Highest recorded spend" = "Högsta registrerade utgifter";
+"Previous day" = "Föregående dag";
+"Next day" = "Nästa dag";
+"Click to isolate a source. Click again to show all." = "Klicka för att visa en källa. Klicka igen för att visa alla.";
+"Recorded hourly spend" = "Registrerade utgifter per timme";
+"Highest spend" = "Högsta utgift";
+"Models for this day" = "Modeller för denna dag";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Klicka på en stapel för detaljer. Menyn nedan visar exakta belopp.";

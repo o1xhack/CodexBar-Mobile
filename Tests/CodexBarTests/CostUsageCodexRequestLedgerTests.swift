@@ -4,9 +4,9 @@ import Testing
 
 @Suite(.serialized)
 struct CostUsageCodexRequestLedgerTests {
-    private static let timestampA = "2026-08-29T15:59:00Z"
-    private static let timestampB = "2026-08-29T16:01:00Z"
-    private static let timestampC = "2026-08-29T16:01:05Z"
+    static let timestampA = "2026-08-29T15:59:00Z"
+    static let timestampB = "2026-08-29T16:01:00Z"
+    static let timestampC = "2026-08-29T16:01:05Z"
 
     @Test(arguments: [false, true], [false, true])
     func `request ledger recovers reset counters without counting both formats`(
@@ -54,19 +54,30 @@ struct CostUsageCodexRequestLedgerTests {
         #expect(result.rows.first?.input == 100)
     }
 
-    @Test(arguments: [false, true], [false, true])
-    func `request accounting survives append and SQLite reopen`(legacyFirst: Bool, sameWindow: Bool) async throws {
+    @Test(arguments: [false, true], [
+        (sameWindow: false, drifted: false), (sameWindow: true, drifted: false),
+        (sameWindow: false, drifted: true), (sameWindow: true, drifted: true),
+    ])
+    func `request accounting survives append and SQLite reopen`(
+        legacyFirst: Bool, scenario: (sameWindow: Bool, drifted: Bool)) async throws
+    {
+        let (sameWindow, drifted) = scenario
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(identifier: "Asia/Shanghai"))
         let start = try #require(ISO8601DateFormatter().date(from: Self.timestampA))
         let end = try #require(ISO8601DateFormatter().date(from: Self.timestampC))
-        let first = Self.record(id: "one", usage: [1000, 200, 100, 40], total: [1000, 200, 100, 40])
-        let mirror = Self.legacy(
-            timestamp: Self.timestampA,
+        let later = try Self.timestamp(Self.timestampA, plusMilliseconds: 2)
+        let first = Self.record(
+            id: "one",
+            timestamp: drifted && legacyFirst ? later : Self.timestampA,
             usage: [1000, 200, 100, 40],
-            total: [1000, 200, 100, 40])
+            total: drifted ? [3000, 600, 300, 120] : [1000, 200, 100, 40])
+        let mirror = Self.legacy(
+            timestamp: drifted && !legacyFirst ? later : Self.timestampA,
+            usage: [1000, 200, 100, 40],
+            total: drifted ? [1500, 300, 150, 60] : [1000, 200, 100, 40])
         let file = try env.writeCodexSessionFile(
             day: start,
             filename: "synthetic-ledger.jsonl",
@@ -114,6 +125,7 @@ struct CostUsageCodexRequestLedgerTests {
         #expect(resumed.sessionTokens == 132)
         let saved = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
         #expect(saved.files.allSatisfy { $0.scanState.isComplete == true })
+        #expect(saved.usageRows.count == 3)
         let stable = try await fetch(end.addingTimeInterval(120))
         #expect(stable.daily == resumed.daily)
         let reopened = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
@@ -639,7 +651,9 @@ struct CostUsageCodexRequestLedgerTests {
             provider: .codex, since: day, until: day, now: day, options: options)
         #expect(report.summary?.totalTokens == 110)
         let cache = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
-        #expect(cache.files.values.flatMap { $0.codexRows ?? [] }.compactMap(\.responseID) == ["partial"])
+        let rows: [CostUsageScanner.CodexUsageRow] = cache.files.values.flatMap { $0.codexRows ?? [] }
+        let responseIDs: [String] = rows.compactMap(\CostUsageScanner.CodexUsageRow.responseID)
+        #expect(responseIDs == ["partial"])
     }
 
     private static func partialLegacy(lastOnly: Bool) throws -> [String: Any] {
@@ -652,7 +666,7 @@ struct CostUsageCodexRequestLedgerTests {
         return row
     }
 
-    private static func parse(
+    static func parse(
         _ lines: [[String: Any]],
         env: CostUsageTestEnvironment,
         spacedJSON: Bool = false,
@@ -670,7 +684,7 @@ struct CostUsageCodexRequestLedgerTests {
             fileURL: file, range: .init(since: start, until: end, calendar: calendar))
     }
 
-    private static func header() -> [[String: Any]] {
+    static func header() -> [[String: Any]] {
         [
             ["type": "session_meta", "timestamp": self.timestampA, "payload": ["id": "synthetic-thread"]],
             [
@@ -681,7 +695,14 @@ struct CostUsageCodexRequestLedgerTests {
         ]
     }
 
-    private static func tokens(_ values: [Int]) -> [String: Int] {
+    static func timestamp(_ base: String, plusMilliseconds milliseconds: Int) throws -> String {
+        let formatter = ISO8601DateFormatter()
+        let date = try #require(formatter.date(from: base)).addingTimeInterval(Double(milliseconds) / 1000)
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+
+    static func tokens(_ values: [Int]) -> [String: Int] {
         [
             "input_tokens": values[0],
             "cached_input_tokens": values[1],
@@ -690,7 +711,7 @@ struct CostUsageCodexRequestLedgerTests {
         ]
     }
 
-    private static func record(
+    static func record(
         id: String,
         owner: String = "synthetic-thread",
         timestamp: String = timestampA,
@@ -705,7 +726,7 @@ struct CostUsageCodexRequestLedgerTests {
         ]]
     }
 
-    private static func legacy(timestamp: String, usage: [Int], total: [Int]) -> [String: Any] {
+    static func legacy(timestamp: String, usage: [Int], total: [Int]) -> [String: Any] {
         ["type": "event_msg", "timestamp": timestamp, "payload": [
             "type": "token_count", "turn_id": "synthetic-turn", "info": [
                 "last_token_usage": self.tokens(usage), "total_token_usage": self.tokens(total),

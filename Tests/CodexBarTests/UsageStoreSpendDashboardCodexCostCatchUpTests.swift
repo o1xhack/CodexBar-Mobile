@@ -339,6 +339,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
         store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts, preferredMode: .accelerated)
         store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts, preferredMode: .automatic)
+        await store.spendDashboardCodexCostCatchUpTask?.value
 
         try #require(store.spendDashboardCodexCostCatchUpTask == nil)
         #expect(store.spendDashboardCodexCostCatchUpActivity == pausedActivity)
@@ -853,5 +854,66 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
             try? await Task.sleep(nanoseconds: 1_000_000)
         }
         Issue.record("Timed out waiting for Spend Dashboard Codex cost catch-up")
+    }
+}
+
+extension UsageStoreSpendDashboardCodexCostCatchUpTests {
+    @Test
+    func `a confirmed complete cache clears a no-progress card without scanning`() async throws {
+        let store = try Self.makeStore(suite: "confirmed-completion")
+        defer { store.cancelSpendDashboardCodexCostCatchUp() }
+        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
+        var advanceCount = 0
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            Self.status(pending: true, key: "unchanged", processedBytes: 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount += 1
+            return Self.status(pending: true, key: "unchanged", processedBytes: 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .accelerated)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.pauseReason == .noProgress)
+
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            .init(pending: false, progressKey: "complete", completionIsConfirmed: true)
+        }
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
+        await store.spendDashboardCodexCostCatchUpTask?.value
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
+        #expect(store.spendDashboardCodexCostCatchUpTask == nil)
+        #expect(advanceCount == 1)
+    }
+
+    @Test
+    func `a zero-attempt time deferral receives one throttled fresh budget`() async throws {
+        let store = try Self.makeStore(suite: "time-deferral-recovery")
+        defer { store.cancelSpendDashboardCodexCostCatchUp() }
+        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
+        var advances = 0
+        var sleeps: [TimeInterval] = []
+        store._test_spendDashboardCodexCostCatchUpActiveDuration = 1.999
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            Self.status(pending: true, key: "initial", processedBytes: 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            advances += 1
+            return .init(
+                pending: advances < 3,
+                progressKey: advances < 3 ? "advanced" : "complete",
+                yieldedBeforeFileAttempt: advances == 2)
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { delay in
+            sleeps.append(delay)
+            await Task.yield()
+        }
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(advances == 3)
+        #expect(sleeps.contains { $0 > 0 })
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
     }
 }

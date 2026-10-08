@@ -10,6 +10,53 @@ import XCTest
 ///   CODEXBAR_SPEND_PROOF_DIR=.github/pr-proof swift test --filter SpendDashboardScreenshotRenderTests
 @MainActor
 final class SpendDashboardScreenshotRenderTests: XCTestCase {
+    func test_renderPartialRequestLedger() throws {
+        guard let path = ProcessInfo.processInfo.environment["CODEXBAR_REQUEST_LEDGER_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_REQUEST_LEDGER_PROOF_DIR for synthetic request ledger proof")
+        }
+        let output = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        let now = try XCTUnwrap(Self.gmtCalendar.date(from: DateComponents(year: 2026, month: 7, day: 16)))
+        for scenario in ["mixed", "unknown", "partial-cost"] {
+            let counted = scenario == "mixed"
+            let inputs = [UsageProvider.claude, .codex].enumerated().map { index, provider in
+                let entry = CostUsageDailyReport.Entry(
+                    date: "2026-07-16",
+                    inputTokens: 10,
+                    outputTokens: 0,
+                    totalTokens: 10,
+                    requestCount: counted && index == 0 ? 2 : nil,
+                    costUSD: 1,
+                    modelsUsed: ["fixture-model"],
+                    modelBreakdowns: [.init(modelName: "fixture-model", costUSD: 1, totalTokens: 10)],
+                    unpricedRequestCount: scenario == "partial-cost" && index == 1 ? 1 : nil,
+                    pricedRequestCount: scenario == "partial-cost" && index == 1 ? 2 : nil)
+                return SpendDashboardModel.ProviderInput(
+                    provider: provider,
+                    displayName: index == 0 ? "Synthetic Claude" : "Synthetic Codex",
+                    snapshot: CostUsageTokenSnapshot(
+                        sessionTokens: 10,
+                        sessionCostUSD: 1,
+                        last30DaysTokens: 10,
+                        last30DaysCostUSD: 1,
+                        historyDays: 1,
+                        daily: [entry],
+                        updatedAt: now))
+            }
+            let model = SpendDashboardModel.build(
+                inputs: inputs, requestedDays: 1, now: now, calendar: Self.gmtCalendar)
+            let group = try XCTUnwrap(model.groups.first)
+            let view = AnyView(SpendDashboardCurrencySection(group: group, requestedDays: 1, hidePersonalInfo: true)
+                .padding(24)
+                .frame(width: 820)
+                .environment(\.locale, Locale(identifier: "en_US_POSIX"))
+                .environment(\.colorScheme, .light)
+                .background(Color.white))
+            let data = try XCTUnwrap(Self.pngData(for: view))
+            try data.write(to: output.appendingPathComponent("\(scenario).png"))
+        }
+    }
+
     func test_renderIndependentChatScreenshots() throws {
         guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_SPEND_CHAT_PROOF_DIR"] else {
             throw XCTSkip("Set CODEXBAR_SPEND_CHAT_PROOF_DIR for synthetic independent-chat screenshots.")
@@ -51,6 +98,125 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
                 hidePersonalInfo: variant == "privacy")
             let data = try XCTUnwrap(Self.pngData(for: AnyView(view)))
             try data.write(to: directory.appendingPathComponent("\(variant).png"))
+        }
+    }
+
+    func test_renderBrandIconScreenshots() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_BRAND_ICON_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_BRAND_ICON_PROOF_DIR to render synthetic brand icon proof.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let now = try XCTUnwrap(Self.gmtCalendar.date(from: DateComponents(year: 2026, month: 9, day: 30)))
+        let providers: [UsageProvider] = [.claude, .codex, .cursor, .antigravity, .mistral, .muse, .bedrock, .vertexai]
+        let inputs = providers.map { provider in
+            SpendDashboardModel.ProviderInput(
+                provider: provider,
+                displayName: ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName,
+                snapshot: Self.snapshot(
+                    entries: [Self.entry(day: "2026-09-30", cost: 1.25, tokens: 42000, model: "example-test-model")],
+                    historyDays: 30,
+                    now: now))
+        }
+        let model = SpendDashboardModel.build(
+            inputs: inputs, requestedDays: 30, now: now, calendar: Self.gmtCalendar)
+        let group = try XCTUnwrap(model.groups.first)
+        for dark in [false, true] {
+            let view = AnyView(SpendProviderBreakdownRows(group: group)
+                .padding(24)
+                .frame(width: 760)
+                .environment(\.colorScheme, dark ? .dark : .light)
+                .environment(\.locale, Locale(identifier: "en_US_POSIX"))
+                .tint(.purple)
+                .background(dark ? Color(red: 0.12, green: 0.12, blue: 0.12) : .white))
+            let data = try XCTUnwrap(Self.pngData(for: view, appearance: dark ? .darkAqua : .aqua))
+            try data
+                .write(to: directory.appendingPathComponent(dark ? "brand-icons-dark.png" : "brand-icons-light.png"))
+        }
+    }
+
+    func test_renderProviderDetailPolishScreenshots() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_BRAND_ICON_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_BRAND_ICON_PROOF_DIR to render synthetic provider detail proof.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let day = "2026-09-30"
+        let now = try XCTUnwrap(Self.gmtCalendar.date(from: DateComponents(year: 2026, month: 9, day: 30)))
+        let unassigned = CostUsageDailyReport.Entry(
+            date: day,
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 12000,
+            costUSD: 0.9,
+            modelsUsed: nil,
+            modelBreakdowns: nil)
+        let cursor = SpendDashboardModel.ProviderInput(
+            provider: .cursor,
+            displayName: "Cursor",
+            snapshot: Self.snapshot(
+                entries: [
+                    Self.entry(day: day, cost: 12.5, tokens: 1_250_000, model: "claude-sonnet-4"),
+                    Self.entry(day: day, cost: 6.75, tokens: 420_000, model: "gpt-4.1"),
+                    Self.entry(
+                        day: day,
+                        cost: 0.5,
+                        tokens: 10000,
+                        model: "example-custom-route-with-a-long-model-name-for-width-proof"),
+                ],
+                historyDays: 30,
+                now: now))
+        let personal = SpendDashboardModel.ProviderInput(
+            id: "personal",
+            provider: .codex,
+            displayName: "Personal",
+            snapshot: Self.snapshot(
+                entries: [Self.entry(day: day, cost: 4.25, tokens: 200_000, model: "gpt-4.1"), unassigned],
+                historyDays: 30,
+                now: now))
+        let openCodex = SpendDashboardModel.ProviderInput(
+            id: SpendDashboardModel.openCodexSourceID,
+            provider: .codex,
+            displayName: "OpenCodex",
+            snapshot: Self.snapshot(
+                entries: [Self.entry(day: day, cost: 1.75, tokens: 90000, model: "example-test-model")],
+                historyDays: 30,
+                now: now),
+            sourceKind: .openCodex)
+        let claude = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(
+                entries: [Self.entry(day: day, cost: nil, tokens: 75000, model: "claude-sonnet-4")],
+                historyDays: 30,
+                now: now))
+        let mistral = SpendDashboardModel.ProviderInput(
+            provider: .mistral,
+            displayName: "Mistral",
+            snapshot: Self.snapshot(entries: [unassigned], historyDays: 30, now: now))
+        let model = SpendDashboardModel.build(
+            inputs: [cursor, personal, openCodex, claude, mistral],
+            requestedDays: 30,
+            now: now,
+            calendar: Self.gmtCalendar)
+        let group = try XCTUnwrap(model.groups.first)
+        let breakdowns = spendDashboardProviderBreakdowns(group)
+        XCTAssertEqual(breakdowns.first { $0.provider == .cursor }?.models.count, 3)
+        XCTAssertTrue(try XCTUnwrap(breakdowns.first { $0.provider == .codex }).hasPartialModelHistory)
+        XCTAssertNil(try XCTUnwrap(breakdowns.first { $0.provider == .claude }).models.first?.totalCost)
+        for width: CGFloat in [760, 420] {
+            for dark in [false, true] {
+                let view = AnyView(SpendProviderBreakdownRows(group: group)
+                    .padding(24)
+                    .frame(width: width)
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                    .environment(\.locale, Locale(identifier: "en_US_POSIX"))
+                    .tint(.purple)
+                    .background(dark ? Color(red: 0.12, green: 0.12, blue: 0.12) : .white))
+                let data = try XCTUnwrap(Self.pngData(for: view, appearance: dark ? .darkAqua : .aqua))
+                let name = "provider-details-\(width == 420 ? "narrow-" : "")\(dark ? "dark" : "light").png"
+                try data.write(to: directory.appendingPathComponent(name))
+            }
         }
     }
 
@@ -461,9 +627,9 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private static func pngData(for view: AnyView) -> Data? {
+    private static func pngData(for view: AnyView, appearance: NSAppearance.Name = .aqua) -> Data? {
         let hosting = NSHostingView(rootView: view)
-        hosting.appearance = NSAppearance(named: .aqua)
+        hosting.appearance = NSAppearance(named: appearance)
         let size = hosting.fittingSize
         guard size.width > 0, size.height > 0 else { return nil }
         hosting.frame = CGRect(origin: .zero, size: size)
@@ -473,7 +639,7 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
             styleMask: [.borderless],
             backing: .buffered,
             defer: false)
-        window.appearance = NSAppearance(named: .aqua)
+        window.appearance = NSAppearance(named: appearance)
         window.contentView = hosting
         window.layoutIfNeeded()
         hosting.layoutSubtreeIfNeeded()

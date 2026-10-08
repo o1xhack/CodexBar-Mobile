@@ -2,6 +2,22 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func codexAccountsHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar codex-accounts list [--json] [--pretty]
+          codexbar codex-accounts promote <exact-uuid-or-email> [--json] [--pretty]
+
+        Description:
+          macOS only. List CodexBar managed accounts without credential contents.
+          Promote explicitly replaces system Codex authentication after preserving its account.
+          Ambiguous emails require an exact UUID. Concurrent account changes fail without overwriting.
+          Existing Codex processes may retain their current account; restart them to use the promoted account.
+        """
+    }
+
     static func pluginsHelp(version: String) -> String {
         """
         CodexBar \(version)
@@ -275,6 +291,8 @@ extension CodexBarCLI {
           codexbar config providers [--format text|json] [--json] [--json-only] [--pretty]
           codexbar config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           codexbar config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
+          codexbar config set-source --provider <name> --source auto|web|cli|oauth|api
+                                   [--format text|json] [--json] [--json-only] [--pretty]
           codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)
                                     [--label <label>] [--usage-scope team]
                                     [--organization-id <org>] [--workspace-id <project>]
@@ -289,6 +307,7 @@ extension CodexBarCLI {
           Export writes JSON to stdout unless --file is supplied. --defaults-domain selects an alternate app domain.
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
+          set-source stores a supported data source without changing provider enablement; auto clears the override.
           set-api-key stores a provider API key in the resolved config file and enables that provider by default.
           For z.ai team usage, add --usage-scope team with BigModel organization and project IDs; this stores
           the key as a token account instead of a provider-level personal key.
@@ -299,6 +318,7 @@ extension CodexBarCLI {
           codexbar config providers
           codexbar config enable --provider grok
           codexbar config disable --provider cursor
+          codexbar config set-source --provider claude --source cli
           printf '%s' "$ELEVENLABS_API_KEY" | codexbar config set-api-key --provider elevenlabs --stdin
           printf '%s' "$Z_AI_API_KEY" | codexbar config set-api-key --provider zai --stdin \\
             --label Team --usage-scope team --organization-id org_... --workspace-id proj_...
@@ -424,7 +444,7 @@ extension CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar guard --provider \(ProviderHelp.list)
+          codexbar guard --provider \(ProviderHelp.concreteList)
                         [--min-remaining <percent>] [--window session|weekly]
                         [--timeout <seconds>] [--json] [--pretty] [--fail-open]
                         [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -479,6 +499,7 @@ extension CodexBarCLI {
                        [--period month-to-date|all] [--days <days>] [--group-by project|session]
           codexbar sessions [--json|--json-v2] [--pretty]
           codexbar sessions focus <id>
+          codexbar codex-accounts <list|promote> [--json] [--pretty]
           codexbar dashboard [--pretty] [--timeout <seconds>] [--output <path>]
           codexbar serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
@@ -492,6 +513,7 @@ extension CodexBarCLI {
                                         [--pretty]
           codexbar config enable --provider <name>
           codexbar config disable --provider <name>
+          codexbar config set-source --provider <name> --source auto|web|cli|oauth|api
           codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)
           codexbar config set-api-key --provider zai --stdin --usage-scope team
                                    --organization-id <org> --workspace-id <project>

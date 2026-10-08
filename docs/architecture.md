@@ -43,6 +43,10 @@ read_when:
 ## Concurrency & platform
 - Swift 6 strict concurrency enabled; prefer Sendable state and explicit MainActor hops.
 - macOS 14+ targeting; avoid deprecated APIs when refactoring.
+- Cost stores share one utility serial executor per canonical database location, including symlinked cache roots and
+  database files. Separate database operations do not share SQLite lock waits. Executors are weakly registered and
+  released with their last store or queued job. Normal app fetches still use the separate serial scan queue;
+  WAL transactions are unchanged.
 
 ## Shared policy ownership
 - `ProviderCatalog` indexes the immutable generated list of app implementations. JavaScript plugins use their own
@@ -103,6 +107,8 @@ read_when:
   session lifecycle remain provider-specific.
 - Codex's persistent and one-shot PTY readers share `CodexStatusMarkers`, including the marker lengths used for
   bounded overlap. Cursor-query handling remains part of each terminal loop.
+- `TTYCommandRunner` reports the captured POSIX error number and description when PTY allocation fails, so
+  descriptor exhaustion can be distinguished from other terminal allocation failures.
 - `UsageSnapshot.withAccountLabel` applies token-account fallback labels for the app and CLI while preserving the
   provider's account ID and other identity fields. Codex visible-account labels keep their surface-specific policy.
 - Raw Chromium local-storage consumers share `ChromiumLocalStorageDiscovery`, retaining their own browser lists and

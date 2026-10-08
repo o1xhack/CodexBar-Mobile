@@ -660,12 +660,20 @@ struct CostUsageStoreReadWorkTests {
         defer { fixture.remove() }
         let status = await CostUsageFetcher(scannerOptions: fixture.options).codexScanCatchUpStatus()
         fixture.expectStatus(status)
+        let confirmed = await CostUsageFetcher(scannerOptions: fixture.options)
+            .codexScanCatchUpStatus(historyDays: 1, now: fixture.now)
+        #expect(confirmed.completionIsConfirmed == !incomplete)
+        let tooWide = await CostUsageFetcher(scannerOptions: fixture.options)
+            .codexScanCatchUpStatus(historyDays: 365, now: fixture.now)
+        #expect(!tooWide.completionIsConfirmed)
         try await fixture.expectSnapshot(fixture.cachedSnapshot())
 
         var otherScope = fixture.options
         otherScope.codexSessionsRoot = fixture.env.root.appendingPathComponent("other-home/sessions")
         let rejected = await CostUsageFetcher(scannerOptions: otherScope).codexScanCatchUpStatus()
         #expect(rejected == .init(pending: false, progressKey: "scope-mismatch"))
+        #expect(!rejected.completionIsConfirmed)
+        #expect(!rejected.historyCoverageIsEstablished)
         #expect(await fixture.cachedSnapshot(options: otherScope) == nil)
         #expect(await fixture.cachedSnapshot(historyDays: 365) == nil)
 

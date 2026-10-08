@@ -1572,6 +1572,8 @@
 "∞ Unlimited" = "∞ ไม่จำกัด";
 "Cumulative" = "สะสม";
 "Token activity" = "กิจกรรมโทเทน";
+"Earlier activity" = "กิจกรรมก่อนหน้า";
+"More recent activity" = "กิจกรรมล่าสุด";
 "View" = "มุมมอง";
 "in the last year" = "ในปีที่ผ่านมา";
 "No activity in the last 12 months" = "ไม่มีกิจกรรมในช่วง 12 เดือนที่ผ่านมา";
@@ -1713,6 +1715,11 @@
 "account_widgets_title" = "อัปเดตบัญชีสำหรับวิดเจ็ต";
 "account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";
 
+/* Spend time zone */
+"Statistics time zone" = "เขตเวลาสำหรับสถิติ";
+"Use Mac's current time zone" = "ใช้เขตเวลาปัจจุบันของ Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "การใช้งานรายวันจะจัดกลุ่มตามเขตเวลาที่กำหนดไว้ การเปลี่ยนเขตเวลาอาจย้ายการใช้งานไปอยู่ในวันอื่น";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "การใช้งานในเครื่อง × ราคา API สาธารณะ · ไม่ใช่ค่าบริการหรือเครดิตของ Antigravity";
 "antigravity_quota_window_note" = "ค่าใช้จ่ายของหน้าต่างครอบคลุมทุกโมเดล · หน้าต่างที่แสดงคือกลุ่มที่จำกัดมากที่สุด";
@@ -1734,3 +1741,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "เบราว์เซอร์ที่รองรับ: %@ ใช้โหมดกำหนดเองสำหรับเบราว์เซอร์อื่น";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "วางส่วนหัว Cookie จากคำขอของ Chrome ไปยัง www.workbuddy.cn/profile/plans-usage";
 "Reserved" = "สำรองไว้";
+
+/* Selected browser profile */
+"Browser profile" = "โปรไฟล์เบราว์เซอร์";
+"Unavailable profile: %@" = "โปรไฟล์ไม่พร้อมใช้งาน: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "อ่านเฉพาะโปรไฟล์ %@ ที่เลือกเท่านั้น ระบบจะไม่เลือกบัญชีโดยอัตโนมัติ";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "ค่าใช้จ่ายที่บันทึกไว้";
+"Highest recorded spend" = "ค่าใช้จ่ายที่บันทึกไว้สูงสุด";
+"Previous day" = "วันก่อนหน้า";
+"Next day" = "วันถัดไป";
+"Click to isolate a source. Click again to show all." = "คลิกเพื่อดูแหล่งเดียว คลิกอีกครั้งเพื่อดูทั้งหมด";
+"Recorded hourly spend" = "ค่าใช้จ่ายรายชั่วโมงที่บันทึกไว้";
+"Highest spend" = "ค่าใช้จ่ายสูงสุด";
+"Models for this day" = "โมเดลของวันนี้";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "คลิกแท่งกราฟเพื่อดูรายละเอียด ใช้เมนูด้านล่างเพื่อดูจำนวนเงินที่แน่นอน";

@@ -57,7 +57,8 @@ function rows(text, showIdentity) {
             var label = (copy && displayText(copy.title, false).trim()) ||
                 cadenceLabel(window.windowMinutes) || safeLabel || ["Session", "Weekly", "Additional"][index];
             windows.push({key: copy ? "extra:" + copy.id : key, label: label, remaining: left,
-                resetsAt: window.resetsAt || "", pace: entry.pace && entry.pace[key] ? String(entry.pace[key].summary || "") : ""});
+                resetsAt: window.resetsAt || "", pace: entry.pace && entry.pace[key] ? String(entry.pace[key].summary || "") : "",
+                paceExpected: entry.pace && entry.pace[key] ? number(entry.pace[key].expectedUsedPercent) : null});
         });
         // Extras come last: a consumer resolving a cadence by first match must still find the
         // provider's general window rather than a lane scoped to one model.
@@ -69,15 +70,15 @@ function rows(text, showIdentity) {
             var label = displayText(extra.title, false).trim() ||
                 cadenceLabel(scopedWindow.windowMinutes) || "Additional";
             windows.push({key: "extra:" + extra.id, label: label,
-                remaining: remaining(scopedWindow), resetsAt: scopedWindow.resetsAt || "", pace: ""});
+                remaining: remaining(scopedWindow), resetsAt: scopedWindow.resetsAt || "", pace: "", paceExpected: null});
         });
         return {
             provider: entry.provider,
             failed: !!entry.error,
             accountLabel: showIdentity ? String(identity.accountEmail || usage.accountEmail || "") : "",
             accountNumber: entryIndex + 1,
-            plan: String(identity.loginMethod || usage.loginMethod || ""),
-            status: entry.status ? String(entry.status.description || entry.status.indicator || "Unknown") : "",
+            plan: displayText(identity.loginMethod || usage.loginMethod, false),
+            status: entry.status ? displayText(entry.status.description || entry.status.indicator || "Unknown", false) : "",
             statusLevel: entry.status ? String(entry.status.indicator || "unknown") : "unknown",
             details: Array.isArray(usage.details) ? usage.details.slice(0, 8).map(function(section) {
                 return {title: String(section.title || ""), rows: (section.rows || []).slice(0, 24).map(function(row) {
@@ -89,6 +90,8 @@ function rows(text, showIdentity) {
             windows: windows,
             updatedAt: usage.updatedAt || "",
             credits: entry.credits && typeof entry.credits.remaining === "number" ? entry.credits.remaining : null,
+            extraUsage: providerCost(usage.providerCost),
+            resetCredits: resetCredits(entry.resetCredits),
             error: entry.error ? "Usage unavailable. Check this provider’s CodexBar login/configuration." :
                 windows.length ? "" : "No quota windows reported."
         };
@@ -123,6 +126,20 @@ function chart(value) {
     }).map(function(point) { return {label: String(point.label || ""), value: point.value}; });
     return {title: String(value.title || ""), unit: String(value.unit || ""),
         kind: value.kind === "line" ? "line" : "bars", points: points};
+}
+
+// Project the shared CLI inventory summary without copying credit identifiers or expiry policy.
+function resetCredits(value) {
+    if (!value || number(value.available) === null) return null;
+    return {available: value.available, nextExpiresAt: value.nextExpiresAt || ""};
+}
+
+// Extra usage or prepaid balance reported beside quota windows; amounts only, no identity.
+function providerCost(value) {
+    if (!value || typeof value !== "object") return null;
+    var result = {period: displayText(value.period, false).trim(), currency: displayText(value.currencyCode, false).trim(),
+        used: number(value.used), limit: number(value.limit), balance: number(value.balance)};
+    return result.used === null && result.limit === null && result.balance === null ? null : result;
 }
 
 function number(value) { return typeof value === "number" && isFinite(value) ? value : null; }

@@ -106,6 +106,10 @@ UI and settings should become descriptor-driven:
 - no provider-specific branching for labels/links/toggle titles
 - minimal provider-specific UI (only when a provider truly needs bespoke UX)
 
+For detail-backed balances, set `presentation.menuBarBalanceDetailLabels` to the provider's ordered row labels.
+The shared menu bar resolver uses the first reported row for Balance elements and, when no quota window exists,
+automatic text. Keep real percentage windows intact; do not fabricate a quota for a credits-only account.
+
 ## Fetch strategies
 
 A provider declares a pipeline of strategies, in priority order. Each strategy:

@@ -50,6 +50,7 @@ Local cost scanners preserve that scope when selecting a catalog:
 - OpenAI's [Daybreak aliases](https://developers.openai.com/api/docs/pricing) resolve like the unsuffixed `gpt-5.6` alias: `gpt-daybreak-blue-latest` prices as `gpt-5.6-sol` and `gpt-daybreak-red-latest` as `gpt-5.6-cyber`. Native usage rows retain raw model evidence; Codex aggregate model IDs follow the canonicalizer.
 - Antigravity's Gemini 3.1 Pro aliases (`gemini-pro-default`, `gemini-pro-agent`, and the `gemini-3.1-pro` effort tiers) price as `gemini-3.1-pro-preview`, the only catalogued Gemini 3.1 Pro row. The alias is provider-local; recorded model names stay unchanged.
 - Antigravity's safety-routed alias `gemini-3.7-flash-safety-le` prices as `gemini-3.7-flash`: the usage record's model enum ID matches ordinary `gemini-3.7-flash` turns. The alias is provider-local; the recorded model name stays unchanged.
+- Antigravity's exact recorded `gpt-oss-120b-medium` name falls back to `google-vertex` / `openai/gpt-oss-120b-maas` after existing model lookups. [Google's Vertex list price](https://cloud.google.com/vertex-ai/generative-ai/pricing) is $0.09 input and $0.36 output per million tokens (verified October 5, 2026); CodexBar reads the rates from [models.dev's catalog entry](https://github.com/anomalyco/models.dev/blob/8ce27fe1f811a0f63100826e9a7965af0afd96d9/providers/google-vertex/models/openai/gpt-oss-120b-maas.toml). Missing cache rates use the input rate, as in the existing Claude resolver. Unknown-price refresh includes this exact entry; other effort suffixes and reseller prices are not inferred. The displayed name stays unchanged, and dollars remain public API estimates rather than Antigravity charges.
 - Vertex AI Claude logs: models.dev provider id `google-vertex-anthropic`
 
 Dated Codex usage retains the prior bundled GPT-5.6 Sol rates before **2026-08-21 UTC**, the repricing date in the
@@ -89,7 +90,21 @@ models.dev publishes costs as USD per 1M tokens. CodexBar converts those to USD 
 perToken = modelsDevCost / 1_000_000
 ```
 
-When models.dev includes `cost.context_over_200k`, CodexBar parses those values as the above-200k-token pricing lane and converts them with the same per-1M-token rule.
+When models.dev includes `cost.context_over_200k`, CodexBar converts those rates with the same per-1M-token rule.
+The legacy field name does not establish the threshold: a matching `cost.tiers` entry with `tier.type = "context"`
+supplies its explicit `tier.size`. Only the tier matching the legacy lane's rates is used; this does not add
+arbitrary multi-tier pricing. Older catalogs without that metadata use the bundled OpenAI model threshold,
+or 200,000 tokens when no provider-specific contract is known. Other providers never inherit OpenAI thresholds.
+
+OpenAI's [pricing table](https://developers.openai.com/api/docs/pricing) defines short context as **at most 272,000
+input tokens**, and long context as **more than 272,000**, including cached input. This applies to GPT-6 Astra,
+GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna, GPT-5.6 Sol/Terra/Luna, GPT-5.4/5.5, and their Pro variants where listed.
+The bundled table preserves that boundary for old catalogs, including the GPT-5.6 and Daybreak Blue aliases.
+For example, GPT-6.1 Sol with 210,000 input tokens (200,000 cached) and 1,000 output tokens costs **$0.050** at
+Standard rates. At 272,001 input tokens the full request uses long-context rates, not just the excess tokens.
+Catalog thresholds and bundled rates participate in the native Codex pricing fingerprint, so affected cached
+estimates are repriced. Existing native rows and scan checkpoints remain compatible; recorded authoritative costs
+and explicit custom-pricing overrides retain their existing precedence.
 
 ## Custom pricing overlay
 

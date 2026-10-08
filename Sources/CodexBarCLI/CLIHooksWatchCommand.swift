@@ -332,7 +332,7 @@ extension CodexBarCLI {
         return parsed
     }
 
-    /// Validates explicit `--provider` names without consulting the config.
+    /// Validates explicit `--provider` names and `both`/`all` selections without consulting the config.
     ///
     /// Returns nil when no `--provider` was given, meaning the caller should fall
     /// back to the configured enabled providers. Kept config-free so argument errors
@@ -346,10 +346,10 @@ extension CodexBarCLI {
 
         var selected: [UsageProvider] = []
         for name in raw {
-            guard let provider = ProviderDescriptorRegistry.cliNameMap[name.lowercased()] else {
+            guard let selection = ProviderSelection(argument: name) else {
                 return .failure(CLIArgumentError("Unknown provider: \(name)"))
             }
-            if !selected.contains(provider) {
+            for provider in selection.asList where !selected.contains(provider) {
                 selected.append(provider)
             }
         }

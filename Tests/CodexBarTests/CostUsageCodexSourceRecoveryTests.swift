@@ -526,12 +526,16 @@ struct CostUsageCodexSourceRecoveryTests {
         options.refreshMinIntervalSeconds = 3600
         let refreshed = Self.report(day: day, options: options, elapsed: 1)
         #expect(refreshed.summary?.totalTokens == 600_000)
-        #expect(refreshed.summary?.totalCostUSD == nil)
         let slice = try #require(refreshed.quotaSlices.first)
         #expect(slice.totalTokens == 600_000)
         #expect(slice.tokensAreComplete)
         #expect((slice.costUSD ?? 0) > 0)
         #expect(!slice.costIsComplete)
+        // The recovered request keeps its estimate; the two without retained pricing stay unknown.
+        let pricedSubtotal = try #require(slice.costUSD)
+        #expect(abs((refreshed.summary?.totalCostUSD ?? -1) - pricedSubtotal) < 1e-9)
+        #expect(refreshed.data.first?.unpricedRequestCount == 2)
+        #expect(refreshed.data.first?.pricedRequestCount == 1)
         let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
         let rows = try #require(reopened.files[file.path]?.codexRows)
         #expect(rows.map(\.input) == [100_000, 200_000, 300_000])
@@ -539,7 +543,7 @@ struct CostUsageCodexSourceRecoveryTests {
         #expect(reopened.files[file.path]?.days == canonical.files[file.path]?.days)
         #expect(reopened.codexScanCatchUpPending != true)
         let reopenedReport = Self.cachedReport(cache: reopened, day: day)
-        #expect(reopenedReport.summary?.totalCostUSD == nil)
+        #expect(abs((reopenedReport.summary?.totalCostUSD ?? -1) - pricedSubtotal) < 1e-9)
         #expect(reopenedReport.quotaSlices == refreshed.quotaSlices)
 
         let recorder = CostUsageScanner.CodexScanWorkRecorder()
@@ -547,7 +551,7 @@ struct CostUsageCodexSourceRecoveryTests {
         options.refreshMinIntervalSeconds = 0
         let repeated = Self.report(day: day, options: options, elapsed: 2)
         #expect(repeated.summary?.totalTokens == 600_000)
-        #expect(repeated.summary?.totalCostUSD == nil)
+        #expect(abs((repeated.summary?.totalCostUSD ?? -1) - pricedSubtotal) < 1e-9)
         #expect(repeated.quotaSlices == refreshed.quotaSlices)
         #expect(recorder.snapshot().usageRowsProcessed == 0)
         #expect(recorder.snapshot().usageRowsRepriced == 0)
@@ -635,14 +639,15 @@ struct CostUsageCodexSourceRecoveryTests {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 9, day: 10)
-        let lines = try Self.sourceLines(inputs: [200_000, 200_000, 200_000], day: day, env: env)
+        let lines = try Self.sourceLines(
+            inputs: [200_000, 200_000, 200_000], day: day, env: env, serviceTier: "default")
         let file = try env.writeCodexSessionFile(
             day: day,
             filename: "revision-upgrade-priority.jsonl",
             contents: lines.joined(separator: "\n") + "\n")
         var options = Self.options(env: env)
         if partialBeforeUpgrade {
-            options.maxCodexSessionFileBytes = Int64((lines.prefix(4).joined(separator: "\n") + "\n").utf8.count)
+            options.maxCodexSessionFileBytes = Int64((lines.prefix(5).joined(separator: "\n") + "\n").utf8.count)
         }
         let original = Self.report(day: day, options: options)
         #expect(original.summary?.totalTokens == (partialBeforeUpgrade ? 200_000 : 600_000))
@@ -780,7 +785,8 @@ struct CostUsageCodexSourceRecoveryTests {
         inputs: [Int],
         day: Date,
         env: CostUsageTestEnvironment,
-        sessionID: String = "synthetic-recovery-session") throws -> [String]
+        sessionID: String = "synthetic-recovery-session",
+        serviceTier: String? = nil) throws -> [String]
     {
         let timestamp = env.isoString(for: day)
         var records: [[String: Any]] = [
@@ -791,6 +797,12 @@ struct CostUsageCodexSourceRecoveryTests {
                 "payload": ["type": "task_started", "turn_id": "synthetic-shared-turn"],
             ],
         ]
+        if let serviceTier {
+            records.insert([
+                "type": "event_msg", "timestamp": timestamp,
+                "payload": ["type": "thread_settings_applied", "thread_settings": ["service_tier": serviceTier]],
+            ], at: 2)
+        }
         for input in inputs {
             records.append([
                 "type": "event_msg", "timestamp": timestamp,

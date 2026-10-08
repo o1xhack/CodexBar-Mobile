@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 import ci_swift_test_by_suite as runner
-from direct_swift_test_groups import InventoryMismatch, pool_timeout, prepare_runtime, run_pool, run_worker, runtime_environment, selected_tests, xctest_inventory
+from direct_swift_test_groups import InventoryMismatch, checked, pool_timeout, prepare_runtime, run_pool, run_worker, runtime_environment, selected_tests, xctest_inventory
 
 
 class DirectSwiftTestGroupsTests(unittest.TestCase):
@@ -41,6 +41,50 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
         self.assertEqual(environment["CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS"], "1")
         self.assertNotIn("CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS", environment)
         self.assertNotIn("CODEXBAR_TEST_CODEX_FILE_FIXTURES", environment)
+
+    def test_runtime_includes_private_frameworks_after_inherited_search_paths(self):
+        with patch.dict(os.environ, {"DYLD_FRAMEWORK_PATH": "/synthetic/override"}, clear=True):
+            environment = runtime_environment(Path("/synthetic/Developer"), Path("/synthetic/home"))
+        self.assertEqual(environment["DYLD_FRAMEWORK_PATH"].split(":"), [
+            "/synthetic/override",
+            "/synthetic/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+            "/synthetic/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        ])
+
+    def test_failed_probe_names_helper_signal_and_redacts_stderr(self):
+        output = io.StringIO()
+        result = SimpleNamespace(returncode=-5, stdout="", stderr="dyld: missing framework; synthetic-secret")
+        with patch("direct_swift_test_groups.subprocess.run", return_value=result), \
+                patch("sys.stderr", output), patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(ValueError, r"swiftpm-xctest-helper.*SIGTRAP"):
+                checked(["/synthetic/swiftpm-xctest-helper"], {"API_TOKEN": "synthetic-secret"})
+        self.assertIn("dyld: missing framework", output.getvalue())
+        self.assertNotIn("synthetic-secret", output.getvalue())
+
+    def test_crash_reports_are_fresh_process_scoped_and_redacted(self):
+        from swift_test_diagnostics import print_crash_reports
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fresh = root / "swiftpm-xctest-helper-fresh.ips"
+            fresh.write_text('Termination Reason: DYLD; synthetic-secret')
+            old = root / "swiftpm-xctest-helper-old.crash"
+            old.write_text("stale report must be excluded")
+            os.utime(old, (1, 1))
+            (root / "Unrelated-fresh.ips").write_text("unrelated report must be excluded")
+            output = io.StringIO()
+            with patch("sys.stderr", output), patch.dict(os.environ, {"API_TOKEN": "synthetic-secret"}, clear=True):
+                self.assertEqual(print_crash_reports([root], 2), 1)
+            self.assertIn("Termination Reason: DYLD", output.getvalue())
+            for private in ["synthetic-secret", "stale report", "unrelated report"]:
+                self.assertNotIn(private, output.getvalue())
+
+    def test_diagnostics_redact_escaped_credentials_but_keep_nonsecret_controls(self):
+        from swift_test_diagnostics import redact
+        environment = {"API_TOKEN": 'synthetic-"secret"', "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS": "1"}
+        output = redact(json.dumps(environment) + " /Users/synthetic/Library test 1", environment)
+        self.assertNotIn("secret", output)
+        self.assertNotIn("/Users/synthetic/", output)
+        self.assertIn("test 1", output)
 
     def test_worker_shares_deadline_across_frameworks_and_uses_exact_xctest_ids(self):
         group = [{"name": "ExampleTests", "suite_name": "ExampleTests", "filter_pattern": r"^ExampleTests/"}]
@@ -75,7 +119,7 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                                  124 if 124 in codes else codes[0] or codes[1])
                 self.assertEqual(execute.call_count, 2)
 
-    def probe_runtime(self, swift_command, expected, *, different_toolchain=False):
+    def probe_runtime(self, swift_command, expected, *, different_toolchain=False, environment=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             developer = root / "Developer"
@@ -106,11 +150,13 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
                     self.assertEqual(command[:-2], swift_command)
                     return str(root / "bin")
                 if command[0].endswith("swiftpm-xctest-helper"):
+                    self.assertEqual(environment["SWIFT_TESTING_ENABLED"], "0")
                     Path(command[2]).write_text('{"tests": []}')
                     return ""
+                self.assertEqual(environment["SWIFT_TESTING_ENABLED"], "1")
                 return "ExampleTests/changed()"
             with patch("direct_swift_test_groups.sys.platform", "darwin"), \
-                    patch.dict(os.environ, {}, clear=True), \
+                    patch.dict(os.environ, environment or {}, clear=True), \
                     patch("direct_swift_test_groups.checked", side_effect=probe):
                 return prepare_runtime(swift_command, [], expected, root)
 
@@ -121,6 +167,32 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
     def test_selected_toolchain_wrapper_uses_its_build_directory(self):
         runtime = self.probe_runtime(["/synthetic/swift-native"], ["ExampleTests/changed()"])
         self.assertEqual(runtime["products"][0]["swift"], ["ExampleTests/changed()"])
+
+    def test_hosted_ci_accepts_verified_inventory(self):
+        for environment in [{"CI": "true"}, {"GITHUB_ACTIONS": "true"}]:
+            with self.subTest(environment=environment):
+                runtime = self.probe_runtime(["swift"], ["ExampleTests/changed()"], environment=environment)
+                self.assertEqual(runtime["products"][0]["swift"], ["ExampleTests/changed()"])
+
+    def test_hosted_ci_rejects_inventory_mismatch(self):
+        with self.assertRaises(InventoryMismatch):
+            self.probe_runtime(["swift"], ["ExampleTests/original()"], environment={"CI": "true"})
+
+    def test_hosted_ci_unavailable_runtime_fails_without_serial_fallback(self):
+        selection = runner.TestSelection("ExampleTests", "^ExampleTests/", "ExampleTests")
+        output = io.StringIO()
+        with patch.dict(os.environ, {"CI": "true"}), \
+                patch.object(runner.sys, "argv", ["test.sh", "--direct-workers", "2"]), \
+                patch.object(runner, "containment_support_error", return_value=None), \
+                patch.object(runner, "swift_test_list", return_value=[selection]), \
+                patch("direct_swift_test_groups.prepare_runtime", side_effect=ValueError("missing helper")), \
+                patch.object(runner, "run_group", return_value=0) as serial, \
+                patch.object(runner, "run_command") as direct, \
+                patch.object(runner, "append_github_summary"), patch("sys.stdout", output), patch("sys.stderr", output):
+            self.assertEqual(runner.main(), 2)
+        self.assertIn("Direct mode refused", output.getvalue())
+        serial.assert_not_called()
+        direct.assert_not_called()
 
     def test_duplicate_swiftpm_inventory_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "inventory differs"):
@@ -143,6 +215,44 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
         self.assertIn("inventory differs", output.getvalue())
         serial.assert_not_called()
         direct.assert_not_called()
+
+    def test_direct_and_serial_shards_keep_identical_ordered_groups(self):
+        selections = [runner.TestSelection(name, f"^{name}/", name) for name in [
+            "CodexBarTests.Alpha", "CodexBarTests.CLIEntryTests", "CodexBarTests.CostUsagePerformanceGateTests",
+            "CodexBarTests.Delta", "CodexBarTests.Epsilon", "CodexBarTests.Zeta"]]
+        for shard_count in [2, 3]:
+            for shard_index in range(shard_count):
+                serial_groups = []
+                def run_serial(group, timeout, command):
+                    serial_groups.append([runner.asdict(selection) for selection in group])
+                    return 0
+                args = ["test.sh", "--group-size", "2", "--shard-index", str(shard_index),
+                        "--shard-count", str(shard_count), "--no-retry-non-timeout-failures"]
+                with patch.object(runner, "containment_support_error", return_value=None), \
+                        patch.object(runner, "swift_test_list", return_value=selections), \
+                        patch.object(runner, "append_github_summary"), patch("sys.stdout", io.StringIO()), \
+                        patch.object(runner.sys, "argv", args), \
+                        patch.object(runner, "run_group", side_effect=run_serial):
+                    self.assertEqual(runner.main(), 0)
+                for workers in [2, 3]:
+                    with self.subTest(shard_count=shard_count, shard_index=shard_index, workers=workers):
+                        def execute(command, timeout):
+                            manifest = json.loads(Path(command[-1]).read_text())
+                            self.assertEqual(manifest["groups"], serial_groups)
+                            self.assertEqual(manifest["workers"], workers)
+                            self.assertFalse(manifest["retry_non_timeout_failures"])
+                            return 0
+                        with patch.dict(os.environ, {"CI": "true"}), \
+                                patch.object(runner, "containment_support_error", return_value=None), \
+                                patch.object(runner, "swift_test_list", return_value=selections), \
+                                patch.object(runner, "append_github_summary"), patch("sys.stdout", io.StringIO()), \
+                                patch.object(runner.sys, "argv", [*args, "--direct-workers", str(workers)]), \
+                                patch("direct_swift_test_groups.prepare_runtime", return_value={"products": [{}]}) as prepare, \
+                                patch.object(runner, "run_command", side_effect=execute), \
+                                patch.object(runner, "run_group") as serial:
+                            self.assertEqual(runner.main(), 0)
+                        self.assertEqual(prepare.call_args.args[1], serial_groups)
+                        serial.assert_not_called()
 
     def run_mock_pool(self, codes, group_size=1, retry=True, group_count=1, output=b""):
         with tempfile.TemporaryDirectory() as directory:
@@ -228,9 +338,9 @@ class DirectSwiftTestGroupsTests(unittest.TestCase):
         self.assertEqual(records[0]["isolated_retries"], 2)
         self.assertEqual(calls, 4)
 
-    def test_hosted_ci_and_non_default_toolchain_fall_back_before_probes(self):
+    def test_unsupported_platform_and_command_prefix_fall_back_before_probes(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch.dict(os.environ, {"CI": "true"}), patch("direct_swift_test_groups.checked") as probe:
+            with patch("direct_swift_test_groups.sys.platform", "linux"), patch("direct_swift_test_groups.checked") as probe:
                 with self.assertRaises(ValueError):
                     prepare_runtime(["swift"], [], [], Path(directory))
                 probe.assert_not_called()

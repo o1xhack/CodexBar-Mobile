@@ -282,6 +282,10 @@ public struct TTYCommandRunner {
     private static let log = CodexBarLog.logger(LogCategories.ttyRunner)
     private static let postExitDrainTimeout: TimeInterval = 1
 
+    @TaskLocal static var allocatePTY: @Sendable (inout Int32, inout Int32, inout winsize) -> Int32 = {
+        openpty(&$0, &$1, nil, nil, &$2)
+    }
+
     public struct Result: Sendable {
         public enum Completion: Sendable, Equatable {
             case processExited(status: Int32)
@@ -491,9 +495,11 @@ public struct TTYCommandRunner {
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
         var win = winsize(ws_row: options.rows, ws_col: options.cols, ws_xpixel: 0, ws_ypixel: 0)
-        guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
-            Self.log.warning("PTY openpty failed", metadata: ["binary": binaryName])
-            throw Error.launchFailed("openpty failed")
+        guard Self.allocatePTY(&primaryFD, &secondaryFD, &win) == 0 else {
+            let code = errno
+            let details = "openpty failed (errno \(code): \(String(cString: strerror(code))))"
+            Self.log.warning(details, metadata: ["binary": binaryName])
+            throw Error.launchFailed(details)
         }
         // Make primary side non-blocking so read loops don't hang when no data is available.
         _ = fcntl(primaryFD, F_SETFL, O_NONBLOCK)
@@ -559,16 +565,12 @@ public struct TTYCommandRunner {
             env["PWD"] = workingDirectory.path
         }
 
-        var cleanedUp = false
         var launchedProcess: SpawnedProcessGroup?
         var didExceedOutputLimit = false
         var didTerminateSynchronously = false
         /// Always tear down the PTY child (and its process group) even if we throw early
         /// while bootstrapping the CLI (e.g. when it prompts for login/telemetry).
         func cleanup() {
-            guard !cleanedUp else { return }
-            cleanedUp = true
-
             if !didExceedOutputLimit, let launchedProcess, launchedProcess.isRunning {
                 Self.log.debug("PTY stopping", metadata: ["binary": binaryName])
                 let exitData = Data("/exit\n".utf8)
@@ -746,7 +748,6 @@ public struct TTYCommandRunner {
             var lastEnter = Date()
             var stoppedEarly = false
             var urlSeen = false
-            var ptyClosed = false
             var triggeredSends = Set<Data>()
             var recentText = ""
             var lastOutputAt = Date()
@@ -807,16 +808,11 @@ public struct TTYCommandRunner {
 
             while Date() < deadline {
                 try checkCancellation()
-                let readResult = readDrainChunk()
-                let newData: Data
-                switch readResult {
+                let newData: Data = switch readDrainChunk() {
                 case let .data(data):
-                    newData = data
-                case .wouldBlock:
-                    newData = Data()
-                case .closed:
-                    ptyClosed = true
-                    newData = Data()
+                    data
+                case .wouldBlock, .closed:
+                    Data()
                 }
                 try checkOutputLimit()
                 if processNonCodexChunk(newData, allowSends: true, allowStop: true) {
@@ -837,9 +833,6 @@ public struct TTYCommandRunner {
                     lastEnter = Date()
                 }
 
-                if ptyClosed, !process.isRunning {
-                    break
-                }
                 if !process.isRunning {
                     break
                 }

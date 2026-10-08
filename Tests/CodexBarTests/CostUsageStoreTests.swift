@@ -955,11 +955,8 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test(arguments: [
-        "1bd2d8ec2fd2dcf2",
-        "834522608c1b0457",
-        "8b9bc662426a8aab",
-        "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
-        "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+        "ed735dc27ffa70d9", // Current release before session-tier evidence.
+        "99d920977063318a", // Scheduling diagnostics retain history and checkpoints.
         "029fe80aa98f27e8", // Before the shared JSON fallback.
         "c61aebb9cf043a72", // Previous request-ledger revision.
         "4a4c4ef34ce6f037", // Before request-ledger accounting.
@@ -1006,11 +1003,8 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
-            "1bd2d8ec2fd2dcf2",
-            "834522608c1b0457",
-            "8b9bc662426a8aab",
-            "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
-            "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+            "99d920977063318a",
+            "ed735dc27ffa70d9",
             "029fe80aa98f27e8",
             "c61aebb9cf043a72",
             "4a4c4ef34ce6f037",
@@ -1147,13 +1141,7 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test(arguments: [
-        "8050a4faf4fddb96",
-        "dd19ffa2dcfa8d47",
-        "1bd2d8ec2fd2dcf2",
-        "834522608c1b0457",
-        "8b9bc662426a8aab",
-    ])
+    @Test(arguments: ["8050a4faf4fddb96", "dd19ffa2dcfa8d47", "ed735dc27ffa70d9", "99d920977063318a"])
     func `retained report migration preserves compatible rows and clears stale payload`(
         predecessorHash: String) async throws
     {

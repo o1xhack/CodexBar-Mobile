@@ -1501,6 +1501,8 @@
 
 "Cumulative" = "Acumulat";
 "Token activity" = "Activitat de tokens";
+"Earlier activity" = "Activitat anterior";
+"More recent activity" = "Activitat més recent";
 "View" = "Vista";
 "in the last year" = "l'últim any";
 "No activity in the last 12 months" = "Sense activitat en els últims 12 mesos";
@@ -1637,6 +1639,11 @@
 "account_widgets_title" = "Mantén els comptes actualitzats per als ginys";
 "account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";
 
+/* Spend time zone */
+"Statistics time zone" = "Zona horària de les estadístiques";
+"Use Mac's current time zone" = "Utilitza la zona horària actual del Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "L’ús diari es calcula en una zona horària fixa. Si la canvies, part de l’ús pot passar a un altre dia.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Ús local × preus públics de l'API · no són càrrecs ni crèdits d'Antigravity";
 "antigravity_quota_window_note" = "El cost de la finestra inclou tots els models · la finestra mostrada és la família més limitada";
@@ -1733,3 +1740,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Navegadors compatibles: %@. Fes servir Manual per als altres navegadors.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Enganxeu la capçalera Cookie d’una sol·licitud de Chrome a www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Reservat";
+
+/* Selected browser profile */
+"Browser profile" = "Perfil del navegador";
+"Unavailable profile: %@" = "Perfil no disponible: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Llegeix només el perfil de %@ seleccionat. Els comptes no se seleccionen mai automàticament.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Despesa registrada";
+"Highest recorded spend" = "Despesa registrada màxima";
+"Previous day" = "Dia anterior";
+"Next day" = "Dia següent";
+"Click to isolate a source. Click again to show all." = "Fes clic per aïllar una font. Torna a fer clic per mostrar-les totes.";
+"Recorded hourly spend" = "Despesa horària registrada";
+"Highest spend" = "Despesa màxima";
+"Models for this day" = "Models per aquest dia";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Fes clic en una barra per explorar. Consulta els imports exactes al menú inferior.";

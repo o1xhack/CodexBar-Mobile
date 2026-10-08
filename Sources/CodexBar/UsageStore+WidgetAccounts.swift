@@ -9,7 +9,7 @@ extension UsageStore {
             self.widgetVerifiedTokenSnapshots = [:]
             return []
         }
-        let providers = self.enabledProviders().compactMap(\.firstPartyProvider)
+        let providers = self.enabledProviders().compactMap(\.firstPartyProvider).filter(Self.supportsWidgetUsage)
         self.widgetVerifiedTokenSnapshots = self.widgetVerifiedTokenSnapshots.filter { providers.contains($0.key) }
         return providers.flatMap { provider in
             self.widgetAccounts(for: provider, now: now)
@@ -185,7 +185,7 @@ extension UsageStore {
     }
 
     func reconcileCodexWidgetAccountSnapshots(after error: Error? = nil) {
-        guard self.settings.accountWidgetsEnabled, !self.shouldUseAmbientCodexPATForUsage() else {
+        guard !self.shouldUseAmbientCodexPATForUsage() else {
             self.codexAccountSnapshots = []
             return
         }
@@ -193,8 +193,9 @@ extension UsageStore {
             self.codexAccountSnapshots,
             reconciledWith: self.settings.codexVisibleAccountProjection)
         if let error {
+            let activeID = self.settings.codexVisibleAccountProjection.activeVisibleAccountID
             self.codexAccountSnapshots.removeAll {
-                !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: $0.snapshot != nil)
+                $0.id == activeID && !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: $0.snapshot != nil)
             }
         }
     }

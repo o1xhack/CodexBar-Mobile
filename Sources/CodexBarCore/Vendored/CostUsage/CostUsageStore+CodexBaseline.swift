@@ -124,21 +124,19 @@ extension CostUsageStore {
                 self.requiresReadReopen = true
                 return nil
             }
-            let snapshot = try? Self.inReadTransaction(database) {
-                let snapshot = try Self.readSnapshot(
-                    database,
-                    loadTokenSnapshots: loadTokenSnapshots,
-                    recorder: self.scopedReadWorkRecorderForTesting)
+            let read = try? Self.inReadTransaction(database) {
+                let read = try self.readDecodedCodexSnapshot(database, loadTokenSnapshots: loadTokenSnapshots)
                 #if DEBUG
                 try self.runCodexReadCheckpointForTesting()
                 #endif
-                return snapshot
+                return read
             }
             // data_version inside the read transaction can still describe its pinned snapshot.
             // Compare after COMMIT; never attach a newer version to the old decoded rows.
-            guard let snapshot, let after = try? self.databaseStamp(database), before == after else { return nil }
+            guard let read, let after = try? self.databaseStamp(database), before == after else { return nil }
             return self.makeCodexBaseline(
-                snapshot: snapshot,
+                snapshot: read.snapshot,
+                usageRows: read.rows,
                 stamp: after,
                 tokenSnapshotsLoaded: loadTokenSnapshots)
         }
@@ -150,8 +148,23 @@ extension CostUsageStore {
         return baseline
     }
 
+    func readDecodedCodexSnapshot(
+        _ database: OpaquePointer,
+        loadTokenSnapshots: Bool) throws -> (snapshot: CostUsageStoreSnapshot, rows: DecodedCodexUsageRows)
+    {
+        let recorder = self.scopedReadWorkRecorderForTesting
+        let snapshot = try Self.readSnapshot(
+            database,
+            loadTokenSnapshots: loadTokenSnapshots,
+            loadUsageRows: false,
+            recorder: recorder)
+        let rows = try Self.readDecodedCodexUsageRows(database, files: snapshot.files, recorder: recorder)
+        return (snapshot, rows)
+    }
+
     private func makeCodexBaseline(
         snapshot: CostUsageStoreSnapshot,
+        usageRows: DecodedCodexUsageRows,
         stamp: DatabaseStamp,
         tokenSnapshotsLoaded: Bool) -> CodexDecodedBaseline
     {
@@ -161,13 +174,15 @@ extension CostUsageStore {
                 from: snapshot,
                 recorder: self.scopedReadWorkRecorderForTesting,
                 tokenSnapshotsLoaded: tokenSnapshotsLoaded,
-                unloadedTokenSnapshotPathRecorder: { unloadedTokenSnapshotPaths.insert($0) }),
+                unloadedTokenSnapshotPathRecorder: { unloadedTokenSnapshotPaths.insert($0) },
+                decodedUsageRows: usageRows.rowsByPath),
             persistence: CodexPersistenceState(
                 snapshot: snapshot,
                 snapshotCounts: tokenSnapshotsLoaded ? nil :
                     Dictionary(uniqueKeysWithValues: snapshot.accumulators.map {
                         ($0.path, $0.eventCount)
-                    })),
+                    }),
+                rowCounts: usageRows.rowCounts),
             stamp: stamp,
             unloadedTokenSnapshotPaths: unloadedTokenSnapshotPaths,
             tokenSnapshotsLoaded: tokenSnapshotsLoaded)
@@ -188,12 +203,12 @@ extension CostUsageStore {
             var original = baseline.stamp
             original.totalChanges = current.totalChanges
             guard original == current else { return nil }
-            let snapshot = try Self.readSnapshot(
+            let read = try self.readDecodedCodexSnapshot(
                 database,
-                loadTokenSnapshots: baseline.tokenSnapshotsLoaded,
-                recorder: self.scopedReadWorkRecorderForTesting)
+                loadTokenSnapshots: baseline.tokenSnapshotsLoaded)
             return self.makeCodexBaseline(
-                snapshot: snapshot,
+                snapshot: read.snapshot,
+                usageRows: read.rows,
                 stamp: current,
                 tokenSnapshotsLoaded: baseline.tokenSnapshotsLoaded)
         }

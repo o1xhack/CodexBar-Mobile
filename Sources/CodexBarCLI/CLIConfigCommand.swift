@@ -19,6 +19,8 @@ extension CodexBarCLI {
             self.runConfigSetProviderEnabled(values, enabled: true)
         case ["config", "disable"]:
             self.runConfigSetProviderEnabled(values, enabled: false)
+        case ["config", "set-source"]:
+            self.runConfigSetSource(values)
         case ["config", "set-api-key"]:
             self.runConfigSetAPIKey(values)
         default:
@@ -384,7 +386,7 @@ struct ConfigSetAPIKeyOptions: CommanderParsable {
     @OptionGroup
     var common: CLICommonOptions
 
-    @Option(name: .long("provider"), help: ProviderHelp.optionHelp)
+    @Option(name: .long("provider"), help: ProviderHelp.concreteOptionHelp)
     var provider: String?
 
     @Option(name: .long("api-key"), help: "API key to store")
@@ -413,7 +415,7 @@ struct ConfigProviderToggleOptions: CommanderParsable {
     @OptionGroup
     var common: CLICommonOptions
 
-    @Option(name: .long("provider"), help: ProviderHelp.optionHelp)
+    @Option(name: .long("provider"), help: ProviderHelp.concreteOptionHelp)
     var provider: String?
 }
 

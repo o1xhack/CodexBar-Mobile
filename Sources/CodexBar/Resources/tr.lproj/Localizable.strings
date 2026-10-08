@@ -1496,6 +1496,8 @@
 
 "Cumulative" = "Kümülatif";
 "Token activity" = "Token etkinliği";
+"Earlier activity" = "Önceki etkinlik";
+"More recent activity" = "Daha yeni etkinlik";
 "View" = "Görünüm";
 "in the last year" = "son yılda";
 "No activity in the last 12 months" = "Son 12 ayda etkinlik yok";
@@ -1637,6 +1639,11 @@
 "account_widgets_title" = "Araç takımları için hesapları güncel tut";
 "account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
 
+/* Spend time zone */
+"Statistics time zone" = "İstatistik saat dilimi";
+"Use Mac's current time zone" = "Mac’in geçerli saat dilimini kullan";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Günlük kullanım sabit bir saat diliminde gruplandırılır. Bu ayarı değiştirmek kullanımı farklı bir güne taşıyabilir.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
 "antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
@@ -1733,3 +1740,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Desteklenen tarayıcılar: %@. Diğer tarayıcılar için Manuel seçeneğini kullanın.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome’dan www.workbuddy.cn/profile/plans-usage adresine gönderilen isteğin Cookie başlığını yapıştırın.";
 "Reserved" = "Ayrılmış";
+
+/* Selected browser profile */
+"Browser profile" = "Tarayıcı profili";
+"Unavailable profile: %@" = "Profil kullanılamıyor: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Yalnızca seçilen %@ profilini oku. Hesaplar asla otomatik seçilmez.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Kaydedilen harcama";
+"Highest recorded spend" = "En yüksek kaydedilen harcama";
+"Previous day" = "Önceki gün";
+"Next day" = "Sonraki gün";
+"Click to isolate a source. Click again to show all." = "Tek kaynağı görmek için tıklayın. Tümünü görmek için tekrar tıklayın.";
+"Recorded hourly spend" = "Kaydedilen saatlik harcama";
+"Highest spend" = "En yüksek harcama";
+"Models for this day" = "Bu günün modelleri";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Ayrıntılar için bir çubuğa tıklayın. Kesin tutarlar için aşağıdaki menüyü kullanın.";

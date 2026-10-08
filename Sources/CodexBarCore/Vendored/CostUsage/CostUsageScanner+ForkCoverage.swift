@@ -104,6 +104,8 @@ extension CostUsageScanner {
         var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
         var dayCost: Double = 0
         var dayCostSeen = false
+        var dayPricedRequests = 0
+        var dayUnpricedRequests = 0
 
         for model in modelNames {
             guard OpenCodexRouteDispatcher.countsTowardCodexSubscription(modelName: model) else { continue }
@@ -137,10 +139,13 @@ extension CostUsageScanner {
                 && CheckedSum.integers(rows.map(\.input)) == input
                 && CheckedSum.integers(rows.map(\.cached)) == cached
                 && CheckedSum.integers(rows.map(\.output)) == output
-            let rowCostIsTrusted = !pricing.unresolvedRowGroups.contains(group)
+            let rowsCoverGroup = !pricing.unresolvedRowGroups.contains(group)
                 && !pricing.modeOwnershipMismatchGroups.contains(group)
                 && (authoritativeOverflowCost
-                    || totalTokens.map { rowCost?.isTrusted(canonicalTotalTokens: $0) == true } == true)
+                    || totalTokens.map { rowCost?.coversGroup(canonicalTotalTokens: $0) == true } == true)
+            let rowCostIsTrusted = rowsCoverGroup && rowCost?.hasIncompletePricing != true
+            // Rows that cover the group but include unknown requests report the subtotal of the priced ones.
+            let partialRowCost = rowsCoverGroup && !rowCostIsTrusted ? rowCost : nil
             let aggregateCost = pricing.requestPricingEvidenceGroups.contains(group)
                 || pricing.incompletePricingEvidenceGroups.contains(group)
                 || (pricing.unresolvedRowGroups.contains(group)
@@ -157,9 +162,21 @@ extension CostUsageScanner {
                     modelsDevCacheRoot: pricing.modelsDevCacheRoot,
                     customPricing: pricing.customPricing,
                     pricingResolver: pricing.pricingResolver)
-            let cost = rowCostIsTrusted
-                ? rowCost?.totalCostUSD ?? aggregateCost
-                : aggregateCost
+            let cost = if rowCostIsTrusted {
+                rowCost?.totalCostUSD ?? aggregateCost
+            } else if let partialRowCost {
+                partialRowCost.totalCostUSD
+            } else {
+                aggregateCost
+            }
+            if let partialRowCost {
+                dayPricedRequests += partialRowCost.pricedRequestCount
+                dayUnpricedRequests += partialRowCost.unpricedRequestCount
+            } else if cost == nil, (totalTokens ?? 1) > 0 {
+                dayUnpricedRequests += 1
+            } else if cost != nil {
+                dayPricedRequests += rowCostIsTrusted ? max(1, rowCost?.pricedRequestCount ?? 0) : 1
+            }
             let hasModeSplit = rowCostIsTrusted && rowCost?.hasModeSplit == true
             let isEstimated = Self.codexPricingIsEstimated(
                 model: model,
@@ -203,8 +220,11 @@ extension CostUsageScanner {
             costUSD: entryCost,
             modelsUsed: modelNames,
             modelBreakdowns: Self.sortedModelBreakdowns(breakdown),
-            unpricedRequestCount: entryCost == nil && (dayTotal ?? 1) > 0 ? 1 : nil,
-            unmeteredRequestCount: unmetered > 0 ? unmetered : nil)
+            unpricedRequestCount: dayUnpricedRequests > 0
+                ? dayUnpricedRequests
+                : entryCost == nil && (dayTotal ?? 1) > 0 ? 1 : nil,
+            unmeteredRequestCount: unmetered > 0 ? unmetered : nil,
+            pricedRequestCount: dayUnpricedRequests > 0 && entryCost != nil ? dayPricedRequests : nil)
     }
 }
 

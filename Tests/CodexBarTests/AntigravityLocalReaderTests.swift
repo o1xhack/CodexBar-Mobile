@@ -1069,6 +1069,88 @@ extension AntigravityLocalReaderTests {
     }
 
     @Test
+    func `gpt oss medium prices at the Google Vertex list price`() async throws {
+        let fixture = try Fixture()
+        try Self.saveCatalog(Self.vertexCatalog, in: fixture)
+        try fixture.database(blobs: [Fixture.blob(model: "gpt-oss-120b-medium", label: nil)])
+
+        let snapshot = try await fixture.snapshot()
+        // Input 100 and cache read 50 both bill at the input rate because the entry has no cache read rate.
+        let expected = 100 * 0.09e-6 + 50 * 0.09e-6 + 37 * 0.36e-6
+        let entry = try #require(snapshot.daily.first)
+        #expect(abs((entry.costUSD ?? .nan) - expected) < 1e-12)
+        #expect(entry.unpricedRequestCount == 0)
+        #expect(entry.estimatedRequestCount == 1)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == ["gpt-oss-120b-medium"])
+        let breakdownCost = try #require(entry.modelBreakdowns?.first?.costUSD)
+        #expect(abs(breakdownCost - expected) < 1e-12)
+    }
+
+    @Test
+    func `gpt oss medium stays unpriced without the Google Vertex entry`() async throws {
+        let fixture = try Fixture()
+        try Self.saveCatalog(Self.resellerCatalog, in: fixture)
+        try fixture.database(blobs: [Fixture.blob(model: "gpt-oss-120b-medium", label: nil)])
+
+        let snapshot = try await fixture.snapshot()
+        let entry = try #require(snapshot.daily.first)
+        #expect(entry.costUSD == nil)
+        #expect(entry.unpricedRequestCount == 1)
+        #expect(entry.estimatedRequestCount == 0)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == ["gpt-oss-120b-medium"])
+    }
+
+    @Test(arguments: ["gpt-oss-120b", "gpt-oss-120b-high", "gpt-oss-120b-medium-thinking"])
+    func `other gpt oss names do not get the Google Vertex price`(model: String) async throws {
+        let fixture = try Fixture()
+        try Self.saveCatalog(Self.vertexCatalog, in: fixture)
+        try fixture.database(blobs: [Fixture.blob(model: model, label: nil)])
+
+        let snapshot = try await fixture.snapshot()
+        let entry = try #require(snapshot.daily.first)
+        #expect(entry.costUSD == nil)
+        #expect(entry.unpricedRequestCount == 1)
+        #expect(entry.estimatedRequestCount == 0)
+        #expect(entry.modelBreakdowns?.map(\.modelName) == [model])
+    }
+
+    private static let vertexCatalog = #"""
+    {
+        "google-vertex": {
+            "id": "google-vertex",
+            "name": "Vertex",
+            "models": {
+                "openai/gpt-oss-120b-maas": {
+                    "id": "openai/gpt-oss-120b-maas",
+                    "cost": {"input": 0.09, "output": 0.36}
+                }
+            }
+        }
+    }
+    """#
+
+    private static let resellerCatalog = #"""
+    {
+        "fixture-reseller": {
+            "id": "fixture-reseller",
+            "name": "Fixture Reseller",
+            "models": {
+                "gpt-oss-120b": {
+                    "id": "gpt-oss-120b",
+                    "cost": {"input": 5, "output": 6}
+                }
+            }
+        }
+    }
+    """#
+
+    private static func saveCatalog(_ json: String, in fixture: Fixture) throws {
+        let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(json.utf8))
+        let cacheRoot = fixture.root.appendingPathComponent("scanner-cache")
+        #expect(ModelsDevCache.save(catalog: catalog, fetchedAt: Fixture.now, cacheRoot: cacheRoot))
+    }
+
+    @Test
     func `usage field 9 is reasoning and field 10 is visible output`() throws {
         let usage = Fixture.varint(2, 10) + Fixture.varint(9, 5) + Fixture.varint(10, 3)
         let chat = Fixture.message(4, usage)

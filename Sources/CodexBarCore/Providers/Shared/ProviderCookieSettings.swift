@@ -23,6 +23,7 @@ public struct CookieProviderSettings: ProviderCookieSettings {
     public let cookieSource: ProviderCookieSource
     public let manualCookieHeader: String?
     public let manualCookieOrigin: String?
+    public var selectedBrowserProfile: ProviderBrowserProfile?
 
     public init(cookieSource: ProviderCookieSource = .auto, manualCookieHeader: String? = nil) {
         self.init(cookieSource: cookieSource, manualCookieHeader: manualCookieHeader, manualCookieOrigin: nil)

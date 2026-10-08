@@ -1,6 +1,6 @@
-import CodexBarCore
 import Foundation
 import Testing
+@testable import CodexBarCore
 
 /// Tests for the regex-based JetBrains XML parser used on Linux.
 /// These tests verify that the non-libxml2 implementation correctly parses
@@ -186,5 +186,23 @@ struct JetBrainsParserLinuxTests {
 
         #expect(snapshot.quotaInfo.type == "single")
         #expect(snapshot.quotaInfo.maximum == 10000)
+    }
+
+    @Test(arguments: [false, true])
+    func `portable XML extraction isolates the component and accepts both attribute orders`(reversed: Bool) {
+        let quota = reversed ? "value='quota &quot;fixture&quot;' name='quotaInfo'" :
+            "name='quotaInfo' value='quota &quot;fixture&quot;'"
+        let xml = """
+        <application>
+          <component name='Other'><option name='quotaInfo' value='unrelated' /></component>
+          <component name='AIAssistantQuotaManager2'>
+            <option \(quota) />
+            <option value='refill' name='nextRefill' />
+          </component>
+        </application>
+        """
+        let result = JetBrainsXMLParser.parse(data: Data(xml.utf8))
+        #expect(result.quotaInfo == "quota &quot;fixture&quot;")
+        #expect(result.nextRefill == "refill")
     }
 }

@@ -37,10 +37,8 @@ struct AntigravityAgyFileTokenPayload: Codable, Equatable, Sendable {
 
 extension AntigravityAgyFileTokenPayload {
     init?(credentials: AntigravityOAuthCredentials) {
-        guard let accessToken = credentials.accessToken?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !accessToken.isEmpty,
-              let refreshToken = credentials.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !refreshToken.isEmpty,
+        guard let accessToken = credentials.accessToken?.trimmedNonEmpty,
+              let refreshToken = credentials.refreshToken?.trimmedNonEmpty,
               let expiryDate = credentials.expiryDate
         else {
             return nil
@@ -103,7 +101,7 @@ enum AntigravityScopedAgyStaging {
             "all_proxy",
             "no_proxy",
         ] {
-            if let value = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+            if let value = environment[key]?.trimmedNonEmpty {
                 child[key] = value
             }
         }
@@ -153,10 +151,7 @@ enum AntigravityScopedAgyStaging {
     }
 
     static func normalizedEmail(_ email: String?) -> String? {
-        guard let trimmed = email?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
-            return nil
-        }
-        return trimmed.lowercased()
+        email?.trimmedNonEmpty?.lowercased()
     }
 
     /// Reads the staged token file as `agy` left it after a run. `agy` rewrites
@@ -186,18 +181,16 @@ enum AntigravityScopedAgyStaging {
             return nil
         }
         var updated = original
-        let accessToken = payload.token.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let refreshToken = payload.token.refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !accessToken.isEmpty {
+        if let accessToken = payload.token.accessToken.trimmedNonEmpty {
             updated.accessToken = accessToken
         }
-        if !refreshToken.isEmpty {
+        if let refreshToken = payload.token.refreshToken.trimmedNonEmpty {
             updated.refreshToken = refreshToken
         }
         if let expiry = ISO8601DateParser.parse(payload.token.expiry) {
             updated.expiryDateMilliseconds = expiry.timeIntervalSince1970 * 1000
         }
-        if let idToken = payload.idToken?.trimmingCharacters(in: .whitespacesAndNewlines), !idToken.isEmpty {
+        if let idToken = payload.idToken?.trimmedNonEmpty {
             updated.idToken = idToken
         }
         return updated
@@ -209,8 +202,7 @@ enum AntigravityScopedAgyStaging {
         timeout: TimeInterval,
         dataLoader: (@Sendable (URLRequest) async throws -> (Data, URLResponse))?) async throws -> String?
     {
-        let accessToken = payload.token.accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !accessToken.isEmpty else { return nil }
+        guard let accessToken = payload.token.accessToken.trimmedNonEmpty else { return nil }
         var request = URLRequest(url: AntigravityOAuthConfig.userInfoURL)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = min(timeout, 15)
@@ -248,6 +240,7 @@ extension AntigravityCLIHTTPSFetchStrategy {
         binary: String,
         environment: [String: String],
         timeout: TimeInterval = 90,
+        versionResolver: AgyVersionResolver = AgyVersionResolver(),
         dataLoader: (@Sendable (URLRequest) async throws -> (Data, URLResponse))? = nil,
         credentialsUpdateHandler: (@Sendable (AntigravityOAuthCredentials) async throws -> Void)? = nil)
         async throws
@@ -269,7 +262,11 @@ extension AntigravityCLIHTTPSFetchStrategy {
             from: environment, home: staged.home)
 
         let parsed = try await Self.runPrintUsage(
-            binary: binary, environment: scopedEnvironment, directory: staged.home, timeout: timeout)
+            binary: binary,
+            environment: scopedEnvironment,
+            directory: staged.home,
+            timeout: timeout,
+            versionResolver: versionResolver)
         if let reportedEmail = AntigravityScopedAgyStaging.normalizedEmail(parsed.accountEmail),
            reportedEmail != AntigravityScopedAgyStaging.normalizedEmail(expectedAccountEmail)
         {

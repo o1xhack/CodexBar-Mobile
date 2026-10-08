@@ -99,7 +99,7 @@ final class OpenCodeMonthlyPickerProofTests: XCTestCase {
             "options": monthlyOptions,
             "selectedTitle": selectedTitle,
             "finalTitle": model.rendered.attributedTitle.string,
-            "finalPreference": MenuBarPercentWindowPreference.current(in: model.layout)?.rawValue ?? "custom",
+            "finalPreference": MenuBarPercentWindowPreference.current(in: model.layout)?.id ?? "custom",
         ], options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("state.json"))
     }
 

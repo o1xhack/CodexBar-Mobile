@@ -45,6 +45,21 @@ public enum CostUsageScanExecutor {
         }
     }
 
+    final class LockedState<State>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var state: State
+
+        init(_ state: State) {
+            self.state = state
+        }
+
+        func withLock<Result>(_ body: (inout State) throws -> Result) rethrows -> Result {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return try body(&self.state)
+        }
+    }
+
     private final class RunState<Value: Sendable>: @unchecked Sendable {
         private enum Phase {
             case initial

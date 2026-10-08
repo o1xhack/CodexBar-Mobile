@@ -33,6 +33,15 @@ The path follows Cline's overrides, in order: `CLINE_PROVIDER_SETTINGS_PATH` (a 
 `$HOME/.cline/data/settings/providers.json`. Only the `providers.cline.settings` entry is read; the same Cline entry
 is used upstream for ClinePass. The reader ignores refresh tokens and unrelated providers.
 
+## Multiple API keys
+
+Settings → Providers → ClinePass stores labeled API keys for tracking several ClinePass subscriptions at once. The
+selected account's key is injected as `CLINE_API_KEY` for that fetch, replacing the configured API key, an ambient
+`CLINE_API_KEY` / `CLINEPASS_API_KEY`, and the `cline auth` session. Only the selected key is sent; a rejected
+account never falls back to another credential. The menu bar account switcher and
+`codexbar usage --provider clinepass --account <label>` (or `--all-accounts`) select accounts without editing files.
+With no selected account, the existing configured-key, environment-key, and Cline-session precedence is unchanged.
+
 ## Data source
 
 The plugin sends a bearer-authenticated `GET https://api.cline.bot/api/v1/users/me/plan/usage-limits` request.

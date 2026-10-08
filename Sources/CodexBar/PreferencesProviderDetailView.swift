@@ -105,17 +105,10 @@ struct ProviderDetailView<SupplementaryContent: View>: View {
             return nil
         }
         let presentation = ProviderDescriptorRegistry.descriptor(for: provider).presentation.planRow
-        guard presentation.stripsBalancePrefix else {
-            return (label: L(presentation.label), value: rawPlan)
-        }
-
-        let prefix = "Balance:"
-        if rawPlan.hasPrefix(prefix) {
-            let valueStart = rawPlan.index(rawPlan.startIndex, offsetBy: prefix.count)
-            let trimmedValue = rawPlan[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedValue.isEmpty {
-                return (label: L(presentation.balancePrefixedLabel), value: trimmedValue)
-            }
+        if presentation.stripsBalancePrefix,
+           let value = MenuBarDisplayText.prefixedValue(from: rawPlan, prefix: "Balance:")
+        {
+            return (label: L(presentation.balancePrefixedLabel), value: value)
         }
         return (label: L(presentation.label), value: rawPlan)
     }

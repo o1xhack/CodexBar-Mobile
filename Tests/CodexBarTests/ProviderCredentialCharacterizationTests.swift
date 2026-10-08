@@ -220,6 +220,7 @@ struct ProviderCredentialCharacterizationTests {
             (.grok, "GROK_OAUTH_TOKEN"),
             (.huggingface, "CODEXBAR_HUGGINGFACE_API_KEY"),
             (.doubao, "ARK_API_KEY"),
+            (.clinepass, "CLINE_API_KEY"),
         ]
         let cookieProviders: [UsageProvider] = [
             .claude, .cursor, .opencode, .opencodego, .factory, .minimax, .manus,
@@ -299,6 +300,7 @@ struct ProviderCredentialCharacterizationTests {
             (.sub2api, "SUB2API_API_KEY"), (.antigravity, "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON"),
             (.ibmbob, "BOBSHELL_API_KEY"),
             (.huggingface, "CODEXBAR_HUGGINGFACE_API_KEY"),
+            (.clinepass, "CLINE_API_KEY"),
         ]
         let account = ProviderTokenAccount(
             id: UUID(), label: "fixture", token: "account-token", addedAt: 0, lastUsed: nil)

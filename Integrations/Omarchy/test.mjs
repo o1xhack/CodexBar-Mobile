@@ -274,3 +274,21 @@ test('identical same-family windows use Core title ordering for the representati
     assert.deepEqual([...row.windows.map(item => item.key)], [
         'extra:antigravity-quota-summary-gemini-amber', 'extra:antigravity-quota-summary-gemini-zebra']);
 });
+
+test('IPC-facing plan and status redact emails even when account identity is visible', () => {
+    const row = model.rows(JSON.stringify([{provider: 'codex',
+        usage: {identity: {accountEmail: 'visible@example.com', loginMethod: 'Pro private@example.com'}},
+        status: {description: 'Incident for private@example.com', indicator: 'minor'}}]), true)[0];
+    assert.equal(row.accountLabel, 'visible@example.com');
+    assert.equal(row.plan, 'Pro [hidden email]');
+    assert.equal(row.status, 'Incident for [hidden email]');
+});
+test('reset credits use the shared CLI summary and discard unrecognized fields', () => {
+    const row = model.rows(JSON.stringify([{provider: 'codex',
+        resetCredits: {available: 2, nextExpiresAt: '2030-01-01T00:00:00Z', id: 'private-marker'},
+        usage: {codexResetCredits: {availableCount: 99, credits: []}}}]))[0];
+    assert.deepEqual(JSON.parse(JSON.stringify(row.resetCredits)),
+        {available: 2, nextExpiresAt: '2030-01-01T00:00:00Z'});
+    assert.ok(!JSON.stringify(row).includes('private-marker'));
+    assert.equal(model.rows(JSON.stringify([{provider: 'codex', usage: {}}]))[0].resetCredits, null);
+});

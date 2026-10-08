@@ -18,7 +18,9 @@ struct AntigravityPricingRefreshTests {
     "anthropic":{"id":"anthropic","models":{"claude-fixture":{
     "id":"claude-fixture","cost":{"input":1,"output":2}}}},
     "openai":{"id":"openai","models":{"gpt-fixture":{
-    "id":"gpt-fixture","cost":{"input":1,"output":2}}}}}
+    "id":"gpt-fixture","cost":{"input":1,"output":2}}}},
+    "google-vertex":{"id":"google-vertex","models":{"openai/gpt-oss-120b-maas":{
+    "id":"openai/gpt-oss-120b-maas","cost":{"input":0.09,"output":0.36}}}}}
     """#.utf8)
 
     @Test(arguments: ["absent", "empty", "known", "unknown"])
@@ -79,6 +81,18 @@ struct AntigravityPricingRefreshTests {
             fixture, force: true, client: ModelsDevClient(transport: AntigravityPricingTransport {}))
         #expect(snapshot.last30DaysTokens == 187)
         let expected = 100e-6 + 50 * 0.2e-6 + 37 * 2e-6
+        #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
+    }
+
+    @Test
+    func `explicit refresh prices gpt oss medium from a cold catalog through its Google Vertex entry`() async throws {
+        let fixture = try Fixture()
+        try fixture.database(blobs: [Fixture.blob(model: "gpt-oss-120b-medium")])
+        let snapshot = try await Self.fetch(
+            fixture, force: true, client: ModelsDevClient(transport: AntigravityPricingTransport {}))
+        #expect(snapshot.last30DaysTokens == 187)
+        // The Vertex entry has no cache read rate, so cache reads use the input rate.
+        let expected: Double = 100 * 0.09e-6 + 50 * 0.09e-6 + 37 * 0.36e-6
         #expect(abs((snapshot.last30DaysCostUSD ?? .nan) - expected) < 1e-9)
     }
 

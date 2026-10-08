@@ -183,15 +183,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let isApplicable: Bool
         let interaction: ProviderInteraction
 
-        var canPromptNow: Bool {
-            switch self.mode {
-            case .never:
-                false
-            case .onlyOnUserAction:
-                self.interaction == .userInitiated
-            case .always:
-                true
-            }
+        var canRepairOnUserAction: Bool {
+            self.interaction == .userInitiated && self.mode != .never
         }
 
         /// Respect the Keychain prompt cooldown for background operations to avoid spamming system dialogs.
@@ -314,7 +307,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 let promptPolicy = ClaudeUsageFetcher.currentClaudeOAuthInteractivePromptPolicy()
                 let credentialRecord = try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
                     environment: self.fetcher.configuration.environment,
-                    allowKeychainPrompt: false,
+                    allowKeychainPrompt: promptPolicy.canRepairOnUserAction,
                     respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown,
                     safeCredentialSourcesOnly: self.fetcher.oauthSafeCredentialSourcesOnly,
                     clearInvalidCache: !self.fetcher.configuration.preserveInvalidOAuthCache)
@@ -439,7 +432,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     delegatedOutcome: delegatedOutcome,
                     didSyncSilently: didSyncSilently,
                     policy: promptPolicy)
-                let retryAllowKeychainPrompt = false
+                let retryAllowKeychainPrompt = promptPolicy.canRepairOnUserAction
                 if ClaudeUsageFetcher.isClaudeOAuthFlowDebugEnabled {
                     ClaudeUsageFetcher.log.debug(
                         "Claude OAuth credential load (post-delegation retry start)",

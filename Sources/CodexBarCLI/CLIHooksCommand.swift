@@ -231,7 +231,7 @@ struct HooksTestOptions: CommanderParsable {
     @Argument(help: "Event name (e.g. quota_reached)")
     var event: String = ""
 
-    @Option(name: .long("provider"), help: ProviderHelp.optionHelp)
+    @Option(name: .long("provider"), help: ProviderHelp.concreteOptionHelp)
     var provider: String?
 
     @OptionGroup

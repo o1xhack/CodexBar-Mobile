@@ -63,13 +63,15 @@ struct ClaudeDirectUsageFallbackTests {
             #expect(invocations.contains("direct-auto-updater-disabled"))
             #expect(!invocations.contains("secret-env"))
             #expect(!invocations.contains("remote-registration-would-occur"))
+            #expect(!invocations.contains("user-hook-would-run"))
             #expect(self.log.arguments(for: "direct") == [
-                "--strict-mcp-config", "--settings", #"{"remoteControlAtStartup":false}"#, "/usage",
+                "--strict-mcp-config",
+                "--settings", #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#, "/usage",
             ])
             let ptyArguments = self.log.arguments(for: "pty")
             #expect(Array(ptyArguments.dropLast()) == [
                 "--allowed-tools", "", "--strict-mcp-config",
-                "--settings", #"{"remoteControlAtStartup":false}"#, "--session-id",
+                "--settings", #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#, "--session-id",
             ])
             let sessionID = try #require(ptyArguments.last)
             #expect(UUID(uuidString: sessionID) != nil)
@@ -219,16 +221,21 @@ struct ClaudeDirectUsageFallbackTests {
           printf '%s-arg:%s\\n' "$MODE" "$argument" >> "$LOG_FILE"
         done
         REMOTE_CONTROL_DISABLED=0
+        USER_HOOKS_DISABLED=0
         EXPECT_SETTINGS=0
         for argument in "$@"; do
-          if [ "$EXPECT_SETTINGS" = "1" ] && [ "$argument" = '{"remoteControlAtStartup":false}' ]; then
-            REMOTE_CONTROL_DISABLED=1
+          if [ "$EXPECT_SETTINGS" = "1" ]; then
+            case "$argument" in *'"remoteControlAtStartup":false'*) REMOTE_CONTROL_DISABLED=1 ;; esac
+            case "$argument" in *'"disableAllHooks":true'*) USER_HOOKS_DISABLED=1 ;; esac
           fi
           EXPECT_SETTINGS=0
           if [ "$argument" = "--settings" ]; then EXPECT_SETTINGS=1; fi
         done
         if [ "$REMOTE_CONTROL_DISABLED" != "1" ]; then
           printf '%s-remote-registration-would-occur\\n' "$MODE" >> "$LOG_FILE"
+        fi
+        if [ "$USER_HOOKS_DISABLED" != "1" ]; then
+          printf '%s-user-hook-would-run\\n' "$MODE" >> "$LOG_FILE"
         fi
         if [ "$DISABLE_AUTOUPDATER" = "1" ]; then
           printf '%s-auto-updater-disabled\\n' "$MODE" >> "$LOG_FILE"

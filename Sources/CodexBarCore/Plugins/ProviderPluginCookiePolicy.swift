@@ -36,13 +36,15 @@ public struct ProviderPluginCookiePolicy: Sendable {
     let missingCookies: MissingCookies
     let imports: Imports
     let headerEcho: ProviderPluginCookieHeaderEcho?
+    let selectedProfile: Bool
+    let sessionURL: URL?
 
     init(_ value: any ProviderPluginValue, domains: Set<String>, endpoints: Set<ProviderPluginEndpoint>) throws {
         let invalid = ProviderPluginError.invalidManifest("invalid bundled cookiePolicy")
         guard value.isObject, !value.isArray,
               try Set(value.propertyNames()).isSubset(of: [
                   "selection", "cache", "sourceDomains", "requiredCookies", "sessionFile", "missingCookies", "imports",
-                  "headerEcho",
+                  "headerEcho", "store", "sessionURL",
               ]),
               let selection = value.property("selection"), selection.isString,
               let selection = Selection(rawValue: selection.stringValue()),
@@ -71,6 +73,22 @@ public struct ProviderPluginCookiePolicy: Sendable {
             }
             return url.host
         })
+        if let store = value.property("store"), !store.isUndefined {
+            guard store.isString, store.stringValue() == "selected-profile",
+                  cache == .nonpersistent, selection == .requestURL, self.imports == .accessGated,
+                  !self.requiredCookies.isEmpty, self.requestHosts.count == 1,
+                  let rawURL = value.property("sessionURL"), rawURL.isString,
+                  let url = URL(string: rawURL.stringValue()), url.query == nil, url.fragment == nil,
+                  let origin = try? ProviderPluginOrigin.normalizedOrigin(of: url),
+                  endpoints.contains(.fixed(origin))
+            else { throw invalid }
+            self.selectedProfile = true
+            self.sessionURL = url
+        } else {
+            guard value.property("sessionURL")?.isUndefined != false else { throw invalid }
+            self.selectedProfile = false
+            self.sessionURL = nil
+        }
         guard !self.requestHosts.isEmpty,
               self.sourceDomains.count == Set(self.sourceDomains).count,
               Set(self.sourceDomains).isSubset(of: domains),

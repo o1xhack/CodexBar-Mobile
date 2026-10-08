@@ -224,14 +224,16 @@ struct CostUsageCompletedSnapshotTests {
         _ = try await Self.seedNative(env: env, day: day, options: options)
         let fetcher = CostUsageFetcher(scannerOptions: options)
 
-        let scoped = await fetcher.loadCompletedCodexTokenSnapshotResult(
+        let scoped = await fetcher.loadCachedCodexTokenSnapshotResult(
             now: day,
-            codexHomePath: env.codexHomeRoot.path)
+            codexHomePath: env.codexHomeRoot.path,
+            requireCompleteHistory: true)
         #expect(scoped?.snapshot.last30DaysTokens == 100)
         #expect(scoped?.lastRefreshAt == day)
-        let other = await fetcher.loadCompletedCodexTokenSnapshotResult(
+        let other = await fetcher.loadCachedCodexTokenSnapshotResult(
             now: day,
-            codexHomePath: env.root.appendingPathComponent("other-home").path)
+            codexHomePath: env.root.appendingPathComponent("other-home").path,
+            requireCompleteHistory: true)
         #expect(other == nil)
     }
 
@@ -243,7 +245,7 @@ struct CostUsageCompletedSnapshotTests {
         let options = Self.options(env: env)
         _ = try await Self.seedNative(env: env, day: day, options: options)
         let fetcher = CostUsageFetcher(scannerOptions: options)
-        #expect(await fetcher.loadCompletedCodexTokenSnapshotResult(now: day) == nil)
+        #expect(await fetcher.loadCachedCodexTokenSnapshotResult(now: day, requireCompleteHistory: true) == nil)
         if piTokens > 0 {
             _ = try env.writePiSessionFile(
                 relativePath: "2026-04-08T10-00-00-000Z_mirror.jsonl",
@@ -328,9 +330,10 @@ struct CostUsageCompletedSnapshotTests {
             includePiSessions: false,
             scannerOptions: options)
 
-        let result = await CostUsageFetcher(scannerOptions: options).loadCompletedCodexTokenSnapshotResult(
+        let result = await CostUsageFetcher(scannerOptions: options).loadCachedCodexTokenSnapshotResult(
             now: day.addingTimeInterval(60),
-            codexHomePath: env.codexHomeRoot.path)
+            codexHomePath: env.codexHomeRoot.path,
+            requireCompleteHistory: true)
         #expect(result?.snapshot.historyCoverageIsEstablished == true)
         #expect(result?.snapshot.last30DaysTokens == 0)
         #expect(result?.snapshot.updatedAt == day)

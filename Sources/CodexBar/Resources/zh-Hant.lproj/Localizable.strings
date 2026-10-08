@@ -1599,6 +1599,8 @@
 "mobile_section_icloud_sync" = "iCloud Sync";
 "Cumulative" = "累計";
 "Token activity" = "Token 活動";
+"Earlier activity" = "較早紀錄";
+"More recent activity" = "最近紀錄";
 "View" = "檢視";
 "in the last year" = "近一年";
 "No activity in the last 12 months" = "近 12 個月暫無活動";
@@ -1740,6 +1742,11 @@
 "account_widgets_title" = "為小工具保持帳戶更新";
 "account_widgets_description" = "在每個 Account Usage 小工具中選擇一個帳戶。每個供應商最多重新整理六個帳戶。";
 
+/* Spend time zone */
+"Statistics time zone" = "統計時區";
+"Use Mac's current time zone" = "使用電腦目前時區";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "每日用量按固定時區統計。更改時區後，部分用量可能會歸入不同的日期。";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "本機用量 × 公開 API 價格 · 並非 Antigravity 帳單或額度";
 "antigravity_quota_window_note" = "視窗費用涵蓋所有模型 · 所示視窗為最受限的模型系列";
@@ -1763,3 +1770,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "支援的瀏覽器：%@。其他瀏覽器請使用「手動」模式。";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "貼上 Chrome 向 www.workbuddy.cn/profile/plans-usage 傳送的請求中的 Cookie 標頭。";
 "Reserved" = "已保留";
+
+/* Selected browser profile */
+"Browser profile" = "瀏覽器設定檔";
+"Unavailable profile: %@" = "無法使用的設定檔：%@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "僅讀取所選的 %@ 設定檔。絕不會自動選擇帳號。";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "已記錄支出";
+"Highest recorded spend" = "最高已記錄支出";
+"Previous day" = "前一天";
+"Next day" = "後一天";
+"Click to isolate a source. Click again to show all." = "點擊單獨查看此來源，再次點擊顯示全部。";
+"Recorded hourly spend" = "已記錄的每小時支出";
+"Highest spend" = "最高支出";
+"Models for this day" = "查看當天模型";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "點擊長條逐層查看，下方選單可查詢詳細金額。";

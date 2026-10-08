@@ -36,7 +36,9 @@ public enum NousProviderDescriptor {
         confetti: [0xD6A55C, 0x1C1B1A, 0xF3EADB],
         noDataMessage: "Nous Portal cost summary is not available.",
         menuBarMetrics: ProviderMenuBarMetricCapabilities(supported: [.automatic, .primary]),
-        presentation: ProviderUsagePresentation(planRow: ProviderPlanRowPresentation(label: "Plan")),
+        presentation: ProviderUsagePresentation(
+            menuBarBalanceDetailLabels: ["Total usable", "Top-up credits"],
+            planRow: ProviderPlanRowPresentation(label: "Plan")),
         aliases: ["nous-portal", "hermes"])
 }
 

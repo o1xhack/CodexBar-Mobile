@@ -232,6 +232,131 @@ struct CodexAccountPromotionExecutionTests {
         #expect(try container.managedHomeURLs().count == 2)
     }
 
+    enum DestinationChange: CaseIterable {
+        case foreign, unreadable, missing, sameAccount, readFailure
+    }
+
+    @Test(arguments: [false, true], DestinationChange.allCases)
+    func `executor revalidates repair and refresh destinations`(
+        repair: Bool,
+        change: DestinationChange) async throws
+    {
+        let container = try CodexAccountPromotionTestContainer(suiteName: "promotion-destination-drift")
+        defer { container.tearDown() }
+        let target = try container.createManagedAccount(persistedEmail: "beta@example.com", authAccountID: "acct-beta")
+        let destination = try container.createManagedAccount(
+            persistedEmail: "alpha@example.com",
+            authAccountID: "acct-alpha",
+            legacyRecord: true,
+            writeAuthFile: !repair)
+        try container.persistAccounts([target, destination])
+        let liveData = try container.writeLiveOAuthAuthFile(email: "alpha@example.com", accountID: "acct-alpha")
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let plan = CodexDisplacedLivePreservationPlanner().makePlan(context: context)
+        let authURL = CodexAuthFingerprint.authFileURL(homePath: destination.managedHomePath)
+        let replacement: Data? = switch change {
+        case .foreign: try container.managedAuthData(for: target)
+        case .unreadable: Data("not auth json".utf8)
+        case .missing: nil
+        case .sameAccount, .readFailure: liveData + Data("\n".utf8)
+        }
+        if let replacement {
+            try replacement.write(to: authURL, options: .atomic)
+        } else if FileManager.default.fileExists(atPath: authURL.path) {
+            try FileManager.default.removeItem(at: authURL)
+        }
+        let reader: any CodexAuthMaterialReading = change == .readFailure
+            ? FailingDestinationAuthReader(homePath: destination.managedHomePath) : DefaultCodexAuthMaterialReader()
+        let executor = CodexDisplacedLivePreservationExecutor(
+            store: container.fileStore, homeFactory: container.homeFactory, authMaterialReader: reader)
+        if change == .foreign || change == .readFailure || change == .unreadable && !repair {
+            #expect(throws: CodexAccountPromotionError.displacedLiveManagedAccountConflict) {
+                try executor.execute(plan: plan, context: context)
+            }
+            #expect(try Data(contentsOf: authURL) == replacement)
+            #expect(try container.loadAccounts().account(id: destination.id)?.authFingerprint == destination
+                .authFingerprint)
+        } else {
+            #expect(try executor
+                .execute(plan: plan, context: context) == .alreadyManaged(managedAccountID: destination.id))
+            #expect(try Data(contentsOf: authURL) == liveData)
+        }
+        #expect(try container.liveAuthData() == liveData)
+    }
+
+    @Test
+    func `executor verifies written auth before committing its fingerprint`() async throws {
+        let container = try CodexAccountPromotionTestContainer(suiteName: "promotion-corrupted-publication")
+        defer { container.tearDown() }
+        let target = try container.createManagedAccount(persistedEmail: "beta@example.com", authAccountID: "acct-beta")
+        let destination = try container.createManagedAccount(
+            persistedEmail: "alpha@example.com", authAccountID: "acct-alpha")
+        try container.persistAccounts([target, destination])
+        let liveData = try container.writeLiveOAuthAuthFile(email: "alpha@example.com", accountID: "acct-alpha")
+        let foreignData = try container.managedAuthData(for: target)
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let plan = CodexDisplacedLivePreservationPlanner().makePlan(context: context)
+        let executor = CodexDisplacedLivePreservationExecutor(
+            store: container.fileStore,
+            homeFactory: container.homeFactory)
+        // Corrupt the actual staged file on both main and the fixed path, independently of verification reads.
+        let corruptPublication: @Sendable (URL) throws -> Void = { staged in
+            if staged.lastPathComponent == "auth.json" { try foreignData.write(to: staged) }
+        }
+        CredentialFileWriter.$beforePublishForTesting.withValue(corruptPublication) {
+            #expect(throws: CodexAccountPromotionError.displacedLiveManagedAccountConflict) {
+                try executor.execute(plan: plan, context: context)
+            }
+        }
+        #expect(try container.managedAuthData(for: destination) == foreignData)
+        #expect(try container.liveAuthData() == liveData)
+        #expect(try container.loadAccounts().account(id: destination.id)?.authFingerprint == destination
+            .authFingerprint)
+    }
+
+    @Test(arguments: [false, true])
+    func `executor import rejects a raced legacy collision that cannot be safely replaced`(readFailure: Bool)
+        async throws
+    {
+        let container = try CodexAccountPromotionTestContainer(
+            suiteName: "CodexAccountPromotionExecutionTests-import-legacy-conflicting-collision")
+        defer { container.tearDown() }
+
+        let target = try container.createManagedAccount(
+            persistedEmail: "beta@example.com",
+            authAccountID: "acct-beta")
+        let concurrentManaged = try container.createManagedAccount(
+            persistedEmail: "alpha@example.com",
+            authAccountID: "acct-gamma",
+            legacyRecord: true)
+        let concurrentAuthData = try container.managedAuthData(for: concurrentManaged)
+        try container.persistAccounts([target])
+        let liveAuthData = try container.writeLiveOAuthAuthFile(email: "alpha@example.com")
+        let context = try await self.makeContext(container: container, targetID: target.id)
+        let executor = CodexDisplacedLivePreservationExecutor(
+            store: ConcurrentDuplicateManagedCodexAccountStore(
+                base: container.fileStore,
+                concurrentAccount: concurrentManaged),
+            homeFactory: container.homeFactory,
+            authMaterialReader: readFailure
+                ? FailingDestinationAuthReader(homePath: concurrentManaged.managedHomePath)
+                : DefaultCodexAuthMaterialReader(),
+            fileManager: .default)
+
+        #expect(throws: CodexAccountPromotionError.displacedLiveManagedAccountConflict) {
+            try executor.execute(plan: .importNew(reason: .noExistingManagedDestination), context: context)
+        }
+
+        let accounts = try container.loadAccounts().accounts
+        let persistedConcurrent = try #require(accounts.first(where: { $0.id == concurrentManaged.id }))
+        #expect(accounts.count == 2)
+        #expect(persistedConcurrent.managedHomePath == concurrentManaged.managedHomePath)
+        #expect(persistedConcurrent.providerAccountID == nil)
+        #expect(try container.managedAuthData(for: persistedConcurrent) == concurrentAuthData)
+        #expect(try container.liveAuthData() == liveAuthData)
+        #expect(try container.managedHomeURLs().count == 2)
+    }
+
     @Test
     func `executor refresh filesystem failure maps to managed store error`() async throws {
         let container = try CodexAccountPromotionTestContainer(
@@ -392,6 +517,15 @@ private final class ConcurrentDuplicateManagedCodexAccountStore: ManagedCodexAcc
 
     func ensureFileExists() throws -> URL {
         try self.base.ensureFileExists()
+    }
+}
+
+private struct FailingDestinationAuthReader: CodexAuthMaterialReading {
+    let homePath: String
+
+    func readAuthData(homeURL: URL) throws -> Data? {
+        if homeURL.path == self.homePath { throw CocoaError(.fileReadNoPermission) }
+        return try DefaultCodexAuthMaterialReader().readAuthData(homeURL: homeURL)
     }
 }
 

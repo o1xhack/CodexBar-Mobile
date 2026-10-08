@@ -1567,6 +1567,8 @@
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Cumulative" = "Acumulado";
 "Token activity" = "Actividad de tokens";
+"Earlier activity" = "Actividad anterior";
+"More recent activity" = "Actividad más reciente";
 "View" = "Vista";
 "in the last year" = "en el último año";
 "No activity in the last 12 months" = "Sin actividad en los últimos 12 meses";
@@ -1707,6 +1709,11 @@
 "account_widgets_title" = "Mantener las cuentas actualizadas para los widgets";
 "account_widgets_description" = "Elige una cuenta en cada widget Account Usage. Actualiza hasta seis cuentas por proveedor.";
 
+/* Spend time zone */
+"Statistics time zone" = "Zona horaria de las estadísticas";
+"Use Mac's current time zone" = "Usar la zona horaria actual del Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "El uso diario se agrupa en una zona horaria fija. Cambiarla puede trasladar uso a otro día.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Uso local × precios públicos de API · no son cargos ni créditos de Antigravity";
 "antigravity_quota_window_note" = "El coste de la ventana incluye todos los modelos · la ventana mostrada es la familia más limitada";
@@ -1728,3 +1735,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Navegadores compatibles: %@. Usa Manual para otros navegadores.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Pega la cabecera Cookie de una solicitud de Chrome a www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Reservado";
+
+/* Selected browser profile */
+"Browser profile" = "Perfil del navegador";
+"Unavailable profile: %@" = "Perfil no disponible: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Leer solo el perfil de %@ seleccionado. Las cuentas nunca se seleccionan automáticamente.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Gasto registrado";
+"Highest recorded spend" = "Mayor gasto registrado";
+"Previous day" = "Día anterior";
+"Next day" = "Día siguiente";
+"Click to isolate a source. Click again to show all." = "Haz clic para aislar una fuente. Haz clic de nuevo para mostrar todas.";
+"Recorded hourly spend" = "Gasto por hora registrado";
+"Highest spend" = "Gasto máximo";
+"Models for this day" = "Modelos de este día";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Haz clic en una barra para explorar. Consulta los importes exactos en el menú inferior.";

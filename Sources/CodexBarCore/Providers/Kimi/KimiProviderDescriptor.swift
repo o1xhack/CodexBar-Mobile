@@ -103,6 +103,7 @@ public enum KimiProviderDescriptor {
                 tertiary: .exact(kind: .session, minutes: self.sessionWindowMinutes),
                 sessionPaceWindowRule: .windowDuration(minutes: self.sessionWindowMinutes)),
             presentation: ProviderUsagePresentation(
+                extraRateWindowSelector: { $0.extraRateWindows ?? [] },
                 semanticWindowResolver: { snapshot in
                     let candidates = [snapshot.primary, snapshot.secondary, snapshot.tertiary]
                         + (snapshot.extraRateWindows ?? []).map(\.window)

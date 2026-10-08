@@ -212,15 +212,29 @@ The snapshot is a stable display contract, not a raw dump of provider internals.
 }
 ```
 
-### Multi-account providers (claude-swap)
+### Multi-account providers
 
 When the claude-swap integration is enabled, the Claude provider row additionally includes an `accounts` array. This
 is an additive schema-v1 extension: other provider rows and Claude rows without the integration keep their existing
 shape. An account's `label` preserves its alias or disambiguated email/organization label, falling back to its slot label. The web dashboard prefers this projected label over the raw identity email; `identity` is present
 whenever claude-swap reports an email, independently of whether that account's usage fetch succeeds. Both fields follow
 the dashboard identity mode: full by default, or redacted with `--identity redacted`.
+When managed Codex accounts exist, the Codex row uses the same array on both `codexbar dashboard` and
+`GET /dashboard/v1/snapshot`. Entries follow the managed account store's order and have stable
+`codex-managed:<uuid>` IDs, independent of email, workspace labels, and the current selection. `active` identifies
+the managed account selected in CodexBar config; system and profile-home selections leave all managed entries inactive.
+The ambient Codex row remains available separately.
+
+Codex account windows, pace, plan, and `updatedAt` come from the app's last saved account usage, matched to the
+managed UUID, email, and selected workspace. This projection reads only account metadata and saved usage: it does
+not read credentials, refresh accounts, or switch authentication. Missing or mismatched usage leaves the account
+visible with empty windows, null pace/update time, and an account-local diagnostic. Saved refresh failures use a
+fixed diagnostic instead of exporting raw errors that may contain private paths. Refresh the account in CodexBar
+to update its saved usage. No managed accounts means no `accounts` field. The shared identity mode applies to every
+account email and label, including email addresses embedded in workspace labels.
+
 A failure limited to one account stays in that account's `error`; a failure of the whole adapter sets `accountsError`
-while leaving the ambient Claude row intact.
+while leaving the ambient provider row intact.
 The web dashboard retains local spend totals and the daily chart once per provider group, with provider diagnostics labeled separately. Account cards keep their own usage and errors; ambient account credits are not presented as shared balances.
 
 ```json
@@ -260,6 +274,21 @@ The web dashboard retains local spend totals and the daily chart once per provid
 }
 ```
 
+A managed Codex entry in redacted mode (other account fields use the same shapes as above):
+
+```json
+{
+  "id": "codex-managed:9e122a52-b3db-4a7e-a7a7-c3b8fc9d01e9",
+  "label": "redacted@example.com — Work",
+  "active": true,
+  "identity": { "accountEmail": "redacted@example.com", "plan": "Plus" },
+  "windows": [{ "kind": "session", "label": "Session", "usedPercent": 40, "remainingPercent": 60, "resetAt": "2026-10-04T17:00:00Z" }],
+  "pace": null,
+  "error": null,
+  "updatedAt": "2026-10-04T12:00:00Z"
+}
+```
+
 ## Fields
 
 - `schemaVersion`: Dashboard API schema version.
@@ -296,13 +325,13 @@ The web dashboard retains local spend totals and the daily chart once per provid
 - `providers[].display`: UI hints for ordering and coloring.
 - `providers[].error`: Provider error payload when the latest fetch failed.
 - `providers[].updatedAt`: Best-known update timestamp for the provider row.
-- `providers[].accounts`: Ordered local multi-account entries when an integration supplies them; an enabled source
-  with no accounts emits `[]`.
-  - `id`: Stable source and slot identifier, such as `claude-swap:2`.
+- `providers[].accounts`: Ordered local multi-account entries when an integration supplies them; an enabled claude-swap source
+  with no accounts emits `[]`; Codex omits the field when no managed accounts exist.
+  - `id`: Stable source and slot identifier, such as `claude-swap:2` or `codex-managed:<uuid>`.
   - `label`: Projected alias or disambiguated email/organization label, otherwise a slot label such as `Account 2`; follows the dashboard identity mode and is preferred for display over `identity.accountEmail`.
   - `active`: Whether this is the source's active account.
-  - `identity`: Account email with a `null` plan whenever claude-swap reports one, even if usage fetching fails;
-    otherwise `null`. The email local part is hidden only in redacted mode.
+  - `identity`: Account email even when usage is unavailable; otherwise `null`. Claude-swap has a `null` plan;
+    Codex includes the saved plan when available. The email local part is hidden only in redacted mode.
   - `windows`: Account-local session, weekly, and scoped windows in the same shape as `providers[].windows`.
   - `pace`: Account-local primary, secondary, and tertiary pace values when computable. Each pace value contains
     `stage`, `deltaPercent`, `expectedUsedPercent`, `willLastToReset`, `etaSeconds`, `runOutProbability`, and `summary`.

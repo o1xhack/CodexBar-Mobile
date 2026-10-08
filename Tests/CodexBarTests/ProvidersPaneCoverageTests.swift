@@ -293,6 +293,19 @@ struct ProvidersPaneCoverageTests {
         }
     }
 
+    @Test(arguments: [
+        (nil as String?, nil as String?),
+        ("  ", nil),
+        (" Balance: $0.00 ", "$0.00"),
+        ("Balance:   ", "Balance:"),
+        ("Plan", "Plan"),
+    ])
+    func `provider balance prefix preserves empty and unprefixed values`(input: String?, expected: String?) {
+        Self.withEnglishLocalization {
+            #expect(ProviderDetailView<EmptyView>.planRow(provider: .openrouter, planText: input)?.value == expected)
+        }
+    }
+
     @Test
     func `provider detail plan row keeps plan label for non open router`() {
         Self.withEnglishLocalization {

@@ -73,7 +73,7 @@ private:
     QVariantList m_entries, m_spending;
     QJsonArray m_barEntries;
     QString m_configPath, m_error, m_costError, m_configError, m_summary;
-    qint64 m_updated = 0, m_costUpdated = 0;
+    qint64 m_updated = 0, m_costUpdated = 0, m_costRequested = 0;
     int m_generation = 0;
     bool m_configBlocked = false;
     void loadSettings(const QString &cliOverride);

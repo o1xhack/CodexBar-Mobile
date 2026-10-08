@@ -48,6 +48,8 @@ public struct PluginProviderSpec: Sendable {
     public var supportsTokenCost = false
     public var settingsSection: ProviderSettingsSectionRegistration?
     public var pluginResultPolicy = ProviderPluginResultPolicy()
+    public var history: ProviderHistoryCapability = .optIn
+    public var burnDownWidgetSelectable = true
     public var environmentKey: String = ""
     public var environmentAliases: [String] = []
     public var apiKeyDebugLabel: String?
@@ -101,12 +103,14 @@ public struct PluginProviderSpec: Sendable {
             cliName: self.id.rawValue,
             defaultEnabled: false,
             widgetSelectable: false,
+            burnDownWidgetSelectable: self.burnDownWidgetSelectable,
             sharePlanLabels: self.sharePlanLabels,
             debugLogUnavailableMessage: self.debugLogUnavailableMessage,
             debugPane: self.debugPane,
             balanceOnly: self.balanceOnly,
             usesDetailBackedWindow: self.usesDetailBackedWindow,
-            browserCookieOrder: self.webSource?.browserCookieOrder,
+            browserCookieOrder: (self.settingsSection ?? self.webSource?.settingsSection)?.selectedProfileCookieOrder
+                ?? self.webSource?.browserCookieOrder,
             dashboardURL: self.dashboardURL,
             subscriptionDashboardURL: self.subscriptionDashboardURL,
             statusPageURL: self.statusPageURL,
@@ -143,6 +147,7 @@ public struct PluginProviderSpec: Sendable {
                 progressColorStyle: self.progressColorStyle),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: self.supportsTokenCost, noDataMessage: { self.noDataMessage }),
+            history: self.history,
             presentation: self.presentation,
             fetchPlan: fetchPlan,
             cli: cli)

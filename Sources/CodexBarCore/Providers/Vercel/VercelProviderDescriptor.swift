@@ -15,6 +15,7 @@ public enum VercelProviderDescriptor {
         noDataMessage: "Vercel AI Gateway cost history is not available.",
         environmentKey: "AI_GATEWAY_API_KEY",
         missingCredentialMessage: { _ in "Set a Vercel AI Gateway API key in Settings or AI_GATEWAY_API_KEY." },
+        presentation: ProviderUsagePresentation(menuBarBalanceDetailLabels: ["Available balance"]),
         apiKeyField: .init(
             id: "vercel-api-key",
             title: "Vercel AI Gateway API key",

@@ -47,7 +47,7 @@ struct AbacusMonthlyPercentTests {
             if let path = ProcessInfo.processInfo.environment["CODEXBAR_ABACUS_PERCENT_PROOF_DIR"] {
                 let directory = URL(fileURLWithPath: path, isDirectory: true)
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                let name = "\(preference.rawValue)-\(showUsed ? "used" : "remaining")"
+                let name = "\(preference.id)-\(showUsed ? "used" : "remaining")"
                 try output.attributedTitle.string.write(
                     to: directory.appendingPathComponent("\(name).txt"), atomically: true, encoding: .utf8)
                 try output.accessibilityLabel.write(
