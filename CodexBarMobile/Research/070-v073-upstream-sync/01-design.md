@@ -1,6 +1,6 @@
 # 设计
 
-Status: `in-progress`
+Status: `done`
 
 ## 合并
 

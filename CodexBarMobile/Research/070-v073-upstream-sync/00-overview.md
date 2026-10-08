@@ -1,6 +1,6 @@
 # v0.73.0 上游同步 + Mac 0.72.0.1 成本回归修复
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-10-08
 Versions: Mac 0.73.0.1（BUILD_NUMBER 165.1，Sparkle 165.1.2.6.0），iOS 2.6.0 (237)
 Branch: `upstream-sync/v0.73.0-mobile.2.6.0`
