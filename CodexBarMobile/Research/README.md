@@ -17,7 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
-| 068 | 多台 Mac：一台刷新失败不再覆盖另一台的数据（合并器只取真实观测、吸收无身份失败并保留成本、详情页说明数据来源与失败） | `done` | 2.6.0 (236) PR #183；TestFlight VALID，未重新送审；实机多 Mac 端到端待 TestFlight 确认 | [068-multi-mac-failure-fallback.md](068-multi-mac-failure-fallback.md) | 2026-10-07 |
+| 068 | 多台 Mac：一台刷新失败不再覆盖另一台的数据（合并器只取真实观测、吸收无身份失败并保留成本、详情页说明数据来源与失败） | `done` | 2.6.0 (236) PR #183；TestFlight VALID，已重新送审（WAITING_FOR_REVIEW，MANUAL） | [068-multi-mac-failure-fallback.md](068-multi-mac-failure-fallback.md) | 2026-10-07 |
 | 067 | v0.71.0–v0.72.0 single upstream sync (#177/#178/#179) + iOS 2.6.0 (235) | `done` | Mac 0.72.0.1 已公开发布（PR #180 clean CR、Final CI 绿、appcast 已更新，#177–#179 已关闭）；iOS 2.6.0 (235) 已上传并提交审核（WAITING_FOR_REVIEW）；16 组合为替代验证，实体四设备/Production/APNs 未验证 | [067-v072-upstream-sync/00-overview.md](067-v072-upstream-sync/00-overview.md) | 2026-10-06 |
 | 066 | 设置页“联系”和“我的更多 App”（开发者一栏加邮件联系和作品列表，跳转规则 App Store → 官网 → GitHub） | `done` | 2.5.0 (234)；UI 测试和模拟器验证 | [066-settings-contact-more-apps.md](066-settings-contact-more-apps.md) | 2026-10-04 |
 | 065 | Quota pace 数据来源与小组件可行性（配速改为 iOS 本地按 Mac 观测时间计算并覆盖所有 provider；新增额度消耗趋势小组件） | `done` | 2.5.0 (233) PR #174；234 改为独立“额度消耗趋势”小组件并从小组件库隐藏旧版（SiriKit 小组件的配置结构在添加时存死）；944 单测、23 UI（6 条件跳过）、iPad 补跑、渲染矩阵与真实 SpringBoard 验证；多 Mac 观测锚点为已知局限 | [065-quota-pace-source-and-widget.md](065-quota-pace-source-and-widget.md) | 2026-10-03 |
