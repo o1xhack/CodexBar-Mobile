@@ -113,7 +113,7 @@ enum ProviderColorPalette {
                 || self.v072BrandHex(for: providerIdentifier) != nil)
     }
 
-    /// Upstream v0.72 brand tints. Like the v0.70 accents they are tuned for the Mac
+    /// Upstream v0.72+ brand tints. Like the v0.70 accents they are tuned for the Mac
     /// menu, so Light Mode darkens bright values (WorkBuddy teal) for white cards.
     /// "museai" (muse.ai) must never fall into Muse Code's exact "muse" entry.
     private static func v072BrandHex(for identifier: String) -> String? {
@@ -121,6 +121,8 @@ enum ProviderColorPalette {
         if normalized.contains("museai") || normalized.contains("muse.ai") { return "0668E1" }
         if normalized.contains("lithosai") { return "6B7280" }
         if normalized.contains("workbuddy") { return "0DC8A6" }
+        // Upstream v0.73.0 Langdock.
+        if normalized.contains("langdock") { return "5A4AE7" }
         return nil
     }
 

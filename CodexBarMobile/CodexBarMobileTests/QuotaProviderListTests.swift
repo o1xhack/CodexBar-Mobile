@@ -42,7 +42,7 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 83)
+        #expect(QuotaProviderList.providers.count == 84)
     }
 
     @Test("Subscription zone count is 249 (83 providers × 3 states)")
@@ -319,7 +319,7 @@ struct QuotaProviderListTests {
     /// `warning` state alongside `depleted`/`restored`.)
     @Test("Cause: catalog 83/249 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 83)
+        #expect(QuotaProviderList.providers.count == 84)
         #expect(QuotaProviderList.providers.count * 3 == 249)
     }
 
@@ -403,5 +403,13 @@ struct QuotaProviderListTests {
         }
         #expect(actual["lithosai"] == nil)
         #expect(actual["muse"] == "Muse Code")
+    }
+
+    @Test("v0.73 Langdock is appended after the v0.72 providers")
+    func v073LangdockAppended() {
+        let ids = QuotaProviderList.providers.map(\.id)
+        #expect(ids.last == "langdock")
+        #expect(ids.firstIndex(of: "workbuddy").map { $0 + 1 } == ids.firstIndex(of: "langdock"))
+        #expect(QuotaProviderList.quotaZoneName(providerID: "langdock", state: "warning") == "Quota-langdock-warningZone")
     }
 }

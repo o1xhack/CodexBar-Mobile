@@ -13,7 +13,7 @@ enum ProviderDetailLocalization {
         "aiand", "aixy", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
         "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
         "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
-        "huggingface", "hyper", "ibmbob", "kiro", "litellm", "lithosai", "llmman", "llmproxy",
+        "huggingface", "hyper", "ibmbob", "kiro", "langdock", "litellm", "lithosai", "llmman", "llmproxy",
         "mimo", "minimax", "moonshot", "muse", "museai", "nous", "openai", "openrouter",
         "perplexity", "pi", "poe", "raycast", "replicate", "sakana", "sub2api", "typesafe",
         "v0", "vercel", "wayfinder", "workbuddy", "xai", "xkiro", "zai", "zoommate",

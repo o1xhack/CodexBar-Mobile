@@ -239,6 +239,8 @@ enum MockProviderInjector {
         "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
         // Upstream v0.67.0 provider additions; keep in sync with simple profiles.
         "xkiro", "raycast", "aixy", "museai", "lithosai", "workbuddy",
+        // Upstream v0.73.0.
+        "langdock",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
