@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.6.0 (237)] — Cost ledger keeps history
+
+### Fixed
+- The Local History cost ledger no longer loses days a Mac may no longer hold. An unknown-cost publication (for example Mac 0.72.0.1 marking recent Codex days unknown) keeps a known positive amount and its tokens until a known publication arrives; merged and account-level per-day picks prefer the newest known positive amount. A missing, filtered, renamed or CloudKit-deleted snapshot, a turned-off provider and a clear tombstone remove only the snapshot row; unmatched history is kept but not displayed. Local machine cost (claude, codex, grok, opencodego, vertexai) follows a single new owner, including ledger-only owners; account-level spend stays with its account. Only an explicit user clear deletes the ledger. Research 069.
+
 ## [2.6.0 (236)] — Multi-Mac failure fallback
 
 ### Fixed

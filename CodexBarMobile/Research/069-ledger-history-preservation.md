@@ -1,6 +1,6 @@
 # 成本账本：数据缺失或无法定价时不再丢历史
 
-Status: `in-progress`
+Status: `done`
 Date: 2026-10-08
 Version: iOS 2.6.0 (237)
 
@@ -77,3 +77,8 @@ CWLSeedTests、SwiftDataBridgeTests 中原先断言“删除”的用例，已�
   - 修正注释错位；
   - 非本地服务商不再查询账本归属；
   - 测试改名。
+- **Codex Review（PR #184 第 1 轮）**：4 条 P1，均已修复：
+  - account-level 逐日选取改为确定的全序规则 `preferredDay`，三台 Mac 分别为已知正数、已知 0、未知时，结果与读取顺序无关；
+  - build 升到 237；
+  - CHANGELOG、App 内四语言 2.6.0 说明与 App Store 说明补上本修复；
+  - 本文档状态改为 done。

@@ -4966,6 +4966,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Provider details show progress bars where your Mac reports both used and total amounts."),
                     String(
                         localized: "With more than one Mac, a Mac that can't refresh a provider no longer hides another Mac's data. Details show which Mac the data came from, how old it is, and any refresh errors."),
+                    String(
+                        localized: "Local history keeps your saved costs when a Mac briefly can't report an account or can't price a day, instead of erasing them or showing zero."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

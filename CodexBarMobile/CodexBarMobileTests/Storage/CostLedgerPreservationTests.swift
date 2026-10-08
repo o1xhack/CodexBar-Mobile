@@ -218,6 +218,24 @@ struct CostLedgerPreservationTests {
         #expect(CostLedgerService.replacesDay(zeroOld, with: unknownNew) == true)
     }
 
+    @Test func `the per-day pick across Macs is order independent and keeps a known amount`() throws {
+        let context = try self.makeContext()
+        func point(_ device: String, _ cost: Double, known: Bool, at date: Date) -> DailyCostPoint {
+            let row = DailyCostPoint(
+                deviceID: device, providerID: "openai", accountEmail: "a@example.invalid", dayKey: self.day,
+                costUSD: cost, totalTokens: 1, costIsKnown: known, lastUpdated: date)
+            context.insert(row)
+            return row
+        }
+        let positive = point("mac-a", 20, known: true, at: self.earlier)
+        let zero = point("mac-b", 0, known: true, at: self.later)
+        let unknown = point("mac-c", 0, known: false, at: self.later.addingTimeInterval(60))
+        for order in [[positive, zero, unknown], [unknown, zero, positive], [zero, unknown, positive]] {
+            #expect(CostLedgerService.preferredDay(in: order) === positive)
+        }
+        #expect(CostLedgerService.preferredDay(in: [zero, unknown]) === unknown)
+    }
+
     @Test func `every kept day moves to the next local owner and is counted once`() throws {
         let context = try self.makeContext()
         // The old owner has one day only the ledger still holds.

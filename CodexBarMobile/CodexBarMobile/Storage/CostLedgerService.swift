@@ -512,6 +512,18 @@ enum CostLedgerService {
         return candidate.lastUpdated > current.lastUpdated
     }
 
+    /// Deterministic pick for one account and day across rows: the newest row with a known
+    /// positive amount, otherwise the newest row. Unlike pairwise `replacesDay` this is a total
+    /// order, so the result never depends on fetch order.
+    static func preferredDay(in rows: [DailyCostPoint]) -> DailyCostPoint? {
+        let newest = { (lhs: DailyCostPoint, rhs: DailyCostPoint) in
+            lhs.lastUpdated != rhs.lastUpdated
+                ? lhs.lastUpdated < rhs.lastUpdated
+                : lhs.compositeKey < rhs.compositeKey
+        }
+        return rows.filter(Self.hasKnownAmount).max(by: newest) ?? rows.max(by: newest)
+    }
+
     /// Distinct accounts that own ledger rows for one device and provider.
     static func ledgerOwners(
         deviceID: String,
@@ -640,9 +652,9 @@ enum CostLedgerService {
                     accountIdentityKeys: identityKeys,
                     decoder: decoder)
             }
-            // Account-level spend keeps one row per day: a known amount from either Mac beats an
-            // unknown one, otherwise the newest publication wins.
-            guard let latest = group.max(by: { Self.replacesDay($0, with: $1) }) else {
+            // Account-level spend keeps one row per day: the newest known positive amount from any
+            // Mac, otherwise the newest publication.
+            guard let latest = Self.preferredDay(in: group) else {
                 return nil
             }
             return AggregatedDailyCostPoint(
