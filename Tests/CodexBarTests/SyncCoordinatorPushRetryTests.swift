@@ -86,6 +86,7 @@ struct SyncCoordinatorPushRetryTests {
         #expect(SyncCoordinator.limitsUnavailableNote(snapshot: nil, error: nil, availability: .available) == nil)
         #expect(SyncCoordinator.limitsUnavailableNote(snapshot: nil, error: nil, availability: nil) == nil)
         let snapshot = UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date())
-        #expect(SyncCoordinator.limitsUnavailableNote(snapshot: snapshot, error: nil, availability: .unavailable) == nil)
+        #expect(SyncCoordinator
+            .limitsUnavailableNote(snapshot: snapshot, error: nil, availability: .unavailable) == nil)
     }
 }
