@@ -1167,6 +1167,12 @@ extension KeyedDecodingContainer {
 
 /// iPhone-local explanation of a merged provider card: which Mac supplied the shown observation and
 /// which Macs reported newer refresh failures. Computed by the iOS merger; Macs never publish it.
+/// Non-error explanations a Mac publishes in `statusMessage`. The iPhone recognizes these exact
+/// strings and shows a localized sentence instead of the English wire text.
+public enum SyncStatusNote {
+    public static let limitsUnavailable = "Usage limits are not available for this account on this Mac."
+}
+
 public struct SyncProviderSourceReport: Codable, Sendable, Equatable {
     public struct Failure: Codable, Sendable, Equatable {
         public let deviceID: String

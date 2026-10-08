@@ -2315,7 +2315,7 @@ final class SyncCoordinator {
         availability: UsageLimitsAvailability?) -> String?
     {
         guard snapshot == nil, error == nil, availability?.isUnavailable == true else { return nil }
-        return "Usage limits are not available for this account on this Mac."
+        return SyncStatusNote.limitsUnavailable
     }
 
     func stopObserving() {

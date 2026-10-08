@@ -123,6 +123,16 @@ enum ProviderDetailLocalization {
 
     /// Localizes only stable value fragments emitted by bundled providers. Dynamic values and
     /// custom-plugin content remain verbatim, and the canonical CloudKit payload stays unchanged.
+    /// A Mac's status line: known non-error explanations are localized, anything else stays verbatim.
+    static func localizedStatusMessage(
+        _ message: String,
+        isError: Bool,
+        locale: Locale = .current) -> String
+    {
+        guard !isError, message == SyncStatusNote.limitsUnavailable else { return message }
+        return MobileLocalizedString.value("mac_note_limits_unavailable", defaultValue: message, locale: locale)
+    }
+
     static func localizedValue(
         _ value: String,
         providerID: String,

@@ -51,7 +51,11 @@ struct ProviderSourceNoticeContent: Equatable {
         }
         let failures = status.failures(at: now)
         for failure in failures {
-            let message = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = trimmed.map { text in
+                ProviderDetailLocalization.localizedStatusMessage(
+                    text, isError: failure.isError != false, locale: locale)
+            }
             let text = failure.isError == false
                 ? format("%@ has no usage data for this account.", [failure.deviceName])
                 : format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)])

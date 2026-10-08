@@ -24,4 +24,17 @@ struct V073ProviderPresentationTests {
         #expect(ProviderDetailLocalization.localizedValue(
             "Something new", providerID: "langdock", locale: Locale(identifier: "zh-Hans")) == "Something new")
     }
+
+    @Test func `the Mac's limits note is localized and other status text stays verbatim`() {
+        let note = SyncStatusNote.limitsUnavailable
+        #expect(ProviderDetailLocalization.localizedStatusMessage(
+            note, isError: false, locale: Locale(identifier: "zh-Hans")) == "这台 Mac 上无法获取此账号的用量额度。")
+        #expect(ProviderDetailLocalization.localizedStatusMessage(
+            note, isError: false, locale: Locale(identifier: "ja")) == "この Mac では、このアカウントの使用上限を取得できません。")
+        #expect(ProviderDetailLocalization.localizedStatusMessage(
+            note, isError: true, locale: Locale(identifier: "zh-Hans")) == note)
+        #expect(ProviderDetailLocalization.localizedStatusMessage(
+            "Cookie expired", isError: false, locale: Locale(identifier: "zh-Hans")) == "Cookie expired")
+    }
 }
+

@@ -112,7 +112,7 @@ struct ProviderUsageView: View {
                     Image(systemName: self.provider.isError ? "exclamationmark.bubble.fill" : "info.circle")
                         .font(.subheadline)
                         .foregroundStyle(self.provider.isError ? Color.red : Color.secondary)
-                    Text(message)
+                    Text(ProviderDetailLocalization.localizedStatusMessage(message, isError: self.provider.isError))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(3)
