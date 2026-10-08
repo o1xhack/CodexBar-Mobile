@@ -79,7 +79,10 @@ enum QuotaPaceWindowChoice {
 
     /// Picker options for the configured provider: the default (weekly)
     /// choice first, then every window when the provider has more than one.
-    /// A single-window provider (Codex, muse.ai) has nothing to choose.
+    /// A single window of at least a day (Codex, muse.ai weekly) is what the
+    /// default already follows, so there is nothing to choose; a single
+    /// shorter window, or one without a length, is listed because the
+    /// default never reaches it.
     static func options(
         for record: WidgetProviderRecord?,
         preferredLocalizations: [String],
@@ -87,7 +90,8 @@ enum QuotaPaceWindowChoice {
         durationText: (Int) -> String?) -> [Option]
     {
         let defaultOption = Option(identifier: self.defaultIdentifier, title: defaultTitle, subtitle: nil)
-        guard let record, let windows = record.windows, windows.count > 1 else { return [defaultOption] }
+        guard let record, let windows = record.windows, !windows.isEmpty else { return [defaultOption] }
+        if windows.count == 1, let minutes = windows[0].windowMinutes, minutes >= 1440 { return [defaultOption] }
         let titles = windows.map { $0.title(preferredLocalizations: preferredLocalizations) }
         var counts: [String: Int] = [:]
         for title in titles {
@@ -125,7 +129,12 @@ enum WidgetProviderCatalogue {
 
     static func write(_ providers: [WidgetProviderRecord], to url: URL? = fileURL()) throws {
         guard let url else { return }
-        try JSONEncoder().encode(self.merged(providers)).write(to: url, options: .atomic)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(self.merged(providers))
+        // Every sync refresh publishes the catalogue; skip unchanged writes.
+        if let existing = try? Data(contentsOf: url), existing == data { return }
+        try data.write(to: url, options: .atomic)
     }
 
     /// One record per provider id, sorted by name. Several accounts of one

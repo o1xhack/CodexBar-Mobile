@@ -11,6 +11,9 @@ enum QuotaPaceWindowSelection {
     struct Candidate: Equatable, Sendable {
         let id: String
         let window: SyncRateWindow
+        /// Position among the provider card's windows, for its unlabeled
+        /// "Session" / "Weekly" / "Limit N" names.
+        let cardIndex: Int
     }
 
     /// Shipped localizations, for catalogue titles.
@@ -18,18 +21,23 @@ enum QuotaPaceWindowSelection {
 
     /// The provider's windows in card order (native slots, then extra
     /// windows), each with a stable id. Windows from Macs that sent no id
-    /// use their legacy slot name.
+    /// keep the name of the slot they came from.
     static func candidates(for provider: ProviderUsageSnapshot) -> [Candidate] {
-        let windows: [SyncRateWindow] = provider.rateWindows.isEmpty
-            ? [provider.primary, provider.secondary].compactMap(\.self)
-            : provider.rateWindows
         let legacySlots = ["primary", "secondary", "tertiary"]
+        let slotted: [(slot: String, window: SyncRateWindow)] = if provider.rateWindows.isEmpty {
+            [("primary", provider.primary), ("secondary", provider.secondary)].compactMap { slot, window in
+                window.map { (slot: slot, window: $0) }
+            }
+        } else {
+            provider.rateWindows.enumerated().map { index, window in
+                (slot: index < legacySlots.count ? legacySlots[index] : "window-\(index)", window: window)
+            }
+        }
         var seen = Set<String>()
-        return windows.enumerated().compactMap { index, window in
-            guard !window.isSyntheticPlaceholder else { return nil }
-            let id = window.id ?? (index < legacySlots.count ? legacySlots[index] : "window-\(index)")
+        return slotted.filter { !$0.window.isSyntheticPlaceholder }.enumerated().compactMap { cardIndex, entry in
+            let id = entry.window.id ?? entry.slot
             guard seen.insert(id).inserted else { return nil }
-            return Candidate(id: id, window: window)
+            return Candidate(id: id, window: entry.window, cardIndex: cardIndex)
         }
     }
 
@@ -53,27 +61,45 @@ enum QuotaPaceWindowSelection {
         return max(0, 100 - min(100, window.usedPercent))
     }
 
-    /// The default window id: the weekly window with current usage (the
-    /// native pace window first, then native slots, then extra windows),
-    /// else the native pace window when it has a pace (Research/065), else
-    /// nil so the widget keeps its charted-lane fallback.
+    /// Windows that may stand for the account's allowance, as the
+    /// Mac's weekly switcher (`mostConstrainedSwitcherWeeklyWindow`): Claude's
+    /// Sonnet/Opus tertiary slot and its model-scoped and Routines extras are
+    /// carve-outs, never the account's Weekly.
+    static func isAccountWeeklyCandidate(_ candidate: Candidate, providerID: String) -> Bool {
+        guard providerID == "claude" else { return true }
+        let id = candidate.id
+        return id != "tertiary" && !id.hasPrefix("claude-weekly-scoped-") && id != "claude-routines"
+    }
+
+    /// The default window id when the widget is configured for this
+    /// provider: the native weekly pace window, else the most constrained
+    /// current weekly window the Mac's weekly switcher would use, else the
+    /// native pace window when it has a pace (Research/065), else nil so the
+    /// widget keeps its charted-lane fallback.
     static func defaultWindowID(for provider: ProviderUsageSnapshot, now: Date) -> String? {
         let candidates = self.candidates(for: provider)
         let current = candidates.filter { self.remainingPercent(of: $0.window, now: now) != nil }
         let paceWindow = QuotaPace.window(for: provider)
         if let paceWindow, self.isWeekly(paceWindow),
-           let match = current.first(where: { $0.window == paceWindow })
+           let match = current.first(where: { $0.window == paceWindow }),
+           self.isAccountWeeklyCandidate(match, providerID: provider.providerID)
         {
             return match.id
         }
-        let nativeOrder = ["secondary", "tertiary", "primary"]
-        let weekly = current.filter { self.isWeekly($0.window) }
-        if let native = nativeOrder.lazy.compactMap({ id in weekly.first { $0.id == id } }).first {
-            return native.id
+        let weekly = current.filter {
+            self.isWeekly($0.window) && self.isAccountWeeklyCandidate($0, providerID: provider.providerID)
         }
-        if let first = weekly.first { return first.id }
+        // Most constrained first; ties keep card order.
+        if let mostConstrained = weekly.enumerated().max(by: { lhs, rhs in
+            lhs.element.window.usedPercent == rhs.element.window.usedPercent
+                ? lhs.offset > rhs.offset
+                : lhs.element.window.usedPercent < rhs.element.window.usedPercent
+        }) {
+            return mostConstrained.element.id
+        }
         if let paceWindow, QuotaPace(provider: provider, referenceDate: now) != nil,
-           let match = candidates.first(where: { $0.window == paceWindow })
+           let match = candidates.first(where: { $0.window == paceWindow }),
+           self.isAccountWeeklyCandidate(match, providerID: provider.providerID)
         {
             return match.id
         }
@@ -99,51 +125,48 @@ enum QuotaPaceWindowSelection {
         }
     }
 
-    /// The card title of a window, with the cards' slot fallbacks.
+    /// The card title of a window, with the cards' fallbacks for windows
+    /// without a label.
     static func title(of candidate: Candidate, providerID: String, locale: Locale = .current) -> String {
         self.title(
             label: candidate.window.label,
-            windowID: candidate.id,
-            windowMinutes: candidate.window.windowMinutes,
+            cardIndex: candidate.cardIndex,
             period: candidate.window.period,
             providerID: providerID,
             locale: locale)
     }
 
+    /// Same wording as the provider card (`ProviderDetailView.defaultLabel`
+    /// plus `ProviderWindowLabel`); plain slot labels ("Session", "Weekly")
+    /// also get the first-party translation the widget's chart lanes use.
     static func title(
         label: String?,
-        windowID: String,
-        windowMinutes: Int?,
+        cardIndex: Int?,
         period: SyncRateWindowPeriod?,
         providerID: String,
         locale: Locale = .current) -> String
     {
-        // An unlabeled window is named by its length first (as the card's
-        // "Weekly"), then by its slot.
-        let isWeekly = windowMinutes == 10080 || (windowMinutes == nil && period == .weekly)
-        let slotLabel: String? = isWeekly || windowID == "secondary" ? "Weekly" : windowID == "primary" ? "Session" :
-            nil
-        if label == nil, let slotLabel {
-            let localized = ProviderWindowLabel.localized(
-                slotLabel,
-                fallback: slotLabel,
-                providerID: providerID,
-                period: period,
-                locale: locale)
-            return localized != slotLabel
-                ? localized
-                : MobileLocalizedString.value(slotLabel, defaultValue: slotLabel, locale: locale)
-        }
-        let fallback = MobileLocalizedString.value("Limit", defaultValue: "Limit", locale: locale)
         let title = ProviderWindowLabel.localized(
             label,
-            fallback: fallback,
+            fallback: self.cardFallbackTitle(cardIndex: cardIndex ?? 0, providerID: providerID, locale: locale),
             providerID: providerID,
             period: period,
             locale: locale)
-        // Plain slot labels ("Session", "Weekly") use the same first-party
-        // translation as the widget's chart lanes.
         guard let label, title == label else { return title }
         return ProviderDetailLocalization.localized(label, providerID: providerID, locale: locale)
+    }
+
+    /// The card's name for an unlabeled window at `cardIndex`.
+    static func cardFallbackTitle(cardIndex: Int, providerID: String, locale: Locale) -> String {
+        func localized(_ key: String) -> String {
+            MobileLocalizedString.value(key, defaultValue: key, locale: locale)
+        }
+        if providerID == "xkiro", cardIndex == 0 { return localized("Daily free tokens") }
+        if providerID == "aixy" { return localized(cardIndex == 0 ? "Budget" : "Secondary budget") }
+        switch cardIndex {
+        case 0: return localized("Session")
+        case 1: return localized("Weekly")
+        default: return "\(localized("Limit")) \(cardIndex + 1)"
+        }
     }
 }

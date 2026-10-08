@@ -1370,7 +1370,7 @@ extension CodexBarWidgetView {
             self.paceHero(
                 pace?.paceRemainingPercent,
                 accent: accent,
-                label: pace?.isExplicitWindow == true ? self.paceWindowLabel(pace, providerID: provider.providerID) : nil)
+                label: pace?.namesWindow == true ? self.paceWindowLabel(pace, providerID: provider.providerID) : nil)
             if let delta = pace?.pace {
                 self.paceDeltaText(delta, lineLimit: 2)
             }
@@ -1410,7 +1410,7 @@ extension CodexBarWidgetView {
                 // A chosen window without a chart keeps the row for its reset
                 // so the level bar beside it is not read as the session's.
                 if let session, pace?.primaryLane?.seriesName != "session",
-                   pace?.isExplicitWindow != true || pace?.primaryLane != nil
+                   pace?.followsWindow != true || pace?.primaryLane != nil
                 {
                     self.paceLaneRow(session, providerID: provider.providerID, accent: accent)
                 } else if let reset = self.paceResetText(pace) {
@@ -1424,7 +1424,7 @@ extension CodexBarWidgetView {
             if let lane = pace?.primaryLane {
                 self.paceChart(lane, accent: accent, showsGrid: true)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if pace?.isExplicitWindow == true {
+            } else if pace?.followsWindow == true {
                 // A chosen window without observations still shows its level.
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
@@ -1466,7 +1466,7 @@ extension CodexBarWidgetView {
                 self.paceHero(
                     pace?.paceRemainingPercent,
                     accent: accent,
-                    label: pace?.isExplicitWindow == true ? self.paceWindowLabel(pace, providerID: provider.providerID) : nil)
+                    label: pace?.namesWindow == true ? self.paceWindowLabel(pace, providerID: provider.providerID) : nil)
                 self.progressLine(pace?.paceRemainingPercent, height: self.progressHeight, fill: accent)
                 Spacer(minLength: 0)
             } else {
@@ -1647,10 +1647,10 @@ extension CodexBarWidgetView {
         return WidgetProviderResetText.days(pace?.paceResetsAt, now: self.entry.date)
     }
 
-    /// The described window's name: a chosen window by its card title
-    /// (Research/071), otherwise the charted lane as before.
+    /// The described window's name: for a configured provider the followed
+    /// window's card title (Research/071), otherwise the charted lane.
     private func paceWindowLabel(_ pace: CodexBarWidgetPaceSummary?, providerID: String) -> String? {
-        if pace?.isExplicitWindow == true, let window = pace?.selectedWindow {
+        if pace?.followsWindow == true, let window = pace?.selectedWindow {
             return window.title(providerID: providerID)
         }
         return pace?.primaryLane.map { self.paceLaneLabel($0, providerID: providerID) }

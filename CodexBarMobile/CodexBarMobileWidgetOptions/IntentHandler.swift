@@ -86,7 +86,8 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
             }
             completion(INObjectCollection(items: items), nil)
         } catch {
-            completion(nil, error)
+            // An unreadable catalogue still offers the default window.
+            completion(INObjectCollection(items: [self.defaultWindowChoice()]), nil)
         }
     }
 

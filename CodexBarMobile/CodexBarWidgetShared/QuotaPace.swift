@@ -53,13 +53,18 @@ struct QuotaPace: Equatable, Codable, Sendable {
 
     /// Pace of a provider's pace window at its latest Mac observation.
     init?(provider: ProviderUsageSnapshot, referenceDate: Date = .now) {
-        // Mirrors the Mac's only `allowsEstimatedUsage: false` pace capability.
-        if provider.providerID == "opencodego", provider.usageDataConfidence == "estimated" { return nil }
+        guard Self.allowsPace(for: provider) else { return nil }
         self.init(
             window: Self.window(for: provider),
             capturedAt: provider.lastUpdated,
             referenceDate: referenceDate,
             providerID: provider.providerID)
+    }
+
+    /// Mirrors the Mac's only `allowsEstimatedUsage: false` pace capability:
+    /// OpenCodeGo has no pace on estimated usage, for any window.
+    static func allowsPace(for provider: ProviderUsageSnapshot) -> Bool {
+        !(provider.providerID == "opencodego" && provider.usageDataConfidence == "estimated")
     }
 
     /// The window pace describes, matching the Mac (`codexWeeklyWindow`):

@@ -127,11 +127,56 @@ struct QuotaPaceWindowPickerTests {
             #expect(Self.options(provider).map(\.identifier) == [QuotaPaceWindowChoice.defaultIdentifier])
             #expect(QuotaPaceWindowSelection.catalogueWindows(for: provider).count == 1)
         }
-        // An unlabeled weekly window is named by its length, not its slot.
-        #expect(QuotaPaceWindowSelection.catalogueWindows(for: muse).first?.titles?["en"] == "Weekly")
-        #expect(QuotaPaceWindowSelection.catalogueWindows(for: muse).first?.titles?["zh-Hans"] == "每周")
-        // Same wording as a labeled "Weekly" window.
-        #expect(QuotaPaceWindowSelection.catalogueWindows(for: muse).first?.titles?["ja"] == "週次")
+    }
+
+    @Test
+    func `A single short or unsized window is listed so it can be chosen`() {
+        let short = Self.provider("zai", [Self.window("primary", "5 hours", used: 50, minutes: 300, resetIn: 3600)])
+        let unsized = Self.provider(
+            "fictitious",
+            [Self.window("credits", "Credits", used: 20, minutes: nil, resetIn: 3600)])
+        #expect(Self.options(short).map(\.identifier) == [QuotaPaceWindowChoice.defaultIdentifier, "zai|primary"])
+        #expect(Self.options(unsized).map(\.identifier) == [
+            QuotaPaceWindowChoice.defaultIdentifier, "fictitious|credits",
+        ])
+
+        // End to end: the option the picker offers is the window the widget shows.
+        let providers = Self.summaries([short])
+        let entity = [WidgetProviderEntity(id: "zai", name: "Zai")]
+        let automatic = WidgetProviderSelection.pace(from: providers, selected: entity, limit: 1, now: Self.now)
+        #expect(automatic.first?.quotaPace == nil) // Nothing by default, as before.
+        let chosen = WidgetProviderSelection.pace(
+            from: providers,
+            selected: entity,
+            limit: 1,
+            windowChoice: Self.options(short)[1].identifier,
+            now: Self.now)
+        #expect(chosen.first?.quotaPace?.windowID == "primary")
+        #expect(chosen.first?.quotaPace?.paceRemainingPercent == 50)
+        #expect(chosen.first?.quotaPace?.pace == nil)
+    }
+
+    @Test
+    func `Unlabeled windows are named like the provider card`() {
+        let windows = [
+            Self.window(nil, nil, used: 10, minutes: 10080, resetIn: 86400),
+            Self.window(nil, nil, used: 10, minutes: 300, resetIn: 3600),
+            Self.window(nil, nil, used: 10, minutes: 1440, resetIn: 3600),
+        ]
+        let titles = QuotaPaceWindowSelection.catalogueWindows(for: Self.provider("fictitious", windows))
+        #expect(titles.map(\.id) == ["primary", "secondary", "tertiary"])
+        #expect(titles.map { $0.titles?["en"] } == ["Session", "Weekly", "Limit 3"])
+        #expect(titles.map { $0.titles?["zh-Hans"] } == ["当前周期", "每周", "限额 3"])
+        let aixy = QuotaPaceWindowSelection.catalogueWindows(for: Self.provider("aixy", Array(windows.prefix(2))))
+        #expect(aixy.map { $0.titles?["en"] } == ["Budget", "Secondary budget"])
+
+        // Legacy payloads without rate windows keep the slot they came from.
+        let legacy = ProviderUsageSnapshot(
+            providerID: "fictitious", providerName: "Fictitious", primary: nil,
+            secondary: Self.window(nil, nil, used: 10, minutes: 10080, resetIn: 86400),
+            accountEmail: nil, loginMethod: nil, statusMessage: nil, isError: false,
+            lastUpdated: Self.captured)
+        #expect(QuotaPaceWindowSelection.candidates(for: legacy).map(\.id) == ["secondary"])
     }
 
     @Test
@@ -198,15 +243,30 @@ struct QuotaPaceWindowPickerTests {
         let url = directory.appendingPathComponent("catalogue.json")
         try WidgetProviderCatalogue.write([first, second], to: url)
         #expect(try WidgetProviderCatalogue.read(from: url).first?.windows?.count == 3)
+
+        // An unchanged catalogue is not rewritten; a changed one is.
+        let past = Date(timeIntervalSince1970: 1_000_000_000)
+        try FileManager.default.setAttributes([.modificationDate: past], ofItemAtPath: url.path)
+        try WidgetProviderCatalogue.write([first, second], to: url)
+        func modified() throws -> Date? {
+            try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        }
+        #expect(try modified() == past)
+        try WidgetProviderCatalogue.write([first], to: url)
+        #expect(try modified() != past)
+        #expect(try WidgetProviderCatalogue.read(from: url).first?.windows?.count == 2)
     }
 
     // MARK: Default window
 
     @Test
-    func `Without a choice every provider follows its weekly window`() throws {
+    func `A configured provider without a choice follows its weekly window`() throws {
         let claude = try #require(CodexBarWidgetPaceSummary(provider: Self.claude(), now: Self.now))
+            .configured(windowID: nil)
         #expect(claude.windowID == "secondary")
+        #expect(claude.windowSource == .defaultWindow)
         #expect(claude.isExplicitWindow == false)
+        #expect(claude.namesWindow == false) // Same window as before: same hero.
         #expect(claude.paceRemainingPercent == 60)
         // Same pace as the provider detail page's pace badge.
         #expect(claude.pace == QuotaPace(provider: Self.claude(), referenceDate: Self.now))
@@ -214,16 +274,61 @@ struct QuotaPaceWindowPickerTests {
         let codex = Self.provider("codex", [
             Self.window("primary", "Weekly", used: 30, minutes: 10080, resetIn: 86400),
         ])
-        #expect(CodexBarWidgetPaceSummary(provider: codex, now: Self.now)?.windowID == "primary")
+        #expect(CodexBarWidgetPaceSummary(provider: codex, now: Self.now)?.configured(windowID: nil).windowID
+            == "primary")
 
-        // Antigravity has no native slot; its first weekly window is the default.
+        // Antigravity has no native slot: the most constrained weekly window,
+        // as the Mac's weekly switcher.
         let antigravity = try #require(CodexBarWidgetPaceSummary(
             provider: Self.provider("antigravity", Self.antigravityWindows),
-            now: Self.now))
-        #expect(antigravity.windowID == "antigravity-quota-summary-gemini-weekly")
+            now: Self.now)).configured(windowID: nil)
+        #expect(antigravity.windowID == "antigravity-quota-summary-3p-weekly")
+        #expect(antigravity.paceRemainingPercent == 45)
         #expect(antigravity.pace != nil)
-        #expect(antigravity.paceRemainingPercent == 70)
-        #expect(antigravity.isAutomaticCandidate)
+        #expect(antigravity.namesWindow)
+    }
+
+    @Test
+    func `The default never lands on a Claude carve-out`() throws {
+        let expiredWeekly = Self.window("secondary", "Weekly", used: 40, minutes: 10080, resetIn: -3600)
+        let sonnet = Self.window("tertiary", "Sonnet", used: 10, minutes: 10080, resetIn: 3 * 86400)
+        for windows in [
+            [Self.claudeSession, expiredWeekly, sonnet, Self.claudeFable],
+            [Self.claudeSession, sonnet, Self.claudeFable], // No account Weekly at all.
+        ] {
+            let provider = Self.provider("claude", windows)
+            let summary = try #require(CodexBarWidgetPaceSummary(provider: provider, now: Self.now))
+            #expect(QuotaPaceWindowSelection.defaultWindowID(for: provider, now: Self.now) == nil)
+            let configured = summary.configured(windowID: nil)
+            #expect(configured.windowID != "tertiary")
+            #expect(configured.windowID != "claude-weekly-scoped-fable")
+            #expect(configured.primaryLane?.seriesName != "opus")
+            // It follows the charted session window instead.
+            #expect(configured.windowID == "primary")
+            #expect(configured.paceRemainingPercent == 80)
+        }
+        // Routines are a carve-out too; a non-carve-out extra weekly window is not.
+        let routines = Self.window("claude-routines", "Daily Routines", used: 90, minutes: 10080, resetIn: 86400)
+        let design = Self.window("claude-design", "Designs", used: 15, minutes: 10080, resetIn: 86400)
+        let provider = Self.provider("claude", [Self.claudeSession, routines, design])
+        #expect(QuotaPaceWindowSelection.defaultWindowID(for: provider, now: Self.now) == "claude-design")
+    }
+
+    @Test
+    func `A followed window never borrows another window's chart`() throws {
+        // Default lands on an extra weekly window while only the session is charted.
+        let design = Self.window("claude-design", "Designs", used: 15, minutes: 10080, resetIn: 86400)
+        let summary = try #require(CodexBarWidgetPaceSummary(
+            provider: Self.provider("claude", [Self.claudeSession, design]),
+            now: Self.now))
+        #expect(summary.lanes.map(\.seriesName) == ["session"])
+        let configured = summary.configured(windowID: nil)
+        #expect(configured.windowID == "claude-design")
+        #expect(configured.paceRemainingPercent == 85)
+        #expect(configured.primaryLane == nil)
+        #expect(configured.displayLanes.isEmpty)
+        #expect(configured.hasChart == false)
+        #expect(configured.namesWindow)
     }
 
     @Test
@@ -233,20 +338,116 @@ struct QuotaPaceWindowPickerTests {
             Self.window("primary", "Monthly", used: 25, minutes: 43200, resetIn: 10 * 86400),
         ])
         let summary = try #require(CodexBarWidgetPaceSummary(provider: monthly, now: Self.now))
-        #expect(summary.windowID == "primary")
-        #expect(summary.pace == QuotaPace(provider: monthly, referenceDate: Self.now))
+        #expect(summary.configured(windowID: nil).windowID == "primary")
+        #expect(summary.configured(windowID: nil).pace == QuotaPace(provider: monthly, referenceDate: Self.now))
 
         // A short window alone has nothing to show by default and stays out
-        // of automatic selection, but remains choosable.
+        // of automatic selection; choosing it shows its remaining quota.
         let short = Self.provider("zai", [Self.window("primary", "5 hours", used: 50, minutes: 300, resetIn: 3600)])
         let shortSummary = try #require(CodexBarWidgetPaceSummary(provider: short, now: Self.now))
-        #expect(shortSummary.windowID == nil)
-        #expect(shortSummary.hasDisplayableData == false)
+        #expect(shortSummary.configured(windowID: nil).hasDisplayableData == false)
         #expect(shortSummary.isAutomaticCandidate == false)
-        let chosen = shortSummary.selecting(windowID: "primary")
+        let chosen = shortSummary.configured(windowID: "primary")
         #expect(chosen.hasDisplayableData)
         #expect(chosen.paceRemainingPercent == 50)
         #expect(chosen.pace == nil)
+    }
+
+    // MARK: Automatic selection
+
+    private static func summary(_ provider: ProviderUsageSnapshot, account: String) throws
+        -> CodexBarWidgetProviderSummary
+    {
+        try CodexBarWidgetProviderSummary(
+            id: "\(provider.providerID)|\(account)",
+            providerName: provider.providerName,
+            providerID: provider.providerID,
+            loginMethod: nil,
+            usagePercent: nil,
+            todayCostUSD: nil,
+            thirtyDayCostUSD: nil,
+            tokensToday: nil,
+            isError: false,
+            statusMessage: nil,
+            lastUpdated: provider.lastUpdated,
+            quotaPace: #require(CodexBarWidgetPaceSummary(provider: provider, now: self.now)))
+    }
+
+    @Test
+    func `Automatic selection keeps the Research 065 data for every provider`() throws {
+        let minimaxLike = Self.provider("minimax", [
+            Self.window("primary", "5 hours", used: 30, minutes: 300, resetIn: 3600),
+            Self.window("secondary", "Today", used: 60, minutes: 1440, resetIn: 6 * 3600),
+            Self.window("tertiary", "Weekly", used: 20, minutes: 10080, resetIn: 4 * 86400),
+        ])
+        let codex = Self.provider("codex", [
+            Self.window("primary", "Session", used: 10, minutes: 300, resetIn: 3600),
+            Self.window("secondary", "Weekly", used: 30, minutes: 10080, resetIn: 86400),
+        ])
+        for provider in [codex, Self.claude(history: true), minimaxLike] {
+            let summary = try #require(CodexBarWidgetPaceSummary(provider: provider, now: Self.now))
+            // What the widget showed before window selection existed.
+            let legacyWindow = try #require(QuotaPace.window(for: provider))
+            #expect(summary.windowSource == .automatic)
+            #expect(summary.pace == QuotaPace(provider: provider, referenceDate: Self.now))
+            #expect(summary.paceRemainingPercent == 100 - legacyWindow.usedPercent)
+            #expect(summary.paceResetsAt == legacyWindow.resetsAt)
+            #expect(summary.isAutomaticCandidate)
+        }
+        // Configured, the MiniMax-like provider moves to its weekly window.
+        let minimax = try #require(CodexBarWidgetPaceSummary(provider: minimaxLike, now: Self.now))
+        #expect(minimax.windowID == "secondary")
+        #expect(minimax.configured(windowID: nil).windowID == "tertiary")
+        #expect(minimax.configured(windowID: nil).paceRemainingPercent == 80)
+    }
+
+    @Test
+    func `Antigravity does not join automatic selection through an extra weekly window`() throws {
+        // Claude with only a chart (weekly usage unknown, session charted).
+        let unknownWeekly = Self.window("secondary", "Weekly", used: 0, minutes: 10080, resetIn: 86400, known: false)
+        let chartOnly = try Self.summary(Self.provider("claude", [Self.claudeSession, unknownWeekly]), account: "a")
+        let antigravity = try Self.summary(Self.provider("antigravity", Self.antigravityWindows), account: "a")
+        #expect(antigravity.quotaPace?.pace == nil)
+        #expect(antigravity.quotaPace?.isAutomaticCandidate == false)
+        let picked = WidgetProviderSelection.pace(from: [antigravity, chartOnly], selected: nil, limit: 2)
+        #expect(picked.map(\.providerID) == ["claude"])
+        // Chosen by hand, Antigravity shows its default weekly window with a pace.
+        let configured = WidgetProviderSelection.pace(
+            from: [antigravity, chartOnly],
+            selected: [WidgetProviderEntity(id: "antigravity", name: "Antigravity")],
+            limit: 1,
+            now: Self.now)
+        #expect(configured.first?.quotaPace?.windowID == "antigravity-quota-summary-3p-weekly")
+        #expect(configured.first?.quotaPace?.pace != nil)
+    }
+
+    @Test
+    func `With several accounts the chosen window comes from the account that has it`() throws {
+        // B has a charted weekly window and would outrank A on its default.
+        let a = try Self.summary(Self.claude(), account: "a")
+        let b = try Self.summary(
+            Self.provider(
+                "claude",
+                [Self.claudeSession, Self.claudeWeekly],
+                history: Self.claude(history: true)
+                    .utilizationHistory),
+            account: "b")
+        let claude = [WidgetProviderEntity(id: "claude", name: "Claude")]
+        for order in [[a, b], [b, a]] {
+            let picked = WidgetProviderSelection.pace(
+                from: order,
+                selected: claude,
+                limit: 1,
+                windowChoice: "claude|claude-weekly-scoped-fable",
+                now: Self.now)
+            #expect(picked.first?.id == "claude|a")
+            #expect(picked.first?.quotaPace?.windowID == "claude-weekly-scoped-fable")
+            #expect(picked.first?.quotaPace?.hasChart == false)
+        }
+        // A window no account reports falls back to every account's default.
+        let fallback = WidgetProviderSelection.pace(
+            from: [a, b], selected: claude, limit: 1, windowChoice: "claude|gone", now: Self.now)
+        #expect(fallback.first?.quotaPace?.windowID == "secondary")
     }
 
     // MARK: Choosing a window
@@ -256,9 +457,11 @@ struct QuotaPaceWindowPickerTests {
         let provider = Self.claude(history: true)
         let summary = try #require(CodexBarWidgetPaceSummary(provider: provider, now: Self.now))
         #expect(summary.primaryLane?.seriesName == "weekly")
+        #expect(summary.configured(windowID: nil).primaryLane?.seriesName == "weekly")
+        #expect(summary.configured(windowID: nil).displayLanes.map(\.seriesName) == ["session", "weekly"])
         #expect(summary.displayLanes.map(\.seriesName) == ["session", "weekly"])
 
-        let session = summary.selecting(windowID: "primary")
+        let session = summary.configured(windowID: "primary")
         #expect(session.isExplicitWindow)
         #expect(session.paceRemainingPercent == 80)
         #expect(session.pace == nil) // Pace needs a window of at least one day, as in the app.
@@ -266,7 +469,7 @@ struct QuotaPaceWindowPickerTests {
         #expect(session.displayLanes.map(\.seriesName) == ["session", "weekly"])
         #expect(session.selectedWindow?.title(providerID: "claude", locale: Locale(identifier: "en")) == "Session")
 
-        let fable = summary.selecting(windowID: "claude-weekly-scoped-fable")
+        let fable = summary.configured(windowID: "claude-weekly-scoped-fable")
         #expect(fable.paceRemainingPercent == 30)
         #expect(fable.paceResetsAt == Self.claudeFable.resetsAt)
         #expect(fable.pace == QuotaPace(
@@ -332,10 +535,11 @@ struct QuotaPaceWindowPickerTests {
             #expect(picked.first?.quotaPace?.windowID == "secondary")
             #expect(picked.first?.quotaPace?.isExplicitWindow == false)
         }
-        // Automatic provider selection always uses the default window.
+        // Automatic provider selection ignores the choice.
         let automatic = WidgetProviderSelection.pace(
             from: providers, selected: nil, limit: 1, windowChoice: "claude|primary", now: Self.now)
         #expect(automatic.first?.quotaPace?.windowID == "secondary")
+        #expect(automatic.first?.quotaPace?.windowSource == .automatic)
     }
 
     @Test
@@ -390,7 +594,7 @@ struct QuotaPaceWindowPickerTests {
         let summary = try #require(CodexBarWidgetPaceSummary(provider: Self.claude(), now: Self.now))
         var object = try #require(
             JSONSerialization.jsonObject(with: JSONEncoder().encode(summary)) as? [String: Any])
-        for key in ["windows", "windowID", "isExplicitWindow"] {
+        for key in ["windows", "windowID", "windowSource", "automaticWindowID", "defaultWindowID"] {
             object.removeValue(forKey: key)
         }
         let legacy = try JSONDecoder().decode(
@@ -399,7 +603,8 @@ struct QuotaPaceWindowPickerTests {
         #expect(legacy.windows.isEmpty)
         #expect(legacy.windowID == nil)
         #expect(legacy.paceRemainingPercent == 60)
-        #expect(legacy.selecting(windowID: "primary") == legacy)
+        #expect(legacy.windowSource == .automatic)
+        #expect(legacy.configured(windowID: "primary").windowID == nil)
     }
 
     @Test
@@ -408,6 +613,6 @@ struct QuotaPaceWindowPickerTests {
             .first { $0.providerID == "claude" })
         #expect(claude.quotaPace?.windows.map(\.id) == ["primary", "secondary", "claude-weekly-scoped-fable"])
         #expect(claude.quotaPace?.windowID == "secondary")
-        #expect(claude.quotaPace?.selecting(windowID: "claude-weekly-scoped-fable").paceRemainingPercent == 29)
+        #expect(claude.quotaPace?.configured(windowID: "claude-weekly-scoped-fable").paceRemainingPercent == 29)
     }
 }
