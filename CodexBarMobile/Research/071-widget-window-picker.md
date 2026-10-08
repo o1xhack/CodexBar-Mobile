@@ -142,6 +142,52 @@
 - 渲染矩阵新增 `testQuotaPaceChosenWindowsRenderAcrossFamilies`：Claude 选当前周期、选仅 Fable，四种尺寸 × 浅色 / 深色 / tinted × 单色 / 彩色，全部可见；彩色和 tinted 的图片作为附件保存。
 - 全量 iOS 单测、i18n 审计结果见第 6 节。
 
+
+## 同步兼容矩阵（2 Mac × 2 iPhone）
+
+本次只改 iPhone 本地：
+- 小组件意图（.intentdefinition）、WidgetOptions 扩展；
+- App Group 里的 provider catalogue（每台 iPhone 本地写、本地读）；
+- 小组件的渲染。
+
+Mac、`Shared/`、CloudKit record 与 payload 都没有改动。新旧 Mac 写出的数据完全相同（Mac old = 0.72.0.1 / 0.70.0.1 writer，new = 0.73.0.1 writer，两者对这个功能所需的 `rateWindows` 字段一致）。两台 iPhone 的小组件配置和 catalogue 互不共享。所以每个组合的结果只取决于那台 iPhone 是 old（≤ 237）还是 new（238）。
+
+实体组合不具备实际复现条件，全部记为 substituted。
+
+替代验证：
+- **iOS 单测**：`QuotaPaceWindowPickerTests`，覆盖：
+  - 旧 catalogue、旧意图、旧数据的解码；
+  - 没有窗口 id 的旧快照；
+  - 已添加小组件（`quotaWindow` 为空）逐个 provider 与 065 对比；
+  - 多账号；
+  - 选择失效时回退。
+- **小组件渲染矩阵**：4 种尺寸 × 浅色 / 深色 / tinted × 单色 / 彩色，含 defaultWindow 状态。
+- **模拟器 SpringBoard 实测**：编辑面板的选项和渲染。
+
+| Case | Mac A | Mac B | iPhone A | iPhone B | Result | Evidence | Notes |
+|---:|---|---|---|---|---|---|---|
+| 1 | old | old | old | old | substituted | iPhone A：旧版小组件行为不变；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 2 | old | old | old | new | substituted | iPhone A：旧版小组件行为不变；iPhone B：窗口选择单测 + 渲染矩阵 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 3 | old | old | new | old | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 4 | old | old | new | new | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：窗口选择单测 + 渲染矩阵 | 两台都是新版：各自小组件按各自配置渲染 |
+| 5 | old | new | old | old | substituted | iPhone A：旧版小组件行为不变；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 6 | old | new | old | new | substituted | iPhone A：旧版小组件行为不变；iPhone B：窗口选择单测 + 渲染矩阵 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 7 | old | new | new | old | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 8 | old | new | new | new | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：窗口选择单测 + 渲染矩阵 | 两台都是新版：各自小组件按各自配置渲染 |
+| 9 | new | old | old | old | substituted | iPhone A：旧版小组件行为不变；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 10 | new | old | old | new | substituted | iPhone A：旧版小组件行为不变；iPhone B：窗口选择单测 + 渲染矩阵 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 11 | new | old | new | old | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 12 | new | old | new | new | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：窗口选择单测 + 渲染矩阵 | 两台都是新版：各自小组件按各自配置渲染 |
+| 13 | new | new | old | old | substituted | iPhone A：旧版小组件行为不变；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 14 | new | new | old | new | substituted | iPhone A：旧版小组件行为不变；iPhone B：窗口选择单测 + 渲染矩阵 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 15 | new | new | new | old | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：旧版小组件行为不变 | 旧版 iPhone 的小组件没有“额度窗口”参数，按 065 显示 |
+| 16 | new | new | new | new | substituted | iPhone A：窗口选择单测 + 渲染矩阵；iPhone B：窗口选择单测 + 渲染矩阵 | 两台都是新版：各自小组件按各自配置渲染 |
+
+残余风险：
+- 没做“旧版添加小组件 → 覆盖安装新版”的实机升级，结论沿用 065 的同类实测：SiriKit 保留添加时的配置结构，已添加的小组件看不到新参数，按默认 weekly 显示。
+- 真机 SpringBoard 尚未验证，需要在 TestFlight 2.6.0 (238) 上确认。
+- Gate 结论：16 个组合全部列出，均为 substituted，无 fail。
+
 ## 6. 验证记录
 
 日志和截图都在 `/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/widget-window/`（模拟器 iPhone 17 Pro `E1DD6B03`，系统语言简体中文）。
