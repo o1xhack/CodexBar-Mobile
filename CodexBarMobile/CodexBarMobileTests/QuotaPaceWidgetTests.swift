@@ -67,7 +67,7 @@ struct QuotaPaceWidgetTests {
     }
 
     @Test
-    func `Other providers get pace without a chart and short windows get nothing`() throws {
+    func `Other providers get pace without a chart and short windows show nothing by default`() throws {
         let other = try #require(CodexBarWidgetPaceSummary(provider: Self.provider("zai"), now: Self.now))
         #expect(other.pace != nil)
         #expect(other.lanes.isEmpty)
@@ -77,7 +77,11 @@ struct QuotaPaceWidgetTests {
             windowMinutes: 300,
             resetsAt: Self.now.addingTimeInterval(3600),
             resetDescription: nil)
-        #expect(CodexBarWidgetPaceSummary(provider: Self.provider("zai", windows: [session]), now: Self.now) == nil)
+        // Research/071: the short window stays choosable, but nothing shows by
+        // default and automatic selection skips it, as before.
+        let short = CodexBarWidgetPaceSummary(provider: Self.provider("zai", windows: [session]), now: Self.now)
+        #expect(short?.hasDisplayableData == false)
+        #expect(short?.isAutomaticCandidate == false)
     }
 
     @Test

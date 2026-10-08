@@ -26,6 +26,8 @@
 "CBPaceDescription" = "プロバイダーのクォータがリセットまで持つかを確認します。";
 "CBPacecolorStyle" = "配色";
 "CBPaceprovider" = "プロバイダー";
+"CBPacequotaWindow" = "表示するクォータ";
+"CBPaceQuotaWindowType" = "表示するクォータ";
 
 /* Build 233 status widgets keep their schema; keep these labels translated. */
 "CBStatusStatusWidgetModequotaPace" = "クォータ消費の推移";

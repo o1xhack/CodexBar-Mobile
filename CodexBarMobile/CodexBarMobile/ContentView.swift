@@ -4968,6 +4968,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "With more than one Mac, a Mac that can't refresh a provider no longer hides another Mac's data. Details show which Mac the data came from, how old it is, and any refresh errors."),
                     String(
                         localized: "Local history keeps your saved costs when a Mac briefly can't report an account or can't price a day, instead of erasing them or showing zero."),
+                    String(
+                        localized: "Choose which quota the Quota pace widget follows, such as Session, Weekly, or a model-only limit. Weekly is the default; widgets added before this update need to be added again to show this option."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

@@ -44,6 +44,18 @@ enum WidgetProviderResetText {
     }
 }
 
+extension WidgetProviderResetText {
+    /// Hours until reset for windows shorter than a day (Research/071).
+    static func hours(_ resetsAt: Date?, now: Date) -> String? {
+        guard let resetsAt else { return nil }
+        let hours = resetsAt.timeIntervalSince(now) / 3600
+        guard hours > 0 else { return String(localized: "Now") }
+        if hours < 0.1 { return String(localized: "<0.1h") }
+        let number = hours.formatted(.number.precision(.fractionLength(0...1)))
+        return String(format: String(localized: "%@h"), number)
+    }
+}
+
 enum WidgetProviderSelection {
     static func resolve(
         from providers: [CodexBarWidgetProviderSummary],
@@ -74,21 +86,41 @@ enum WidgetProviderSelection {
     }
 
     /// Providers for the Quota Pace widget. A configured provider is always
-    /// honored: without pace data it comes back without `quotaPace` (the view
-    /// says so) instead of silently showing another provider. Automatic
-    /// selection prefers providers with a pace, then a chart (Codex, Claude),
-    /// then the least remaining quota.
+    /// honored: without data for its window it comes back without
+    /// `quotaPace` (the view says so) instead of silently showing another
+    /// provider. Automatic selection prefers providers with a pace, then a
+    /// chart (Codex, Claude), then the least remaining quota.
+    ///
+    /// `windowChoice` (Research/071) points a configured provider at one of
+    /// its windows; without a choice, or with a choice for another provider
+    /// or a window that is gone, a configured provider follows its default
+    /// (weekly) window. Automatic provider selection ignores the choice and
+    /// keeps the Research/065 data and ranking.
     static func pace(
         from providers: [CodexBarWidgetProviderSummary],
         selected: [WidgetProviderEntity]?,
         limit: Int,
+        windowChoice: String? = nil,
         now: Date = .now) -> [CodexBarWidgetProviderSummary]
     {
-        let candidates = providers.filter { !$0.isError && $0.quotaPace != nil }
         if let selected, !selected.isEmpty {
             var seen = Set<String>()
             return selected.filter { seen.insert($0.id).inserted }.prefix(limit).map { entity in
-                candidates.filter { $0.providerID == entity.id }
+                let windowID = QuotaPaceWindowChoice.windowID(from: windowChoice, providerID: entity.id)
+                let accounts = providers.filter { !$0.isError && $0.providerID == entity.id }
+                // With several accounts, a chosen window comes only from the
+                // accounts that report it; without one, every account falls
+                // back to its default window.
+                let holders = windowID.map { id in
+                    accounts.filter { $0.quotaPace?.windows.contains { $0.id == id } == true }
+                } ?? []
+                return (holders.isEmpty ? accounts : holders)
+                    .compactMap { provider -> CodexBarWidgetProviderSummary? in
+                        guard let pace = provider.quotaPace?.configured(windowID: windowID),
+                              pace.hasDisplayableData
+                        else { return nil }
+                        return provider.withQuotaPace(pace)
+                    }
                     .max { Self.paceRank($0) < Self.paceRank($1) }
                     ?? CodexBarWidgetProviderSummary(
                         id: "unavailable|\(entity.id)",
@@ -104,6 +136,7 @@ enum WidgetProviderSelection {
                         lastUpdated: now)
             }
         }
+        let candidates = providers.filter { !$0.isError && $0.quotaPace?.isAutomaticCandidate == true }
         var seen = Set<String>()
         return candidates
             .sorted { lhs, rhs in
@@ -120,10 +153,11 @@ enum WidgetProviderSelection {
             .map(\.self)
     }
 
-    /// Pace outranks a chart; providers with both rank highest.
+    /// Pace outranks a chart; providers with both rank highest. A followed
+    /// window only counts its own chart.
     private static func paceRank(_ provider: CodexBarWidgetProviderSummary) -> Int {
         let hasPace = provider.quotaPace?.pace != nil
-        let hasChart = provider.quotaPace?.lanes.isEmpty == false
+        let hasChart = provider.quotaPace?.hasChart == true
         return (hasPace ? 2 : 0) + (hasChart ? 1 : 0)
     }
 

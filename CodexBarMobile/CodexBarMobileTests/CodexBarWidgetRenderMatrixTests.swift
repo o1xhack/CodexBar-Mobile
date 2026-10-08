@@ -1,3 +1,4 @@
+import CodexBarSync
 import SwiftUI
 import UIKit
 import WidgetKit
@@ -208,6 +209,110 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         }
     }
 
+    /// Research/071: Claude's session and Fable-only windows chosen in the
+    /// widget configuration render in every family and appearance.
+    func testQuotaPaceChosenWindowsRenderAcrossFamilies() {
+        let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
+        let claude = [WidgetProviderEntity(id: "claude", name: "Claude")]
+        let appearances: [(name: String, scheme: ColorScheme, mode: WidgetRenderingMode)] = [
+            ("light", .light, .fullColor),
+            ("dark", .dark, .fullColor),
+            ("tinted", .dark, .accented),
+        ]
+        for choice in ["claude|primary", "claude|claude-weekly-scoped-fable"] {
+            let picked = WidgetProviderSelection.pace(
+                from: snapshot.topProviders, selected: claude, limit: 1, windowChoice: choice)
+            XCTAssertEqual(picked.first?.quotaPace?.isExplicitWindow, true, choice)
+            for family in self.families {
+                for appearance in appearances {
+                    for colorStyle in self.colorStyles {
+                        let image = self.renderWidget(
+                            mode: .quotaPace,
+                            colorStyle: colorStyle,
+                            colorScheme: appearance.scheme,
+                            renderingMode: appearance.mode,
+                            family: family.family,
+                            size: family.size,
+                            snapshot: snapshot,
+                            providers: claude,
+                            paceWindowChoice: choice)
+                        let context = "quotaPace-window/\(choice)/\(family.family)/\(appearance.name)/\(colorStyle)"
+                        _ = self.assertVisibleImage(image, context: context)
+                        guard let image, colorStyle == .colorful || appearance.name == "tinted" else { continue }
+                        let attachment = XCTAttachment(image: image)
+                        attachment.name = "Quota Pace window \(choice) \(family.family) \(appearance.name) \(colorStyle)"
+                        attachment.lifetime = .keepAlways
+                        self.add(attachment)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Research/071: configured providers on their default window — muse.ai
+    /// (single unlabeled weekly window, no label) and Antigravity (most
+    /// constrained weekly bucket, named next to the hero).
+    func testQuotaPaceDefaultWindowsRenderAcrossFamilies() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func window(_ id: String, _ label: String?, used: Double, minutes: Int) -> SyncRateWindow {
+            SyncRateWindow(
+                id: id, label: label, usedPercent: used, windowMinutes: minutes,
+                resetsAt: now.addingTimeInterval(3 * 86400), resetDescription: nil)
+        }
+        func summary(_ id: String, _ name: String, _ windows: [SyncRateWindow]) throws
+            -> CodexBarWidgetProviderSummary
+        {
+            let provider = ProviderUsageSnapshot(
+                providerID: id, providerName: name, primary: nil, secondary: nil, accountEmail: nil,
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: now.addingTimeInterval(-120), rateWindows: windows)
+            return try CodexBarWidgetProviderSummary(
+                id: "\(id)|x", providerName: name, providerID: id, loginMethod: nil, usagePercent: nil,
+                todayCostUSD: nil, thirtyDayCostUSD: nil, tokensToday: nil, isError: false,
+                statusMessage: nil, lastUpdated: provider.lastUpdated,
+                quotaPace: XCTUnwrap(CodexBarWidgetPaceSummary(provider: provider, now: now)))
+        }
+        let muse = try summary("museai", "muse.ai", [window("primary", nil, used: 35, minutes: 10080)])
+        let antigravity = try summary("antigravity", "Antigravity", [
+            window("antigravity-quota-summary-gemini-weekly", "Gemini weekly", used: 30, minutes: 10080),
+            window("antigravity-quota-summary-3p-weekly", "Claude/GPT weekly", used: 55, minutes: 10080),
+            window("antigravity-quota-summary-gemini-5h", "Gemini 5-hour", used: 10, minutes: 300),
+        ])
+        let placeholder = CodexBarWidgetSnapshot.placeholder(now: now)
+        let snapshot = CodexBarWidgetSnapshot(
+            state: .loaded, generatedAt: now, latestSyncAt: now, deviceCount: 1, providerCount: 2,
+            errorCount: 0, todayCostUSD: nil, thirtyDayCostUSD: nil, todayTokens: nil,
+            maxUsagePercent: nil, topProviders: [muse, antigravity] + placeholder.topProviders,
+            message: nil, isStale: false)
+        for entity in [
+            WidgetProviderEntity(id: "museai", name: "muse.ai"),
+            WidgetProviderEntity(id: "antigravity", name: "Antigravity"),
+        ] {
+            let picked = WidgetProviderSelection.pace(
+                from: snapshot.topProviders, selected: [entity], limit: 1, now: now)
+            XCTAssertEqual(picked.first?.quotaPace?.windowSource, .defaultWindow, entity.id)
+            for family in self.families {
+                for scheme in self.colorSchemes {
+                    let image = self.renderWidget(
+                        mode: .quotaPace,
+                        colorStyle: .colorful,
+                        colorScheme: scheme,
+                        family: family.family,
+                        size: family.size,
+                        snapshot: snapshot,
+                        providers: [entity])
+                    let context = "quotaPace-default/\(entity.id)/\(family.family)/\(scheme)"
+                    _ = self.assertVisibleImage(image, context: context)
+                    guard let image, scheme == .light else { continue }
+                    let attachment = XCTAttachment(image: image)
+                    attachment.name = "Quota Pace default \(entity.id) \(family.family)"
+                    attachment.lifetime = .keepAlways
+                    self.add(attachment)
+                }
+            }
+        }
+    }
+
     func testQuotaPaceExtraLargeKeepsAnUnavailableConfiguredProvider() {
         let snapshot = CodexBarWidgetSnapshot.placeholder(now: Date(timeIntervalSince1970: 1_800_000_000))
         let selection = [
@@ -307,14 +412,18 @@ final class CodexBarWidgetRenderMatrixTests: XCTestCase {
         renderingMode: WidgetRenderingMode = .fullColor,
         family: WidgetFamily,
         size: CGSize,
-        snapshot: CodexBarWidgetSnapshot
+        snapshot: CodexBarWidgetSnapshot,
+        providers: [WidgetProviderEntity]? = nil,
+        paceWindowChoice: String? = nil
     ) -> UIImage? {
         let entry = CodexBarWidgetEntry(
             date: Date(timeIntervalSince1970: 1_800_000_060),
             configuration: CodexBarWidgetConfigurationIntent(
                 mode: mode,
-                colorStyle: colorStyle),
-            snapshot: snapshot)
+                colorStyle: colorStyle,
+                providers: providers),
+            snapshot: snapshot,
+            paceWindowChoice: paceWindowChoice)
         let view = ZStack {
             // `containerBackground(for: .widget)` is supplied by WidgetKit at
             // runtime. In an off-screen ImageRenderer test it can be

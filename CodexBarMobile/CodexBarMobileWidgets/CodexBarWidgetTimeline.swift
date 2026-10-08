@@ -33,7 +33,10 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
         await Self.makeTimeline(configuration: configuration)
     }
 
-    static func makeTimeline(configuration: CodexBarWidgetConfigurationIntent) async -> Timeline<CodexBarWidgetEntry> {
+    static func makeTimeline(
+        configuration: CodexBarWidgetConfigurationIntent,
+        paceWindowChoice: String? = nil) async -> Timeline<CodexBarWidgetEntry>
+    {
         let now = Date()
         #if DEBUG
         Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "overview").notice(
@@ -44,7 +47,8 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
             let entry = CodexBarWidgetEntry(
                 date: now,
                 configuration: configuration,
-                snapshot: .simulatorMock(now: now))
+                snapshot: .simulatorMock(now: now),
+                paceWindowChoice: paceWindowChoice)
             return Timeline(
                 entries: [entry],
                 policy: .after(now.addingTimeInterval(15 * 60)))
@@ -67,7 +71,8 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
         let entry = CodexBarWidgetEntry(
             date: now,
             configuration: configuration,
-            snapshot: snapshot)
+            snapshot: snapshot,
+            paceWindowChoice: paceWindowChoice)
         let refreshInterval: TimeInterval = switch snapshot.state {
         case .loaded: 15 * 60
         case .placeholder, .syncing: 5 * 60

@@ -65,6 +65,7 @@
 		3A61359B6A439F7C8C342C49 /* CWLPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF19DFB181532F757F35E7C /* CWLPerformanceTests.swift */; };
 		3C9E97B2AF06B143FC2A9E75 /* V049SyncCompatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EBCA2388AA438982DDCD57 /* V049SyncCompatTests.swift */; };
 		3CABBA475F5ED142DBED7CEB /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
+		3CDD687149DD6C41411D4361 /* ProviderWindowLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F08974FE5ADF851E663690F /* ProviderWindowLabel.swift */; };
 		3E591C7DE7ED51CB3883D431 /* ProviderUsageEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */; };
 		3E5AFF6C6E5FEDFEEC7856DD /* QuotaPaceWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29398405BA75DD7486CCA9D /* QuotaPaceWidgetTests.swift */; };
 		3FF73F5DB65C0589C032253A /* CloudConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFC39F091B19A1DE9F2E7C7 /* CloudConstants.swift */; };
@@ -139,6 +140,7 @@
 		7F3D8E8546E1F7DEFBDF266E /* V070ConsumerDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A613090824875E92612A1DC1 /* V070ConsumerDataTests.swift */; };
 		7FE9B2381025A654D758FD62 /* CostShareServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711C2FDFCB5E5A666E793D0 /* CostShareServiceTests.swift */; };
 		80B6863B91547B2CA369FC58 /* WidgetSnapshotBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 534FD5DA53F564D357F039EE /* WidgetSnapshotBuilderTests.swift */; };
+		8276337A9416D92544F95667 /* QuotaPaceWindowPickerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B14C32D26907D70972E910 /* QuotaPaceWindowPickerTests.swift */; };
 		82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */; };
 		83743340B33F44EE14813AF4 /* UsageCardPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1448429C03205AD30CC2D5AC /* UsageCardPreferences.swift */; };
 		86AF1C1CE9402E616E87F26C /* SwiftDataBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */; };
@@ -219,6 +221,7 @@
 		D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		D2647B185A2C748136B3D5CF /* ProviderDetailLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EBCCACB7D410FD3499739C1 /* ProviderDetailLocalization.swift */; };
 		D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */; };
+		D58F50198D26F48F42A9D064 /* ProviderWindowLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F08974FE5ADF851E663690F /* ProviderWindowLabel.swift */; };
 		D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92153BD74B2B08AE61B76E2 /* PreviewData.swift */; };
 		DBF1F5FA367720721A97F750 /* WidgetActivity.intentdefinition in Sources */ = {isa = PBXBuildFile; fileRef = F677A47657E5FE3C3F3BFADB /* WidgetActivity.intentdefinition */; };
 		DC86CBD35511A6C41755914B /* StatusWidgetTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B38802B33E177667A2B8224 /* StatusWidgetTimeline.swift */; };
@@ -232,6 +235,7 @@
 		E79487590ED842AE33B360D7 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9578A435334E38DB06D035CB /* OnboardingView.swift */; };
 		E7948A0383825AE3E4A49801 /* ProviderUsageViewSubtitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */; };
 		EBE2A4618178227F342DCDF4 /* NSEInvocationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7254D548254F139B35339EF7 /* NSEInvocationLog.swift */; };
+		EC6B4BA89F8C591142E0E132 /* QuotaPaceWindowSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037C02AFA0AD5472CE3B718E /* QuotaPaceWindowSelection.swift */; };
 		F032E24887BB6718E712FBE9 /* PerplexityCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */; };
 		F17B695DE47773A5DF665875 /* ZaiHourlyChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBFBF4B7241CE271554F183C /* ZaiHourlyChart.swift */; };
 		F1E70894B80CE53B4E5597FE /* WidgetActivityProjectionBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40E8BAA999D1B73115437CD /* WidgetActivityProjectionBuilder.swift */; };
@@ -246,6 +250,7 @@
 		F96A94C5A2AB38A1DB68555A /* OpenRouterStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5B28EEE593B46A1604352 /* OpenRouterStatsCard.swift */; };
 		F97B630E810DB48A4CB150C7 /* LinkageRecordMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */; };
 		FD2364635784A71AE994402E /* DeviceLifecycleEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CAFB868825B9A3F09FE0AA /* DeviceLifecycleEventTests.swift */; };
+		FD7B1AA72AD0A426CB473876 /* QuotaPaceWindowSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037C02AFA0AD5472CE3B718E /* QuotaPaceWindowSelection.swift */; };
 		FE0F6EED9F97E88267101B6C /* GrokBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */; };
 		FFD83AC508495F560EF80AEA /* MobileLocalizedString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A6E3C65B089104604DB100F /* MobileLocalizedString.swift */; };
 /* End PBXBuildFile section */
@@ -357,6 +362,7 @@
 /* Begin PBXFileReference section */
 		01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParser.swift; sourceTree = "<group>"; };
 		026226E3F5DB8E1DD9E87257 /* CrossModelUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossModelUsageCard.swift; sourceTree = "<group>"; };
+		037C02AFA0AD5472CE3B718E /* QuotaPaceWindowSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaPaceWindowSelection.swift; sourceTree = "<group>"; };
 		04473E13F793B1EDF3EF4280 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		05C1218407426AA0AB7E2D32 /* CostHistoryWorkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostHistoryWorkerTests.swift; sourceTree = "<group>"; };
 		085CDD42120B39B956381B5D /* V045ProviderSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V045ProviderSnapshots.swift; sourceTree = "<group>"; };
@@ -390,6 +396,7 @@
 		252E82C4DE92C8734EDD3F33 /* AccountIdentityNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityNormalize.swift; sourceTree = "<group>"; };
 		25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountTabRenderingTests.swift; sourceTree = "<group>"; };
 		273C987230CB40BB514BC840 /* PayloadCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadCompression.swift; sourceTree = "<group>"; };
+		29B14C32D26907D70972E910 /* QuotaPaceWindowPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaPaceWindowPickerTests.swift; sourceTree = "<group>"; };
 		29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheTests.swift; sourceTree = "<group>"; };
 		2A1ED071718B982E3425E765 /* TokenHistoryMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenHistoryMigrationTests.swift; sourceTree = "<group>"; };
 		2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIDashboardSection.swift; sourceTree = "<group>"; };
@@ -423,6 +430,7 @@
 		49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationHistoryView.swift; sourceTree = "<group>"; };
 		4A35B8172E4530311B55BE4C /* MultiAccountLinkageDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountLinkageDetectorTests.swift; sourceTree = "<group>"; };
 		4DDEAEEF583AFDE3D29A18C3 /* QuotaTransitionSubscriptionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaTransitionSubscriptionsTests.swift; sourceTree = "<group>"; };
+		4F08974FE5ADF851E663690F /* ProviderWindowLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderWindowLabel.swift; sourceTree = "<group>"; };
 		5007E1592F72BADEFFB72A99 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		523FB93D267EE1CADF39FE8F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		5252859FF3EC40069E720BD4 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/WidgetStatus.strings"; sourceTree = "<group>"; };
@@ -677,6 +685,7 @@
 				CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */,
 				96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */,
 				F29398405BA75DD7486CCA9D /* QuotaPaceWidgetTests.swift */,
+				29B14C32D26907D70972E910 /* QuotaPaceWindowPickerTests.swift */,
 				C3D273F51CDB63F11D2E772A /* QuotaProviderListTests.swift */,
 				4DDEAEEF583AFDE3D29A18C3 /* QuotaTransitionSubscriptionsTests.swift */,
 				2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */,
@@ -741,7 +750,9 @@
 				7EBCCACB7D410FD3499739C1 /* ProviderDetailLocalization.swift */,
 				B7BC466DA9C12357656F59CB /* ProviderSnapshotMerger.swift */,
 				731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */,
+				4F08974FE5ADF851E663690F /* ProviderWindowLabel.swift */,
 				EE3202DAC5E01D0784FDD137 /* QuotaPace.swift */,
+				037C02AFA0AD5472CE3B718E /* QuotaPaceWindowSelection.swift */,
 				D0B98567B9A16E271635294A /* QuotaResetDateText.swift */,
 				9A25EEBB3E3FBDE9B81C34FF /* StatusWidgetConfigurationAdapter.swift */,
 				484A69D6665BE9EADD5FA571 /* WidgetActivityProjection.swift */,
@@ -1308,6 +1319,7 @@
 				F78F3508FDA61D1B36D66800 /* ProviderColorPaletteTests.swift in Sources */,
 				E7948A0383825AE3E4A49801 /* ProviderUsageViewSubtitleTests.swift in Sources */,
 				3E5AFF6C6E5FEDFEEC7856DD /* QuotaPaceWidgetTests.swift in Sources */,
+				8276337A9416D92544F95667 /* QuotaPaceWindowPickerTests.swift in Sources */,
 				6C1FECC502FD2DD3FF666618 /* QuotaProviderListTests.swift in Sources */,
 				77CF9F560A2873DDC19B0A3D /* QuotaTransitionSubscriptionsTests.swift in Sources */,
 				05A1216E90C95AAE2D36B013 /* QuotaZoneNotificationParserTests.swift in Sources */,
@@ -1422,9 +1434,11 @@
 				6DCDD71DAADD02D424FB0660 /* ProviderUsageSnapshot+Identity.swift in Sources */,
 				0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */,
 				A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */,
+				3CDD687149DD6C41411D4361 /* ProviderWindowLabel.swift in Sources */,
 				F91FAC531225917E4E86A892 /* PushSetupDiagnostic.swift in Sources */,
 				97CD74F2B91C1DC60894367D /* QuotaBurndownSection.swift in Sources */,
 				A483C585E771729E1BBB476F /* QuotaPace.swift in Sources */,
+				FD7B1AA72AD0A426CB473876 /* QuotaPaceWindowSelection.swift in Sources */,
 				8F86B35FC2E45FDDBA1CF47D /* QuotaResetDateText.swift in Sources */,
 				95421AE3BAA4C16314A2BF1A /* QuotaTransitionSubscriptions.swift in Sources */,
 				C05BB8D498AEAD0E75753738 /* SnapshotCache.swift in Sources */,
@@ -1531,7 +1545,9 @@
 				D2647B185A2C748136B3D5CF /* ProviderDetailLocalization.swift in Sources */,
 				57C973F513DAC5CC5E587DDE /* ProviderSnapshotMerger.swift in Sources */,
 				A925E0A6BF1C1AD4179ADB52 /* ProviderSourceStatus.swift in Sources */,
+				D58F50198D26F48F42A9D064 /* ProviderWindowLabel.swift in Sources */,
 				2B1AC6777541784ADE44A218 /* QuotaPace.swift in Sources */,
+				EC6B4BA89F8C591142E0E132 /* QuotaPaceWindowSelection.swift in Sources */,
 				2ED2BFB2E678A74BE222660F /* QuotaResetDateText.swift in Sources */,
 				A0F0786008170C7ACFB83925 /* StatusWidgetConfigurationAdapter.swift in Sources */,
 				DC86CBD35511A6C41755914B /* StatusWidgetTimeline.swift in Sources */,
@@ -1640,7 +1656,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1660,7 +1676,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1685,7 +1701,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1860,7 +1876,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1881,7 +1897,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1903,7 +1919,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1940,7 +1956,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1962,7 +1978,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1998,7 +2014,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -2022,7 +2038,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 237;
+				CURRENT_PROJECT_VERSION = 238;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
