@@ -74,7 +74,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR2 Extensibility / determinism
 
     @Test
-    func `MR2.1: enabled count is exactly 105 after v0.72 catch-up`() {
+    func `MR2.1: enabled count is exactly 106 after v0.73 catch-up`() {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
@@ -89,7 +89,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.19.0 adds eight v0.42-v0.45 provider snapshots → 77.
         // iOS 1.20.0 adds Qwen, ZoomMate, xAI, and Notion snapshots → 81.
         // iOS 1.21.0 adds Fireworks and IBM Bob snapshots → 83.
-        #expect(MockProviderInjector.allMocks().count == 105)
+        #expect(MockProviderInjector.allMocks().count == 106)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
@@ -112,7 +112,7 @@ struct MockProviderInjectorIntegrationTests {
         // then v0.36 added four more first-class provider IDs, and
         // v0.38/v0.39 added four more.
         #expect(
-            uniqueIDs.count == 95,
+            uniqueIDs.count == 96,
             "should be 95 distinct mock provider IDs (90 current + 3 legacy + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.legacyCompatibilityProviderIDs)
@@ -163,7 +163,7 @@ struct MockProviderInjectorIntegrationTests {
     // MARK: - MR3 SyncCoordinator integration
 
     @Test
-    func `MR3.1: enabled mock causes 105 mock providers in lastSnapshot`() async throws {
+    func `MR3.1: enabled mock causes 106 mock providers in lastSnapshot`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-1-Enable")
@@ -191,7 +191,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.20.0: +4 v0.46-v0.47 providers → 81.
         // iOS 1.21.0: +Fireworks and IBM Bob → 83. v0.67.0 adds xKiro,
         // Raycast, and Aixy → 102; v0.72 Muse (muse.ai), LithosAI, and WorkBuddy → 105.
-        #expect(mockProviders.count == 105)
+        #expect(mockProviders.count == 106)
     }
 
     @Test
@@ -244,7 +244,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.8/1.9/1.12/1.13/1.17/1.19/1.20:
         // 45 → 57 → 60 → 61 → 65 → 69 → 77 → 81 → 83 → 102 → 105.
         #expect(
-            mockEnvelopes.count == 105,
+            mockEnvelopes.count == 106,
             "iOS 2.6.0 expects all 105 mock envelopes, including the v0.72 providers.")
     }
 
@@ -359,7 +359,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 105, "all 105 mock providers also emit")
+        #expect(mockProviders.count == 106, "all 106 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))

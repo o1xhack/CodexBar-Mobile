@@ -202,7 +202,7 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func `oauth delegated retry auto mode attempted failed then non interactive reload succeeds`() async throws {
+    func `oauth delegated retry on user action retains prompt capable repair`() async throws {
         let loadCounter = AsyncCounter()
         let delegatedCounter = AsyncCounter()
         let usageResponse = try Self.makeOAuthUsageResponse()
@@ -261,7 +261,7 @@ struct ClaudeUsageTests {
         #expect(snapshot.primary.usedPercent == 7)
 
         #expect(flags.allowKeychainPromptFlags.count == 2)
-        #expect(flags.allowKeychainPromptFlags == [false, false])
+        #expect(flags.allowKeychainPromptFlags == [true, true])
     }
 
     @Test

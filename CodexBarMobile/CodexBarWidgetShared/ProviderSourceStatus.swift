@@ -41,6 +41,11 @@ struct ProviderSourceStatus: Equatable {
         }
     }
 
+    /// Failures that are real errors; the rest are Macs explaining why they have no data.
+    func errors(at now: Date) -> [SyncProviderSourceReport.Failure] {
+        self.failures(at: now).filter { $0.isError != false }
+    }
+
     /// The shown data comes from a Mac other than one that is failing.
     func showsDataFromAnotherMac(at now: Date) -> Bool {
         guard let sourceDeviceID = self.report.sourceDeviceID else { return false }
@@ -55,13 +60,15 @@ struct ProviderSourceStatus: Equatable {
     /// A single Mac's own failure is already shown by the card; the notice adds value when several
     /// Macs are involved or the shown data is old.
     func needsNotice(at now: Date) -> Bool {
-        if self.allFailed { return self.report.deviceCount >= 2 }
+        // No observation anywhere is news only when a Mac failed or explained it; providers that
+        // legitimately publish no quota (cost-only) stay quiet.
+        if self.allFailed { return self.report.deviceCount >= 2 && !self.failures(at: now).isEmpty }
         return !self.failures(at: now).isEmpty || self.isStale(at: now)
     }
 
     /// Fresh data from another Mac is informational even while one Mac keeps failing (for example
     /// a provider never signed in there); old data next to a failure, or no data at all, is a warning.
     func isWarning(at now: Date) -> Bool {
-        self.allFailed || (!self.failures(at: now).isEmpty && self.isStale(at: now))
+        !self.errors(at: now).isEmpty && (self.allFailed || self.isStale(at: now))
     }
 }

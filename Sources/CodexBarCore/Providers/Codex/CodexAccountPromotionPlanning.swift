@@ -1,34 +1,33 @@
-import CodexBarCore
 import Foundation
 
-enum CodexDisplacedLivePreservationNoneReason: Equatable {
+package enum CodexDisplacedLivePreservationNoneReason: Equatable {
     case liveMissing
     case targetMatchesLiveAuthIdentity
 }
 
-enum CodexDisplacedLivePreservationRejectReason: Equatable {
+package enum CodexDisplacedLivePreservationRejectReason: Equatable {
     case liveUnreadable
     case liveAPIKeyOnlyUnsupported
     case liveIdentityMissingForPreservation
     case conflictingReadableManagedHome
 }
 
-enum CodexDisplacedLivePreservationImportReason: Equatable {
+package enum CodexDisplacedLivePreservationImportReason: Equatable {
     case noExistingManagedDestination
 }
 
-enum CodexDisplacedLivePreservationRefreshReason: Equatable {
+package enum CodexDisplacedLivePreservationRefreshReason: Equatable {
     case readableHomeIdentityMatch
     case readableHomeIdentityMatchUsingPersistedEmailFallback
 }
 
-enum CodexDisplacedLivePreservationRepairReason: Equatable {
+package enum CodexDisplacedLivePreservationRepairReason: Equatable {
     case persistedProviderMatchWithMissingHome
     case persistedProviderMatchWithUnreadableHome
     case persistedLegacyEmailMatch
 }
 
-enum CodexDisplacedLivePreservationPlan {
+package enum CodexDisplacedLivePreservationPlan {
     case none(reason: CodexDisplacedLivePreservationNoneReason)
     case reject(reason: CodexDisplacedLivePreservationRejectReason)
     case importNew(reason: CodexDisplacedLivePreservationImportReason)
@@ -40,8 +39,8 @@ enum CodexDisplacedLivePreservationPlan {
         reason: CodexDisplacedLivePreservationRepairReason)
 }
 
-struct CodexDisplacedLivePreservationPlanner {
-    func makePlan(context: PreparedPromotionContext) -> CodexDisplacedLivePreservationPlan {
+package struct CodexDisplacedLivePreservationPlanner {
+    package func makePlan(context: PreparedPromotionContext) -> CodexDisplacedLivePreservationPlan {
         switch context.live.homeState {
         case .missing:
             return .none(reason: .liveMissing)
@@ -78,11 +77,23 @@ struct CodexDisplacedLivePreservationPlanner {
             return .refreshExisting(destination: destination, reason: reason)
         }
 
-        if self.hasConflictingReadableHome(in: candidates, liveAuthIdentity: liveAuthIdentity) {
+        let repairCandidates = candidates.filter { candidate in
+            let persisted = candidate.persisted
+            if case let .providerAccount(id) = liveAuthIdentity.identity,
+               persisted.effectiveWorkspaceAccountID == ManagedCodexAccount.normalizeWorkspaceAccountID(id)
+            {
+                return liveAuthIdentity.email == nil || persisted.email == liveAuthIdentity.email
+            }
+            return liveAuthIdentity.identity != .unresolved && persisted.effectiveWorkspaceAccountID == nil &&
+                persisted.email == liveAuthIdentity.email
+        }
+        let providerCandidates = repairCandidates.filter { $0.persisted.effectiveWorkspaceAccountID != nil }
+        let destinations = providerCandidates.isEmpty ? repairCandidates : providerCandidates
+        if self.hasConflictingReadableHome(in: destinations, liveAuthIdentity: liveAuthIdentity) {
             return .reject(reason: .conflictingReadableManagedHome)
         }
 
-        if let repaired = self.findPersistedRepairMatch(in: candidates, liveAuthIdentity: liveAuthIdentity) {
+        if let repaired = self.findPersistedRepairMatch(in: destinations) {
             return .repairExisting(destination: repaired.destination, reason: repaired.reason)
         }
 
@@ -115,62 +126,25 @@ struct CodexDisplacedLivePreservationPlanner {
     }
 
     private func findPersistedRepairMatch(
-        in candidates: [PreparedStoredManagedAccount],
-        liveAuthIdentity: PreparedIdentity)
+        in candidates: [PreparedStoredManagedAccount])
         -> (destination: PreparedStoredManagedAccount, reason: CodexDisplacedLivePreservationRepairReason)?
     {
-        switch liveAuthIdentity.identity {
-        case let .providerAccount(id):
-            let providerAccountID = ManagedCodexAccount.normalizeWorkspaceAccountID(id)
-            if let destination = candidates.first(where: {
-                guard $0.persisted.effectiveWorkspaceAccountID == providerAccountID else { return false }
-                guard let liveEmail = liveAuthIdentity.email else { return true }
-                return $0.persisted.email == liveEmail
-            }),
-                let reason = self.providerRepairReason(for: destination)
-            {
-                return (destination, reason)
-            }
-
-            if let liveEmail = liveAuthIdentity.email,
-               let destination = candidates.first(where: {
-                   $0.persisted.effectiveWorkspaceAccountID == nil && $0.persisted.email == liveEmail
-               })
-            {
-                return (destination, .persistedLegacyEmailMatch)
-            }
-
-            return nil
-
-        case let .emailOnly(normalizedEmail):
-            guard let destination = candidates.first(where: {
-                $0.persisted.effectiveWorkspaceAccountID == nil && $0.persisted.email == normalizedEmail
-            }) else {
-                return nil
-            }
-            return (destination, .persistedLegacyEmailMatch)
-
-        case .unresolved:
+        if let destination = candidates.first(where: { $0.persisted.effectiveWorkspaceAccountID != nil }),
+           let reason = self.providerRepairReason(for: destination)
+        {
+            return (destination, reason)
+        }
+        guard let destination = candidates.first(where: { $0.persisted.effectiveWorkspaceAccountID == nil }) else {
             return nil
         }
+        return (destination, .persistedLegacyEmailMatch)
     }
 
     private func hasConflictingReadableHome(
         in candidates: [PreparedStoredManagedAccount],
-        liveAuthIdentity: PreparedIdentity)
-        -> Bool
+        liveAuthIdentity: PreparedIdentity) -> Bool
     {
-        guard case let .providerAccount(id) = liveAuthIdentity.identity else {
-            return false
-        }
-
-        let providerAccountID = ManagedCodexAccount.normalizeWorkspaceAccountID(id)
-        return candidates.contains { candidate in
-            guard candidate.persisted.effectiveWorkspaceAccountID == providerAccountID else { return false }
-            if let liveEmail = liveAuthIdentity.email, candidate.persisted.email != liveEmail {
-                return false
-            }
-            guard case .readable = candidate.homeState else { return false }
+        candidates.contains { candidate in
             guard let candidateIdentity = candidate.authIdentity else { return false }
             return !CodexIdentityMatcher.matches(
                 candidateIdentity.identity,

@@ -482,7 +482,7 @@ struct CostUsageScannerForkSplitTests {
     }
 
     @Test
-    func `exact rows require complete request pricing coverage`() throws {
+    func `exact rows price only requests with complete pricing`() throws {
         let environment = try CostUsageTestEnvironment()
         defer { environment.cleanup() }
         let day = try environment.makeLocalNoon(year: 2026, month: 9, day: 11)
@@ -519,8 +519,16 @@ struct CostUsageScannerForkSplitTests {
         cache.files = ["/partial-pricing.jsonl": usage]
         cache.days = usage.days
         let report = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        #expect(report.data.first?.modelBreakdowns?.first?.costUSD == nil)
-        #expect(report.summary?.totalCostUSD == nil)
+        let pricedCost = try #require(CostUsagePricing.codexCostUSD(
+            model: model,
+            inputTokens: 100_000,
+            cachedInputTokens: 0,
+            outputTokens: 10))
+        // The unpriced request is neither priced at list rates nor folded into an aggregate estimate.
+        #expect(abs((report.data.first?.modelBreakdowns?.first?.costUSD ?? -1) - pricedCost) < 1e-12)
+        #expect(abs((report.summary?.totalCostUSD ?? -1) - pricedCost) < 1e-12)
+        #expect(report.data.first?.unpricedRequestCount == 1)
+        #expect(report.data.first?.pricedRequestCount == 1)
 
         let authoritativeZero = CostUsageScanner.CodexUsageRow(
             day: dayKey,
@@ -541,11 +549,6 @@ struct CostUsageScannerForkSplitTests {
         cache.files = ["/complete-pricing.jsonl": completeUsage]
         cache.days = completeUsage.days
         let complete = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-        let pricedCost = try #require(CostUsagePricing.codexCostUSD(
-            model: model,
-            inputTokens: 100_000,
-            cachedInputTokens: 0,
-            outputTokens: 10))
         #expect(abs((complete.summary?.totalCostUSD ?? 0) - (pricedCost + 42)) < 1e-12)
     }
 
@@ -610,6 +613,10 @@ struct CostUsageScannerForkSplitTests {
         #expect(project.modelBreakdowns?.first?.costUSD == nil)
         #expect(project.totalCostUSD == nil)
         #expect(project.totalTokens == 700_020)
+        let preparedProject = try #require(CostUsageScanner.buildCodexReportProjectionsFromCache(
+            cache: cache,
+            range: range).projects.first)
+        #expect(preparedProject == project)
     }
 
     @Test

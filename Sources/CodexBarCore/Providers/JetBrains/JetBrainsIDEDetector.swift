@@ -65,25 +65,16 @@ public enum JetBrainsIDEDetector {
     }
 
     public static func detectLatestIDE() -> JetBrainsIDEInfo? {
-        let ides = self.detectInstalledIDEs()
-        guard !ides.isEmpty else { return nil }
+        self.latestIDE(in: self.detectInstalledIDEs())
+    }
 
-        let fileManager = FileManager.default
-        var latestIDE: JetBrainsIDEInfo?
-        var latestModificationDate: Date?
+    static func latestIDE(in ides: [JetBrainsIDEInfo]) -> JetBrainsIDEInfo? {
+        ides.compactMap { ide in self.quotaModificationDate(at: ide.quotaFilePath).map { (ide: ide, date: $0) } }
+            .max { $0.date < $1.date }?.ide ?? ides.first
+    }
 
-        for ide in ides {
-            guard let attrs = try? fileManager.attributesOfItem(atPath: ide.quotaFilePath),
-                  let modDate = attrs[.modificationDate] as? Date
-            else { continue }
-
-            if latestModificationDate == nil || modDate > latestModificationDate! {
-                latestModificationDate = modDate
-                latestIDE = ide
-            }
-        }
-
-        return latestIDE ?? ides.first
+    static func quotaModificationDate(at path: String) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
     }
 
     private static func jetBrainsConfigBasePaths() -> [String] {

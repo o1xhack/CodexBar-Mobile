@@ -955,11 +955,8 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test(arguments: [
-        "1bd2d8ec2fd2dcf2",
-        "834522608c1b0457",
-        "8b9bc662426a8aab",
-        "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
-        "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+        "ed735dc27ffa70d9", // Current release before session-tier evidence.
+        "99d920977063318a", // Scheduling diagnostics retain history and checkpoints.
         "029fe80aa98f27e8", // Before the shared JSON fallback.
         "c61aebb9cf043a72", // Previous request-ledger revision.
         "4a4c4ef34ce6f037", // Before request-ledger accounting.
@@ -1006,11 +1003,8 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
-            "1bd2d8ec2fd2dcf2",
-            "834522608c1b0457",
-            "8b9bc662426a8aab",
-            "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
-            "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+            "99d920977063318a",
+            "ed735dc27ffa70d9",
             "029fe80aa98f27e8",
             "c61aebb9cf043a72",
             "4a4c4ef34ce6f037",
@@ -1147,13 +1141,7 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test(arguments: [
-        "8050a4faf4fddb96",
-        "dd19ffa2dcfa8d47",
-        "1bd2d8ec2fd2dcf2",
-        "834522608c1b0457",
-        "8b9bc662426a8aab",
-    ])
+    @Test(arguments: ["8050a4faf4fddb96", "dd19ffa2dcfa8d47", "ed735dc27ffa70d9", "99d920977063318a"])
     func `retained report migration preserves compatible rows and clears stale payload`(
         predecessorHash: String) async throws
     {
@@ -1330,13 +1318,28 @@ extension CostUsageStoreTests {
         #expect(await store.rebuildCount == 1)
     }
 
-    @Test
-    func `published v0_49_2_1 parser hash upgrades without rebuilding completed files`() async throws {
+    @Test(arguments: [
+        "834522608c1b0457", // Published 0.49.2.1.
+        "a5a0cf92c6361f6e", // Published 0.52.0.1.
+        "1bd2d8ec2fd2dcf2", // v0.52 candidate, once a compatible predecessor.
+        "8b9bc662426a8aab", // Published 0.54.0.1.
+        "c6ecfbe76f4248db", // Published 0.56.0.1.
+        "d6190f4e899a6d66", // Published 0.58.0.1.
+        "4586197300ff9f67", // Published 0.66.0.1.
+        "6fbe90ca603fb1e4", // Published 0.68.0.1.
+        "11b5eaedd0f337a7", // Published 0.70.0.1.
+        "c3e4a66c1b7f0a59", // Published 0.72.0.1.
+    ])
+    func `published fork stores before the ledger pricing fix rebuild instead of adopting`(
+        previousParserHash: String) async throws
+    {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
-        // Keep this pinned to the generated hash from the actual published release tag, not a
-        // nearby development producer: users reach this upgrade from the shipped cache marker.
-        let previousParserHash = "834522608c1b0457"
+        // Keep these pinned to the generated hashes of the shipped fork releases. Pre-ledger stores lose request
+        // pricing when reparsed into request-ledger rows, and 0.72.0.1 stores already carry that loss and
+        // drifted token_count duplicates, so every one of them is rebuilt from the session logs.
+        #expect(!CostUsageStore.compatiblePredecessorParserHashes.contains(previousParserHash))
+        #expect(CodexParserHash.value != previousParserHash)
         let previousSchemaVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: previousParserHash)
@@ -1344,17 +1347,14 @@ extension CostUsageStoreTests {
             cacheRoot: fixture.root,
             schemaVersion: previousSchemaVersion,
             parserHash: previousParserHash)
-        let file = Self.file(path: "/rollouts/completed.jsonl", day: "2026-08-01")
+        let file = Self.file(path: "/rollouts/published.jsonl", day: "2026-10-02")
         #expect(await previousStore.upsertFile(file))
 
         let upgradedStore = CostUsageStore(cacheRoot: fixture.root)
 
-        #expect(await upgradedStore.fetchFile(path: file.path) == file)
-        #expect(await upgradedStore.rebuildCount == 0)
+        #expect(await upgradedStore.fetchFile(path: file.path) == nil)
+        #expect(await upgradedStore.rebuildCount == 1)
         #expect(await upgradedStore.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
-        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
-        #expect(try connection.scalarInt(
-            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
     @Test

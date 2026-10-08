@@ -88,10 +88,14 @@ struct MenuBarLayoutRenderData: Hashable {
     /// Numeric twins of the display strings above, for conditional predicates.
     let metrics: MenuBarLayoutRenderMetrics
 
-    func extraWindow(_ id: String) -> MenuBarLayoutRenderExtra? {
-        guard ProviderDescriptorRegistry.descriptor(for: self.provider).menuBarMetrics.namedExtras[id] != nil else {
-            return nil
+    func extraTitle(_ id: String) -> String? {
+        ProviderDescriptorRegistry.descriptor(for: self.provider).menuBarMetrics.namedExtras[id].map { title in
+            self.extraRateWindows.first { $0.id == id }?.title ?? L(title)
         }
+    }
+
+    func extraWindow(_ id: String) -> MenuBarLayoutRenderExtra? {
+        guard self.extraTitle(id) != nil else { return nil }
         return self.extraRateWindows.first { $0.id == id && $0.window != nil }
     }
 }
@@ -598,7 +602,7 @@ final class MenuBarLayoutRenderer {
     {
         switch token {
         case .hidden: return nil
-        case let .extraPercent(id): return data.extraWindow(id) == nil ? nil : token
+        case let .extraPercent(id): return data.extraTitle(id) == nil ? nil : token
         case let .conditional(id):
             guard depth < MenuBarLayoutToken.maxConditionalDepth,
                   let conditional = conditionals[id],
@@ -844,18 +848,17 @@ final class MenuBarLayoutRenderer {
         attributes: [NSAttributedString.Key: Any])
         -> (value: NSAttributedString, accessibilityText: String?)
     {
-        let namedWindow = data.extraWindow(id)
-        let title = namedWindow?.title ?? L("Usage")
-        let window = namedWindow?.window
+        let title = data.extraTitle(id) ?? L("Usage")
         let resolvedValue = self.percentValue(
             window: .automatic,
-            rateWindow: window,
+            rateWindow: data.extraWindow(id)?.window,
             automaticText: nil,
             showUsed: showUsed)
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", title, resolvedValue.text)
             : L("%@ unavailable", title)
-        return self.textToken(resolvedValue.text, accessibilityText: accessibility, attributes: attributes)
+        return self.textToken(
+            L("%@ %@", title, resolvedValue.text), accessibilityText: accessibility, attributes: attributes)
     }
 
     private static func percentValue(

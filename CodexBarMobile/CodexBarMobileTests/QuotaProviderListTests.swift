@@ -19,7 +19,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 83 after the v0.72 catch-up")
+    @Test("Total count is 84 after the v0.73 catch-up")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -42,10 +42,10 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 83)
+        #expect(QuotaProviderList.providers.count == 84)
     }
 
-    @Test("Subscription zone count is 249 (83 providers × 3 states)")
+    @Test("Subscription zone count is 252 (84 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -68,10 +68,11 @@ struct QuotaProviderListTests {
         // iOS 2.1.0 / Mac 0.66.0: 78 × 3 = 234 zones.
         // iOS 2.3.0 / Mac 0.67.0: 81 × 3 = 243 zones (+xkiro, +raycast, +aixy).
         // iOS 2.6.0 / Mac 0.72.0: 83 × 3 = 249 zones (+museai, +workbuddy).
+        // iOS 2.6.0 / Mac 0.73.0: 84 × 3 = 252 zones (+langdock).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 249)
+        #expect(QuotaProviderList.providers.count * 3 == 252)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -160,12 +161,12 @@ struct QuotaProviderListTests {
         //  - iOS 1.21.0 appended IBM Bob after the v0.46/v0.47 tail.
         //  - iOS 2.1.0 appended eight quota providers through v0.66.
         //  - iOS 2.3.0 appended xKiro, Raycast, and Aixy after that.
-        //  - iOS 2.6.0 appended Muse (muse.ai) and WorkBuddy after that.
-        let tail = providers.suffix(13).map(\.id)
+        //  - iOS 2.6.0 appended Muse (muse.ai) and WorkBuddy, then Langdock (v0.73).
+        let tail = providers.suffix(14).map(\.id)
         #expect(tail == [
             "bifrost", "helmcode", "nous", "muse", "huggingface", "v0",
-            "gitkraken", "devpass", "xkiro", "raycast", "aixy", "museai", "workbuddy",
-        ], "v0.66, v0.67, and v0.72 quota additions must stay appended in this order")
+            "gitkraken", "devpass", "xkiro", "raycast", "aixy", "museai", "workbuddy", "langdock",
+        ], "v0.66, v0.67, v0.72, and v0.73 quota additions must stay appended in this order")
     }
 
     @Test("Sakana AI present (v0.38)")
@@ -317,10 +318,10 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 83/249 numbers match the actual list")
+    @Test("Cause: catalog 84/252 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 83)
-        #expect(QuotaProviderList.providers.count * 3 == 249)
+        #expect(QuotaProviderList.providers.count == 84)
+        #expect(QuotaProviderList.providers.count * 3 == 252)
     }
 
     @Test("IBM Bob is appended for v0.49 monthly quota pushes")
@@ -403,5 +404,13 @@ struct QuotaProviderListTests {
         }
         #expect(actual["lithosai"] == nil)
         #expect(actual["muse"] == "Muse Code")
+    }
+
+    @Test("v0.73 Langdock is appended after the v0.72 providers")
+    func v073LangdockAppended() {
+        let ids = QuotaProviderList.providers.map(\.id)
+        #expect(ids.last == "langdock")
+        #expect(ids.firstIndex(of: "workbuddy").map { $0 + 1 } == ids.firstIndex(of: "langdock"))
+        #expect(QuotaProviderList.quotaZoneName(providerID: "langdock", state: "warning") == "Quota-langdock-warningZone")
     }
 }

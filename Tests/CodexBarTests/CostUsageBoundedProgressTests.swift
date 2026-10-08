@@ -5,8 +5,29 @@ import Testing
 @Suite(.serialized)
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
+    @Test(arguments: ["empty", "attempted", "read", "byte-limit"])
+    func `only an empty timed pass supplies recovery evidence`(kind: String) {
+        let origin = ContinuousClock.now
+        let clock = BoundedProgressCounter()
+        let budget = CostUsageScanner.CodexScanBudget(
+            maxFileBytes: 0,
+            maxBytesPerRefresh: 1,
+            maxDuration: 2,
+            now: { origin.advanced(by: .seconds(clock.value == 0 ? 0 : 3)) })
+        if kind == "attempted" { budget.fileAttempts = 1 }
+        if kind == "read" { budget.consume(workBytes: 1) }
+        if kind == "byte-limit" {
+            _ = budget.admit(workBytes: 1)
+            guard case .deferBudget = budget.admit(workBytes: 1) else { Issue.record("Expected byte deferral"); return }
+        } else {
+            clock.increment()
+            #expect(budget.shouldStopBeforeNextFile())
+        }
+        #expect(budget.yieldedBeforeFileAttempt == (kind == "empty"))
+    }
+
     @Test
-    func `alternating history windows retain completed discovery and pending work`() throws {
+    func `alternating history windows retain completed discovery and pending work`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
@@ -37,7 +58,8 @@ struct CostUsageBoundedProgressTests {
             completedCurrentWindowFlatRootPaths: roots)
         CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache)
 
-        for (index, since) in [narrowSince, wideSince, narrowSince].enumerated() {
+        var previousProgressKey: String?
+        for (index, historyDays) in [90, 365, 90].enumerated() {
             let clock = BoundedProgressCounter()
             let origin = ContinuousClock.now
             options.codexScanBudgetForTesting = CostUsageScanner.CodexScanBudget(
@@ -48,17 +70,18 @@ struct CostUsageBoundedProgressTests {
             clock.increment()
             let recorder = CostUsageScanner.CodexScanWorkRecorder()
             options.codexScanWorkRecorderForTesting = recorder
-            _ = CostUsageControlledClockScanner.loadDailyReport(
-                provider: .codex,
-                since: since,
-                until: day,
-                now: day.addingTimeInterval(Double(index + 1)),
-                options: options)
+            let result = try await CostUsageFetcher(scannerOptions: options).advanceCodexScanCatchUp(
+                now: day.addingTimeInterval(Double(index + 1)), historyDays: historyDays)
+            #expect(result.value.yieldedBeforeFileAttempt)
+            if let previousProgressKey { #expect(result.value.progressKey == previousProgressKey) }
+            previousProgressKey = result.value.progressKey
             let saved = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
             #expect(saved.codexActiveLookbackState?.pendingFilePaths == [pendingPath])
             #expect(saved.files[completedPath]?.codexScanComplete == true)
             #expect(recorder.snapshot().codexCandidateSelectionVisits == 1)
             #expect(recorder.snapshot().codexFileScanAttempts == 0)
+            #expect(options.codexScanBudgetForTesting?.yieldedBeforeFileAttempt == true)
+            #expect(options.codexScanBudgetForTesting?.bytesConsumed == 0)
             #expect(recorder.snapshot().codexDiscoveryVisits == 0)
         }
         options.codexScanBudgetForTesting = nil

@@ -20,6 +20,42 @@ actor CostUsageStore {
     private final class StoreSerialExecutor: SerialExecutor, @unchecked Sendable {
         private let queue: DispatchQueue
         private static let queueKey = DispatchSpecificKey<ObjectIdentifier>()
+        private static let registryLock = NSLock()
+        private nonisolated(unsafe) static var registry: [String: WeakExecutor] = [:]
+
+        private struct WeakExecutor {
+            weak var value: StoreSerialExecutor?
+        }
+
+        static func shared(for databaseURL: URL) -> StoreSerialExecutor {
+            var location = databaseURL
+            var visited: Set<String> = []
+            while true {
+                let directory = location.deletingLastPathComponent()
+                // Resolve existing parents and follow file links even when their target is missing.
+                // Open retries directory creation and reports errors through the normal store path.
+                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                location = directory.resolvingSymlinksInPath().standardizedFileURL
+                    .appendingPathComponent(location.lastPathComponent)
+                guard visited.insert(location.path).inserted,
+                      let target = try? FileManager.default.destinationOfSymbolicLink(atPath: location.path)
+                else { break }
+                location = URL(fileURLWithPath: target, relativeTo: location.deletingLastPathComponent())
+            }
+            let caseSensitive = try? location.deletingLastPathComponent()
+                .resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames
+            let key = caseSensitive == false
+                ? location.path.folding(options: .caseInsensitive, locale: Locale(identifier: "en_US_POSIX"))
+                : location.path
+            return Self.registryLock.withLock {
+                if let executor = Self.registry[key]?.value { return executor }
+                Self.registry = Self.registry.filter { $0.value.value != nil }
+                let suffix = String(UInt(bitPattern: key.hashValue), radix: 16).suffix(8)
+                let executor = StoreSerialExecutor(label: "com.steipete.codexbar.cost-usage-store.\(suffix)")
+                Self.registry[key] = WeakExecutor(value: executor)
+                return executor
+            }
+        }
 
         init(label: String) {
             self.queue = DispatchQueue(label: label, qos: .utility)
@@ -28,9 +64,8 @@ actor CostUsageStore {
 
         func enqueue(_ job: consuming ExecutorJob) {
             let unownedJob = UnownedJob(job)
-            let executor = self.asUnownedSerialExecutor()
-            self.queue.async {
-                unownedJob.runSynchronously(on: executor)
+            self.queue.async { [self] in
+                unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
             }
         }
 
@@ -87,11 +122,8 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
-        "1bd2d8ec2fd2dcf2", // Pre-marker v0.52 candidate; only provider-design comments changed afterward.
-        "834522608c1b0457", // Published 0.49.2.1 mobile producer; persisted rows remain compatible.
-        "8b9bc662426a8aab", // Published 0.54.0.1 mobile producer; rows remain compatible.
-        "6fbe90ca603fb1e4", // Published 0.68.0.1 fork rows remain compatible.
-        "11b5eaedd0f337a7", // Published 0.70.0.1 fork rows remain compatible.
+        "99d920977063318a", // Preserve the saved-pricing migration before revision 9 reparses mirrors.
+        "ed735dc27ffa70d9", // 0.72.0 rows and checkpoints are kept; revision 9 reparses duplicate ledger mirrors.
         "029fe80aa98f27e8", // Revision 7 caches retain history during bounded JSON-fallback reparsing.
         "c61aebb9cf043a72", // Revision 6 ledger caches reparse through the shared ownership router.
         "4a4c4ef34ce6f037", // Request-ledger accounting uses bounded native parser-revision migration.
@@ -143,22 +175,26 @@ actor CostUsageStore {
         "5f8507161b23757c", // 0.54.2 tokscale parity + priority evidence; persisted row shape unchanged.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
-        "1bd2d8ec2fd2dcf2",
-        "834522608c1b0457",
-        "8b9bc662426a8aab",
+        "99d920977063318a",
         "dd19ffa2dcfa8d47",
         "2d17f4981b78d07f",
         "8050a4faf4fddb96",
+        "99d920977063318a",
+        "ed735dc27ffa70d9",
     ]
 
-    /// Process-wide serialization keeps every writable store connection on the same queue.
-    /// This matches the scan pipeline's single-writer contract without multiplying executor
-    /// threads when tests or short-lived readers create several store actors.
-    private nonisolated static let sharedExecutor = StoreSerialExecutor(
-        label: "com.steipete.codexbar.cost-usage-store")
+    /// Connections to one canonical database share a serial queue, preserving the single-writer
+    /// contract without letting a busy database stall independent account stores.
+    private nonisolated let executor: StoreSerialExecutor
     nonisolated var unownedExecutor: UnownedSerialExecutor {
-        Self.sharedExecutor.asUnownedSerialExecutor()
+        self.executor.asUnownedSerialExecutor()
     }
+
+    #if DEBUG
+    nonisolated var executorForTesting: AnyObject {
+        self.executor
+    }
+    #endif
 
     nonisolated let databaseURL: URL
     private let expectedSchemaVersion: Int32
@@ -191,6 +227,7 @@ actor CostUsageStore {
         self.databaseURL = root
             .appendingPathComponent("cost-usage", isDirectory: true)
             .appendingPathComponent(Self.databaseFilename, isDirectory: false)
+        self.executor = StoreSerialExecutor.shared(for: self.databaseURL)
         self.expectedSchemaVersion = schemaVersion
         self.expectedParserHash = parserHash
         self.busyTimeoutMilliseconds = busyTimeoutMilliseconds
@@ -208,12 +245,12 @@ actor CostUsageStore {
 }
 
 extension CostUsageStore {
-    /// The shared queue establishes isolation; runtime checks are unreliable for SDK-14 binaries on macOS 15.
+    /// The database queue establishes isolation; runtime checks are unreliable for SDK-14 binaries on macOS 15.
     private nonisolated func syncWithStoreIsolation<T: Sendable>(
         _ operation: (isolated CostUsageStore) throws -> T) rethrows -> T
     {
-        try Self.sharedExecutor.sync {
-            Self.sharedExecutor.checkIsolated()
+        try self.executor.sync {
+            self.executor.checkIsolated()
             typealias Isolated = (isolated CostUsageStore) throws -> T
             typealias Unisolated = (CostUsageStore) throws -> T
             return try withoutActuallyEscaping(operation) { (operation: @escaping Isolated) throws -> T in

@@ -401,8 +401,8 @@ actor ClaudeCLISession {
         return directory
     }
 
-    /// Opt usage probes out of Remote Control without changing saved settings or managed policy.
-    static let probeSettingsArguments = ["--settings", #"{"remoteControlAtStartup":false}"#]
+    /// Opt usage probes out of Remote Control and the user's hooks without changing saved settings or managed policy.
+    static let probeSettingsArguments = ["--settings", #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#]
 
     static func launchArguments(sessionID: UUID) -> [String] {
         // Reuse a probe-owned ID: interactive `/usage` cannot use print-only no-persistence.

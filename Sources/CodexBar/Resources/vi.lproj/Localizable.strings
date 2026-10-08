@@ -1560,7 +1560,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Mỗi lần đồng bộ sẽ đẩy 105 ảnh chụp giả lập ổn định cho 95 ID nhà cung cấp, bao gồm các trường hợp nhiều tài khoản, sub2api, Wayfinder và dự phòng cho nhà cung cấp không xác định. Email giả lập dùng TLD `.test` nên iPhone hiển thị huy hiệu MOCK. Khi tắt, CloudKit sẽ xóa các bản ghi giả lập trong khoảng một chu kỳ đồng bộ. Mặc định tắt.";
+"mobile_toggle_mock_subtitle" = "Mỗi lần đồng bộ sẽ đẩy 106 ảnh chụp giả lập ổn định cho 96 ID nhà cung cấp, bao gồm các trường hợp nhiều tài khoản, sub2api, Wayfinder và dự phòng cho nhà cung cấp không xác định. Email giả lập dùng TLD `.test` nên iPhone hiển thị huy hiệu MOCK. Khi tắt, CloudKit sẽ xóa các bản ghi giả lập trong khoảng một chu kỳ đồng bộ. Mặc định tắt.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1569,6 +1569,8 @@
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Cumulative" = "Tích lũy";
 "Token activity" = "Hoạt động token";
+"Earlier activity" = "Hoạt động trước đây";
+"More recent activity" = "Hoạt động gần đây";
 "View" = "Chế độ xem";
 "in the last year" = "trong năm qua";
 "No activity in the last 12 months" = "Không có hoạt động trong 12 tháng qua";
@@ -1710,6 +1712,11 @@
 "account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
 "account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";
 
+/* Spend time zone */
+"Statistics time zone" = "Múi giờ thống kê";
+"Use Mac's current time zone" = "Dùng múi giờ hiện tại của Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Mức sử dụng hằng ngày được nhóm theo một múi giờ cố định. Thay đổi múi giờ có thể chuyển mức sử dụng sang ngày khác.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải phí hay tín dụng Antigravity";
 "antigravity_quota_window_note" = "Chi phí cửa sổ bao gồm mọi mô hình · cửa sổ hiển thị là nhóm bị giới hạn nhất";
@@ -1731,3 +1738,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Trình duyệt được hỗ trợ: %@. Dùng chế độ Thủ công cho các trình duyệt khác.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Dán tiêu đề Cookie từ yêu cầu Chrome tới www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Đã giữ lại";
+
+/* Selected browser profile */
+"Browser profile" = "Hồ sơ trình duyệt";
+"Unavailable profile: %@" = "Hồ sơ không khả dụng: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Chỉ đọc hồ sơ %@ đã chọn. Tài khoản không bao giờ được chọn tự động.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Chi tiêu đã ghi nhận";
+"Highest recorded spend" = "Chi tiêu đã ghi nhận cao nhất";
+"Previous day" = "Ngày trước";
+"Next day" = "Ngày tiếp theo";
+"Click to isolate a source. Click again to show all." = "Nhấp để chỉ xem một nguồn. Nhấp lần nữa để xem tất cả.";
+"Recorded hourly spend" = "Chi tiêu theo giờ đã ghi nhận";
+"Highest spend" = "Chi tiêu cao nhất";
+"Models for this day" = "Mô hình của ngày này";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Nhấp vào cột để khám phá. Dùng menu bên dưới để xem số tiền chính xác.";

@@ -9,59 +9,21 @@ extension CostUsageStore {
     func loadCodexCache(calendar: Calendar, loadTokenSnapshots: Bool = true) -> CostUsageCache {
         self.retainedCodexBaseline = nil
         _ = self.removeLegacyCodexArtifactIfPresent()
-        if !loadTokenSnapshots {
-            return self.loadCodexCacheWithoutTokenSnapshots(calendar: calendar)
-        }
-        let snapshot = self.readSnapshot(loadTokenSnapshots: loadTokenSnapshots)
-        guard snapshot.metadata.timeZoneIdentifier == nil
-            || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
-        else { return CostUsageCache() }
-        return Self.cache(
-            from: snapshot,
-            recorder: self.scopedReadWorkRecorderForTesting,
-            tokenSnapshotsLoaded: loadTokenSnapshots)
-    }
-
-    private struct DecodedCodexSnapshot {
-        var snapshot: CostUsageStoreSnapshot
-        var rowsByPath: [String: [CostUsageScanner.CodexUsageRow]] = [:]
-        var rowCounts: [String: Int] = [:]
-    }
-
-    private func loadCodexCacheWithoutTokenSnapshots(calendar: Calendar) -> CostUsageCache {
         let recorder = self.scopedReadWorkRecorderForTesting
-        let loaded: DecodedCodexSnapshot? = self.withDatabase(default: nil) { database in
-            try Self.inReadTransaction(database) {
-                let snapshot = try Self.readSnapshot(
-                    database, loadTokenSnapshots: false, loadUsageRows: false, recorder: recorder)
-                var loaded = DecodedCodexSnapshot(snapshot: snapshot)
-                let decoder = JSONDecoder()
-                let readablePaths = Set(snapshot.files.compactMap { file -> String? in
-                    guard let data = file.scanState.detailsPayload,
-                          (try? decoder.decode(StoredFileDetails.self, from: data)) != nil
-                    else { return nil }
-                    return file.path
-                })
-                var decodeAttempts = 0
-                defer { recorder?.recordUsageRowDecodes(count: decodeAttempts) }
-                try Self.forEachUsageRow(database, path: nil, recorder: recorder) { stored in
-                    loaded.rowCounts[stored.path, default: 0] += 1
-                    guard readablePaths.contains(stored.path) else { return }
-                    decodeAttempts += 1
-                    if let row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: stored.payload) {
-                        loaded.rowsByPath[stored.path, default: []].append(row)
+        let loaded: (snapshot: CostUsageStoreSnapshot, rows: DecodedCodexUsageRows)? = self
+            .withDatabase(default: nil) { database in
+                try Self.inReadTransaction(database) {
+                    let loaded = try self.readDecodedCodexSnapshot(database, loadTokenSnapshots: loadTokenSnapshots)
+                    #if DEBUG
+                    if let checkpoint = CostUsageStoreTestHooks.current.codexCacheReadCheckpoint,
+                       checkpoint.databaseURL == self.databaseURL
+                    {
+                        try checkpoint.checkpoint()
                     }
+                    #endif
+                    return loaded
                 }
-                #if DEBUG
-                if let checkpoint = CostUsageStoreTestHooks.current.codexCacheReadCheckpoint,
-                   checkpoint.databaseURL == self.databaseURL
-                {
-                    try checkpoint.checkpoint()
-                }
-                #endif
-                return loaded
             }
-        }
         guard let loaded,
               loaded.snapshot.metadata.timeZoneIdentifier == nil
               || loaded.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
@@ -71,9 +33,41 @@ extension CostUsageStore {
             Self.decodeCodexCache(
                 from: loaded.snapshot,
                 recorder: recorder,
-                tokenSnapshotsLoaded: false,
-                decodedUsageRows: loaded.rowsByPath),
-            persistence: CodexPersistenceState(snapshot: loaded.snapshot, rowCounts: loaded.rowCounts))
+                tokenSnapshotsLoaded: loadTokenSnapshots,
+                decodedUsageRows: loaded.rows.rowsByPath),
+            persistence: CodexPersistenceState(snapshot: loaded.snapshot, rowCounts: loaded.rows.rowCounts))
+    }
+
+    struct DecodedCodexUsageRows {
+        var rowsByPath: [String: [CostUsageScanner.CodexUsageRow]] = [:]
+        var rowCounts: [String: Int] = [:]
+    }
+
+    /// Decodes usage rows as SQLite returns them, so raw payloads never accumulate alongside decoded rows.
+    static func readDecodedCodexUsageRows(
+        _ database: OpaquePointer,
+        files: [CostUsageStoreFile],
+        recorder: CostUsageStoreReadWorkRecorder?) throws -> DecodedCodexUsageRows
+    {
+        var decoded = DecodedCodexUsageRows()
+        let decoder = JSONDecoder()
+        let readablePaths = Set(files.compactMap { file -> String? in
+            guard let data = file.scanState.detailsPayload,
+                  (try? decoder.decode(StoredFileDetails.self, from: data)) != nil
+            else { return nil }
+            return file.path
+        })
+        var decodeAttempts = 0
+        defer { recorder?.recordUsageRowDecodes(count: decodeAttempts) }
+        try self.forEachUsageRow(database, path: nil, recorder: recorder) { stored in
+            decoded.rowCounts[stored.path, default: 0] += 1
+            guard readablePaths.contains(stored.path) else { return }
+            decodeAttempts += 1
+            if let row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: stored.payload) {
+                decoded.rowsByPath[stored.path, default: []].append(row)
+            }
+        }
+        return decoded
     }
 
     func loadCodexReadView(calendar: Calendar, purpose: CostUsageStoreReadPurpose) -> CostUsageStoreReadView {
@@ -101,14 +95,13 @@ extension CostUsageStore {
                     cache: Self.reconciledCodexCache(retained.decoded, persistence: retained.persistence),
                     purpose: retained.purpose)
             }
-            let (snapshot, retryPresence) = try Self.inReadTransaction(database) {
+            let (snapshot, usageRows, retryPresence) = try Self.inReadTransaction(database) {
                 let snapshot = try CostUsageStoreSnapshot(
                     metadata: Self.readSingleton(
                         CostUsageStoreMetadata.self, database: database, table: "scan_metadata") ?? .empty,
                     files: Self.readFiles(database, recorder: recorder),
                     tokenSnapshots: [],
-                    usageRows: purpose == .report ? Self
-                        .readUsageRows(database, path: nil, recorder: recorder) : [],
+                    usageRows: [],
                     fileDayAggregates: purpose != .status ? Self.readFileDayAggregates(database, path: nil) : [],
                     dayAggregates: purpose != .status
                         ? Self.readDayAggregates(database, sinceDay: nil, untilDay: nil) : [],
@@ -119,11 +112,14 @@ extension CostUsageStore {
                     lookbackState: Self.readSingleton(
                         CostUsageStoreLookbackState.self, database: database, table: "lookback_state"),
                     accumulators: [])
+                let usageRows = purpose == .report
+                    ? try Self.readDecodedCodexUsageRows(database, files: snapshot.files, recorder: recorder)
+                    : nil
                 let retryPresence = try Self.readRetryBufferPresence(database, recorder: recorder)
                 #if DEBUG
                 try self.runCodexReadCheckpointForTesting()
                 #endif
-                return (snapshot, retryPresence)
+                return (snapshot, usageRows, retryPresence)
             }
             // A read transaction pins data_version. Cache only a snapshot that is still current
             // after COMMIT so an external writer can never make a stale warm view authoritative.
@@ -141,8 +137,9 @@ extension CostUsageStore {
             let decoded = Self.decodeCodexCache(
                 from: snapshot,
                 recorder: recorder,
-                retryPresence: retryPresence)
-            let persistence = CodexPersistenceState(snapshot: snapshot)
+                retryPresence: retryPresence,
+                decodedUsageRows: usageRows?.rowsByPath)
+            let persistence = CodexPersistenceState(snapshot: snapshot, rowCounts: usageRows?.rowCounts)
             // Activity is a superset of status and becomes the one bounded warm read state.
             // Detailed reports keep their larger event history transient.
             if purpose != .report {

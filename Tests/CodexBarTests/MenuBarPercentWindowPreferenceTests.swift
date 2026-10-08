@@ -247,7 +247,7 @@ struct MenuBarPercentWindowPreferenceTests {
     func `picker stays hidden unless the global style is icon and percent`() {
         let layout = MenuBarLayout(lines: [[.icon, .percent(window: .automatic)]])
         // Monthly Plan keeps the picker visible in every style; MistralMonthlyPlanPickerTests covers it.
-        let options = MenuBarPercentWindowPreference.allCases.filter { $0 != .monthlyPlan }
+        let options = MenuBarPercentWindowPreference.standardChoices.filter { $0 != .monthlyPlan }
 
         #expect(MenuBarPercentWindowPreference.isVisible(
             iconStyle: .iconAndPercent,

@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "در حال همگام‌سازی…";
 "mobile_sync_status_syncing_elapsed_format" = "در حال همگام‌سازی — %@ · %d ثانیه";
 "mobile_sync_status_syncing_phase_format" = "در حال همگام‌سازی — %@…";
-"mobile_toggle_mock_subtitle" = "در هر همگام‌سازی، ۱۰۵ اسنپ‌شات آزمایشی پایدار را برای ۹۵ شناسهٔ ارائه‌دهنده ارسال می‌کند؛ از جمله حالت‌های چندحسابی، sub2api، Wayfinder و بازگشت برای ارائه‌دهندهٔ ناشناخته. ایمیل‌های آزمایشی از دامنهٔ سطح‌بالای `.test` استفاده می‌کنند تا iPhone نشان MOCK را نمایش دهد. با خاموش کردن این گزینه، CloudKit رکوردهای آزمایشی را تقریباً در یک چرخهٔ همگام‌سازی حذف می‌کند. به‌طور پیش‌فرض خاموش است.";
+"mobile_toggle_mock_subtitle" = "در هر همگام‌سازی، ۱۰۶ اسنپ‌شات آزمایشی پایدار را برای ۹۶ شناسهٔ ارائه‌دهنده ارسال می‌کند؛ از جمله حالت‌های چندحسابی، sub2api، Wayfinder و بازگشت برای ارائه‌دهندهٔ ناشناخته. ایمیل‌های آزمایشی از دامنهٔ سطح‌بالای `.test` استفاده می‌کنند تا iPhone نشان MOCK را نمایش دهد. با خاموش کردن این گزینه، CloudKit رکوردهای آزمایشی را تقریباً در یک چرخهٔ همگام‌سازی حذف می‌کند. به‌طور پیش‌فرض خاموش است.";
 "mobile_toggle_mock_title" = "تزریق داده مزود شبیه‌سازی‌شده";
 "mobile_toggle_push_subtitle" = "وقتی سهمیه جلسه تمام یا بازیابی می‌شود، یک هشدار push قابل مشاهده از طریق iCloud به برنامه همراه iOS ارسال کن. این مستقل از اعلان‌های محلی Mac است — می‌توانید Mac را بی‌صدا نگه دارید و همچنان روی iPhone هشدار بگیرید.";
 "mobile_toggle_push_title" = "اعلان‌های Push به iOS";
@@ -1572,6 +1572,8 @@
 "∞ Unlimited" = "∞ نامحدود";
 "Cumulative" = "تجمعی";
 "Token activity" = "فعالیت توکن";
+"Earlier activity" = "فعالیت قدیمی‌تر";
+"More recent activity" = "فعالیت جدیدتر";
 "View" = "نمایش";
 "in the last year" = "در سال گذشته";
 "No activity in the last 12 months" = "هیچ فعالیتی در ۱۲ ماه گذشته وجود ندارد";
@@ -1713,6 +1715,11 @@
 "account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
 "account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";
 
+/* Spend time zone */
+"Statistics time zone" = "منطقه زمانی آمار";
+"Use Mac's current time zone" = "استفاده از منطقه زمانی فعلی مک";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "مصرف روزانه بر اساس یک منطقه زمانی ثابت محاسبه می‌شود. تغییر آن ممکن است مصرف را به روز دیگری منتقل کند.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "مصرف محلی × قیمت‌های عمومی API · هزینه یا اعتبار Antigravity نیست";
 "antigravity_quota_window_note" = "هزینهٔ بازه همهٔ مدل‌ها را دربر می‌گیرد · بازهٔ نمایش‌داده‌شده محدودترین خانواده است";
@@ -1734,3 +1741,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "مرورگرهای پشتیبانی‌شده: %@. برای مرورگرهای دیگر از حالت دستی استفاده کنید.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "هدر Cookie را از یک درخواست Chrome به www.workbuddy.cn/profile/plans-usage جای‌گذاری کنید.";
 "Reserved" = "رزروشده";
+
+/* Selected browser profile */
+"Browser profile" = "نمایهٔ مرورگر";
+"Unavailable profile: %@" = "نمایه در دسترس نیست: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "فقط نمایهٔ انتخاب‌شدهٔ %@ خوانده می‌شود. حساب‌ها هرگز به‌طور خودکار انتخاب نمی‌شوند.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "هزینه ثبت‌شده";
+"Highest recorded spend" = "بیشترین هزینه ثبت‌شده";
+"Previous day" = "روز قبل";
+"Next day" = "روز بعد";
+"Click to isolate a source. Click again to show all." = "برای نمایش یک منبع کلیک کنید. برای نمایش همه دوباره کلیک کنید.";
+"Recorded hourly spend" = "هزینه ساعتی ثبت‌شده";
+"Highest spend" = "بیشترین هزینه";
+"Models for this day" = "مدل‌های این روز";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "برای مشاهده جزئیات روی ستون کلیک کنید. مبلغ دقیق را در منوی زیر ببینید.";

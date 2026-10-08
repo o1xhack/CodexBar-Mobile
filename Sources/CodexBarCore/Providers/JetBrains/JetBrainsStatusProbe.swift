@@ -104,14 +104,78 @@ public enum JetBrainsStatusProbeError: LocalizedError, Sendable, Equatable {
 
 public struct JetBrainsStatusProbe: Sendable {
     private let settings: ProviderSettingsSnapshot?
+    private let detectIDEs: @Sendable (_ includeMissingQuota: Bool) -> [JetBrainsIDEInfo]
+    private let readLogEntry: @Sendable (_ ideBasePath: String) -> JetBrainsQuotaLogReader.Entry?
 
     public init(settings: ProviderSettingsSnapshot? = nil) {
+        self.init(
+            settings: settings,
+            detectIDEs: { JetBrainsIDEDetector.detectInstalledIDEs(includeMissingQuota: $0) },
+            readLogEntry: {
+                JetBrainsQuotaLogReader.logFilePath(forIDEBasePath: $0)
+                    .flatMap { JetBrainsQuotaLogReader.latestEntry(atPath: $0) }
+            })
+    }
+
+    init(
+        settings: ProviderSettingsSnapshot?,
+        detectIDEs: @escaping @Sendable (_ includeMissingQuota: Bool) -> [JetBrainsIDEInfo],
+        readLogEntry: @escaping @Sendable (_ ideBasePath: String) -> JetBrainsQuotaLogReader.Entry?)
+    {
         self.settings = settings
+        self.detectIDEs = detectIDEs
+        self.readLogEntry = readLogEntry
     }
 
     public func fetch() async throws -> JetBrainsStatusSnapshot {
-        let (quotaFilePath, detectedIDE) = try self.resolveQuotaFilePath()
-        return try Self.parseQuotaFile(at: quotaFilePath, detectedIDE: detectedIDE)
+        let quotaFilePath: String
+        let detectedIDE: JetBrainsIDEInfo?
+        do {
+            (quotaFilePath, detectedIDE) = try self.resolveQuotaFilePath()
+        } catch JetBrainsStatusProbeError.noIDEDetected {
+            return try self.logOnlySnapshot()
+        }
+        let basePath = URL(fileURLWithPath: quotaFilePath).deletingLastPathComponent().deletingLastPathComponent().path
+        let logEntry = self.readLogEntry(basePath)
+
+        let snapshot: JetBrainsStatusSnapshot
+        do {
+            snapshot = try Self.parseQuotaFile(at: quotaFilePath, detectedIDE: detectedIDE)
+        } catch {
+            guard let logEntry else { throw error }
+            return JetBrainsStatusSnapshot(
+                quotaInfo: logEntry.quotaInfo,
+                refillInfo: logEntry.refillInfo,
+                detectedIDE: detectedIDE)
+        }
+
+        let quotaFileModifiedAt = JetBrainsIDEDetector.quotaModificationDate(at: quotaFilePath)
+        return Self.applyingLogEntry(logEntry, to: snapshot, quotaFileModifiedAt: quotaFileModifiedAt)
+    }
+
+    /// Auto-detect with no quota XML anywhere: an IDE may still have logged its quota state.
+    private func logOnlySnapshot() throws -> JetBrainsStatusSnapshot {
+        let latest = self.detectIDEs(true)
+            .compactMap { ide in self.readLogEntry(ide.basePath).map { (ide: ide, entry: $0) } }
+            .max { $0.entry.timestamp < $1.entry.timestamp }
+        guard let latest else { throw JetBrainsStatusProbeError.noIDEDetected }
+        return JetBrainsStatusSnapshot(
+            quotaInfo: latest.entry.quotaInfo,
+            refillInfo: latest.entry.refillInfo,
+            detectedIDE: latest.ide)
+    }
+
+    /// The IDE persists the quota XML rarely; prefer the log when it was written after the XML.
+    static func applyingLogEntry(
+        _ logEntry: JetBrainsQuotaLogReader.Entry?,
+        to snapshot: JetBrainsStatusSnapshot,
+        quotaFileModifiedAt: Date?) -> JetBrainsStatusSnapshot
+    {
+        guard let logEntry, let quotaFileModifiedAt, logEntry.timestamp > quotaFileModifiedAt else { return snapshot }
+        return JetBrainsStatusSnapshot(
+            quotaInfo: logEntry.quotaInfo,
+            refillInfo: logEntry.refillInfo,
+            detectedIDE: snapshot.detectedIDE)
     }
 
     private func resolveQuotaFilePath() throws -> (String, JetBrainsIDEInfo?) {
@@ -123,7 +187,7 @@ public struct JetBrainsStatusProbe: Sendable {
             return (quotaPath, nil)
         }
 
-        guard let detectedIDE = JetBrainsIDEDetector.detectLatestIDE() else {
+        guard let detectedIDE = JetBrainsIDEDetector.latestIDE(in: self.detectIDEs(false)) else {
             throw JetBrainsStatusProbeError.noIDEDetected
         }
         return (detectedIDE.quotaFilePath, detectedIDE)
@@ -200,62 +264,44 @@ public struct JetBrainsStatusProbe: Sendable {
     }
 
     private static func parseQuotaInfoJSON(_ jsonString: String) throws -> JetBrainsQuotaInfo {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON encoding")
+        let json = try Self.parseJSONObject(jsonString)
+        // Select one balance: monthly values must never be paired with totals that include top-ups.
+        let tariffQuota = (json["tariffQuota"] as? [String: Any]).flatMap { quota in
+            ["current", "maximum"].allSatisfy { key in
+                (quota[key] as? String).flatMap(Double.init)?.isFinite == true
+            } ? quota : nil
         }
-
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON format")
-        }
-
-        let type = json["type"] as? String
-        let currentStr = json["current"] as? String
-        let maximumStr = json["maximum"] as? String
-        let untilStr = json["until"] as? String
-
-        // tariffQuota contains the actual available credits
-        let tariffQuota = json["tariffQuota"] as? [String: Any]
-        let availableStr = tariffQuota?["available"] as? String
-
-        let used = currentStr.flatMap { Double($0) } ?? 0
-        let maximum = maximumStr.flatMap { Double($0) } ?? 0
-        let available = availableStr.flatMap { Double($0) }
-        let until = ISO8601DateParser.parse(untilStr)
-
-        return JetBrainsQuotaInfo(type: type, used: used, maximum: maximum, available: available, until: until)
+        let quota = tariffQuota ?? json
+        return JetBrainsQuotaInfo(
+            type: json["type"] as? String,
+            used: (quota["current"] as? String).flatMap(Double.init) ?? 0,
+            maximum: (quota["maximum"] as? String).flatMap(Double.init) ?? 0,
+            available: (tariffQuota?["available"] as? String).flatMap(Double.init),
+            until: ISO8601DateParser.parse(json["until"] as? String))
     }
 
     private static func parseRefillInfoJSON(_ jsonString: String) throws -> JetBrainsRefillInfo {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw JetBrainsStatusProbeError.parseError("Invalid JSON encoding")
-        }
+        let json = try Self.parseJSONObject(jsonString)
+        let tariff = json["tariff"] as? [String: Any]
+        return JetBrainsRefillInfo(
+            type: json["type"] as? String,
+            next: ISO8601DateParser.parse(json["next"] as? String),
+            amount: (json["amount"] as? String).flatMap(Double.init)
+                ?? (tariff?["amount"] as? String).flatMap(Double.init),
+            duration: json["duration"] as? String ?? tariff?["duration"] as? String)
+    }
 
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+    private static func parseJSONObject(_ string: String) throws -> [String: Any] {
+        guard let json = try? JSONSerialization.jsonObject(with: Data(string.utf8)) as? [String: Any] else {
             throw JetBrainsStatusProbeError.parseError("Invalid JSON format")
         }
-
-        let type = json["type"] as? String
-        let nextStr = json["next"] as? String
-        let amountStr = json["amount"] as? String
-        let duration = json["duration"] as? String
-
-        let next = ISO8601DateParser.parse(nextStr)
-        let amount = amountStr.flatMap { Double($0) }
-
-        let tariff = json["tariff"] as? [String: Any]
-        let tariffAmountStr = tariff?["amount"] as? String
-        let tariffDuration = tariff?["duration"] as? String
-        let finalAmount = amount ?? tariffAmountStr.flatMap { Double($0) }
-        let finalDuration = duration ?? tariffDuration
-
-        return JetBrainsRefillInfo(type: type, next: next, amount: finalAmount, duration: finalDuration)
+        return json
     }
 }
 
-#if !os(macOS)
 /// Simple regex-based XML parser to avoid libxml2 dependency on Linux.
 /// Only extracts quotaInfo and nextRefill values from AIAssistantQuotaManager2 component.
-private enum JetBrainsXMLParser {
+enum JetBrainsXMLParser {
     struct ParseResult {
         let quotaInfo: String?
         let nextRefill: String?
@@ -266,12 +312,10 @@ private enum JetBrainsXMLParser {
             return ParseResult(quotaInfo: nil, nextRefill: nil)
         }
 
-        // Find the AIAssistantQuotaManager2 component block
-        guard let componentRange = self.findComponentRange(in: content) else {
+        let pattern = #"<component[^>]*name\s*=\s*["']AIAssistantQuotaManager2["'][^>]*>[\s\S]*?</component>"#
+        guard let componentContent = self.firstMatch(pattern, in: content) else {
             return ParseResult(quotaInfo: nil, nextRefill: nil)
         }
-
-        let componentContent = String(content[componentRange])
 
         let quotaInfo = self.extractOptionValue(named: "quotaInfo", from: componentContent)
         let nextRefill = self.extractOptionValue(named: "nextRefill", from: componentContent)
@@ -279,19 +323,12 @@ private enum JetBrainsXMLParser {
         return ParseResult(quotaInfo: quotaInfo, nextRefill: nextRefill)
     }
 
-    private static func findComponentRange(in content: String) -> Range<String.Index>? {
-        // Match <component name="AIAssistantQuotaManager2"> ... </component>
-        let pattern = #"<component[^>]*name\s*=\s*["']AIAssistantQuotaManager2["'][^>]*>[\s\S]*?</component>"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(
-                  in: content,
-                  options: [],
-                  range: NSRange(content.startIndex..., in: content)),
-              let range = Range(match.range, in: content)
-        else {
-            return nil
-        }
-        return range
+    private static func firstMatch(_ pattern: String, in content: String, group: Int = 0) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let range = Range(match.range(at: group), in: content)
+        else { return nil }
+        return String(content[range])
     }
 
     private static func extractOptionValue(named name: String, from content: String) -> String? {
@@ -302,23 +339,9 @@ private enum JetBrainsXMLParser {
         ]
 
         for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-                  let match = regex.firstMatch(
-                      in: content,
-                      options: [],
-                      range: NSRange(content.startIndex..., in: content))
-            else {
-                continue
-            }
-
-            // The value is in capture group 1 for first pattern, group 1 for second pattern
-            let valueRange = match.range(at: 1)
-            if let range = Range(valueRange, in: content) {
-                return String(content[range])
-            }
+            if let value = self.firstMatch(pattern, in: content, group: 1) { return value }
         }
 
         return nil
     }
 }
-#endif

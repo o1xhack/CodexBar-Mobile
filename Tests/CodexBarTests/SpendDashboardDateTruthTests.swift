@@ -340,9 +340,7 @@ struct SpendDashboardDateTruthTests {
             #expect(usd.models.first(where: { $0.provider == .claude })?.totalTokens == nil)
             #expect(usd.models.first(where: { $0.provider == .codex })?.totalTokens == 10)
             #expect(usd.dailyPoints.map(\.sourceID) == ["healthy-usd", "token-invalid"])
-            #expect(SpendDailyChartPresentation(
-                dailyPoints: usd.dailyPoints,
-                aggregateTotal: usd.totalCost).content == .chart)
+            #expect(SpendTrendChartModel(group: usd, section: .daily, day: nil).total == 7)
 
             #expect(cad.totalCost == 5)
             #expect(cad.hasPartialCost)
@@ -351,9 +349,7 @@ struct SpendDashboardDateTruthTests {
             #expect(cad.models.map(\.provider) == [.mistral])
             #expect(cad.models.map(\.totalCost) == [5])
             #expect(cad.dailyPoints.map(\.sourceID) == ["healthy-cad"])
-            #expect(SpendDailyChartPresentation(
-                dailyPoints: cad.dailyPoints,
-                aggregateTotal: cad.totalCost).content == .chart)
+            #expect(SpendTrendChartModel(group: cad, section: .daily, day: nil).total == 5)
 
             #expect(eur.totalCost == 6)
             #expect(eur.totalTokens == 10)

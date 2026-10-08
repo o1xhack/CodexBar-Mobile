@@ -13,104 +13,37 @@ extension CostUsageScanner {
         return scoped
     }
 
-    static func buildCodexSessionBreakdownsFromCache(
+    static func buildCodexReportProjectionsFromCache(
         cache: CostUsageCache,
         range: CostUsageDayRange,
         modelsDevCatalog: ModelsDevCatalog? = nil,
         modelsDevCacheRoot: URL? = nil,
         sessionRoots: [URL]? = nil,
+        includeBreakdowns: Bool = true,
+        includeProjects: Bool = true,
         priorityTurns: [String: CodexPriorityTurnMetadata]? = nil,
         modelsDevCatalogLoader: (URL?) -> ModelsDevCatalog? = {
             CostUsagePricing.modelsDevCatalog(cacheRoot: $0)
-        }) -> [CostUsageSessionBreakdown]
+        })
+        -> (
+            daily: CostUsageDailyReport,
+            projects: [CostUsageProjectBreakdown],
+            sessions: [CostUsageSessionBreakdown])
     {
         let priorityTurns = priorityTurns ?? cache.codexResolvedPriorityTurns ?? [:]
+        // One refresh owns the pricing context; file reports feed both session and project projections.
         let resolvedModelsDevCatalog = modelsDevCatalog
             ?? modelsDevCatalogLoader(modelsDevCacheRoot)
             ?? ModelsDevCatalog(providers: [:])
         let pricingResolver = CostUsagePricing.CodexResolver(catalog: resolvedModelsDevCatalog)
-        let projectPathResolver = CodexCanonicalProjectPathResolver()
-        var latestFileBySessionID: [String: (path: String, usage: CostUsageFileUsage)] = [:]
-
-        for (filePath, usage) in cache.files {
-            if let sessionRoots,
-               !Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: filePath), roots: sessionRoots)
-            {
-                continue
-            }
-            guard usage.touchesCodexScanWindow(
-                sinceKey: range.scanSinceKey,
-                untilKey: range.scanUntilKey,
-                calendar: range.calendar)
-            else {
-                continue
-            }
-            let sessionID = usage.sessionId ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
-            guard !sessionID.isEmpty else { continue }
-            if let existing = latestFileBySessionID[sessionID], existing.usage.mtimeUnixMs >= usage.mtimeUnixMs {
-                continue
-            }
-            latestFileBySessionID[sessionID] = (filePath, usage)
-        }
-
-        return latestFileBySessionID.compactMap { sessionID, file in
-            var fileCache = CostUsageCache()
-            fileCache.files[file.path] = file.usage
-            fileCache.days = file.usage.days
-            let report = Self.buildCodexReportFromCache(
-                cache: fileCache,
-                range: range,
-                modelsDevCatalog: resolvedModelsDevCatalog,
-                priorityTurns: priorityTurns,
-                pricingResolver: pricingResolver)
-            guard !report.data.isEmpty else { return nil }
-
-            let summary = report.summary
-            let requestCounts = report.data.compactMap(\.requestCount)
-            let resolvedProjectPath = file.usage.canonicalProjectPath
-                ?? projectPathResolver.canonicalProjectPath(for: file.usage.projectPath)
-            let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
-            var session = CostUsageSessionBreakdown(
-                sessionID: sessionID,
-                lastActivity: Date(timeIntervalSince1970: TimeInterval(file.usage.mtimeUnixMs) / 1000),
-                inputTokens: summary?.totalInputTokens,
-                cachedInputTokens: summary?.cacheReadTokens,
-                outputTokens: summary?.totalOutputTokens,
-                totalTokens: summary?.totalTokens,
-                requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
-                costUSD: summary?.totalCostUSD,
-                modelBreakdowns: Self.codexProjectModelBreakdowns(from: report.data) ?? [],
-                projectPath: projectPath,
-                projectName: projectPath.map { Self.codexProjectName(path: $0) },
-                title: file.usage.codexSession?.title)
-            session.workingDirectory = file.usage.projectPath
-            return session
-        }
-        .sorted { lhs, rhs in
-            if lhs.lastActivity != rhs.lastActivity {
-                return lhs.lastActivity > rhs.lastActivity
-            }
-            return lhs.sessionID > rhs.sessionID
-        }
-    }
-
-    static func buildCodexProjectBreakdownsFromCache(
-        cache: CostUsageCache,
-        range: CostUsageDayRange,
-        modelsDevCatalog: ModelsDevCatalog? = nil,
-        modelsDevCacheRoot: URL? = nil,
-        priorityTurns: [String: CodexPriorityTurnMetadata]? = nil,
-        modelsDevCatalogLoader: (URL?) -> ModelsDevCatalog? = {
-            CostUsagePricing.modelsDevCatalog(cacheRoot: $0)
-        }) -> [CostUsageProjectBreakdown]
-    {
-        let priorityTurns = priorityTurns ?? cache.codexResolvedPriorityTurns ?? [:]
-        // Project rollups build one report per cached session file. Resolve pricing once so every
-        // row does not fall back through ModelsDevCache.load and repeat filesystem metadata reads.
-        let resolvedModelsDevCatalog = modelsDevCatalog
-            ?? modelsDevCatalogLoader(modelsDevCacheRoot)
-            ?? ModelsDevCatalog(providers: [:])
-        let pricingResolver = CostUsagePricing.CodexResolver(catalog: resolvedModelsDevCatalog)
+        let daily = Self.buildCodexReportFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCatalog: resolvedModelsDevCatalog,
+            priorityTurns: priorityTurns,
+            pricingResolver: pricingResolver)
+        guard includeBreakdowns else { return (daily, [], []) }
+        var latestSessions: [String: (usage: CostUsageFileUsage, report: CostUsageDailyReport)] = [:]
         let projectPathResolver = CodexCanonicalProjectPathResolver()
         var accumulatorsByProjectPath: [String: CodexProjectBreakdownAccumulator] = [:]
         for (filePath, usage) in cache.files {
@@ -130,7 +63,16 @@ extension CostUsageScanner {
                 modelsDevCatalog: resolvedModelsDevCatalog,
                 priorityTurns: priorityTurns,
                 pricingResolver: pricingResolver)
-            guard !report.data.isEmpty else { continue }
+            let includeSession = sessionRoots.map {
+                Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: filePath), roots: $0)
+            } ?? true
+            if includeSession {
+                let id = usage.sessionId ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
+                if !id.isEmpty, latestSessions[id].map({ $0.usage.mtimeUnixMs < usage.mtimeUnixMs }) ?? true {
+                    latestSessions[id] = (usage, report)
+                }
+            }
+            guard includeProjects, !report.data.isEmpty else { continue }
             let projectKey = usage.canonicalProjectPath
                 ?? projectPathResolver.canonicalProjectPath(for: usage.projectPath)
                 ?? ""
@@ -141,7 +83,7 @@ extension CostUsageScanner {
             accumulatorsByProjectPath[projectKey] = accumulator
         }
 
-        return accumulatorsByProjectPath.map { projectPath, accumulator in
+        let projects = accumulatorsByProjectPath.map { projectPath, accumulator in
             var projectCache = CostUsageCache()
             projectCache.files = accumulator.files
             for usage in accumulator.files.values {
@@ -164,18 +106,53 @@ extension CostUsageScanner {
                 sources: Self.codexProjectSourceBreakdowns(from: accumulator.reportsBySourcePath))
         }
         .sorted { lhs, rhs in
-            let lhsCost = lhs.totalCostUSD ?? -1
-            let rhsCost = rhs.totalCostUSD ?? -1
-            if lhsCost != rhsCost {
-                return lhsCost > rhsCost
-            }
-            let lhsTokens = lhs.totalTokens ?? -1
-            let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens {
-                return lhsTokens > rhsTokens
+            let lhsRank = (lhs.totalCostUSD ?? -1, lhs.totalTokens ?? -1)
+            let rhsRank = (rhs.totalCostUSD ?? -1, rhs.totalTokens ?? -1)
+            if lhsRank != rhsRank {
+                return lhsRank > rhsRank
             }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+        let sessions = latestSessions.compactMap { id, file -> CostUsageSessionBreakdown? in
+            guard !file.report.data.isEmpty else { return nil }
+            return Self.codexSessionBreakdown(
+                sessionID: id, usage: file.usage, report: file.report, projectPathResolver: projectPathResolver)
+        }
+        .sorted { lhs, rhs in
+            if lhs.lastActivity != rhs.lastActivity {
+                return lhs.lastActivity > rhs.lastActivity
+            }
+            return lhs.sessionID > rhs.sessionID
+        }
+        return (daily, projects, sessions)
+    }
+
+    private static func codexSessionBreakdown(
+        sessionID: String,
+        usage: CostUsageFileUsage,
+        report: CostUsageDailyReport,
+        projectPathResolver: CodexCanonicalProjectPathResolver) -> CostUsageSessionBreakdown
+    {
+        let summary = report.summary
+        let requestCounts = report.data.compactMap(\.requestCount)
+        let resolvedProjectPath = usage.canonicalProjectPath
+            ?? projectPathResolver.canonicalProjectPath(for: usage.projectPath)
+        let projectPath = resolvedProjectPath?.isEmpty == false ? resolvedProjectPath : nil
+        var session = CostUsageSessionBreakdown(
+            sessionID: sessionID,
+            lastActivity: Date(timeIntervalSince1970: TimeInterval(usage.mtimeUnixMs) / 1000),
+            inputTokens: summary?.totalInputTokens,
+            cachedInputTokens: summary?.cacheReadTokens,
+            outputTokens: summary?.totalOutputTokens,
+            totalTokens: summary?.totalTokens,
+            requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
+            costUSD: summary?.totalCostUSD,
+            modelBreakdowns: Self.codexProjectModelBreakdowns(from: report.data) ?? [],
+            projectPath: projectPath,
+            projectName: projectPath.map { Self.codexProjectName(path: $0) },
+            title: usage.codexSession?.title)
+        session.workingDirectory = usage.projectPath
+        return session
     }
 
     private static func codexProjectName(path: String?) -> String {
@@ -204,15 +181,10 @@ extension CostUsageScanner {
                 modelBreakdowns: Self.codexProjectModelBreakdowns(from: merged.data))
         }
         .sorted { lhs, rhs in
-            let lhsCost = lhs.totalCostUSD ?? -1
-            let rhsCost = rhs.totalCostUSD ?? -1
-            if lhsCost != rhsCost {
-                return lhsCost > rhsCost
-            }
-            let lhsTokens = lhs.totalTokens ?? -1
-            let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens {
-                return lhsTokens > rhsTokens
+            let lhsRank = (lhs.totalCostUSD ?? -1, lhs.totalTokens ?? -1)
+            let rhsRank = (rhs.totalCostUSD ?? -1, rhs.totalTokens ?? -1)
+            if lhsRank != rhsRank {
+                return lhsRank > rhsRank
             }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }

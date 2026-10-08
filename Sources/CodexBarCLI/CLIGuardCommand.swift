@@ -118,7 +118,7 @@ extension CodexBarCLI {
         }
 
         let timeout: TimeInterval
-        switch Self.decodeGuardTimeout(from: values) {
+        switch Self.guardTimeout(raw: values.options["timeout"]?.last) {
         case let .success(value):
             timeout = value
         case .failure:
@@ -128,7 +128,7 @@ extension CodexBarCLI {
         }
 
         let provider: UsageProvider
-        switch Self.decodeGuardProvider(from: values) {
+        switch Self.guardProvider(rawOverride: values.options["provider"]?.last) {
         case let .success(value):
             provider = value
         case let .failure(error):
@@ -189,20 +189,12 @@ extension CodexBarCLI {
         return .success(provider)
     }
 
-    private static func decodeGuardProvider(from values: ParsedValues) -> Result<UsageProvider, CLIArgumentError> {
-        self.guardProvider(rawOverride: values.options["provider"]?.last)
-    }
-
     static func decodeGuardMinimumRemaining(from values: ParsedValues) -> Result<Double, CLIArgumentError> {
         guard let raw = values.options["minRemaining"]?.last else { return .success(10) }
         guard let value = Double(raw), value.isFinite, value >= 0, value <= 100 else {
             return .failure(CLIArgumentError("--min-remaining must be a finite percent between 0 and 100."))
         }
         return .success(value)
-    }
-
-    static func decodeGuardTimeout(from values: ParsedValues) -> Result<TimeInterval, CLIArgumentError> {
-        self.guardTimeout(raw: values.options["timeout"]?.last)
     }
 
     static func guardTimeout(raw: String?) -> Result<TimeInterval, CLIArgumentError> {

@@ -159,25 +159,26 @@ struct KimiRatioPoolTests {
         #expect(usage.extraRateWindows == nil)
     }
 
-    @Test(arguments: ["0.1869", "0.5"])
-    func `nonzero ratios remain authoritative over legacy counts`(_ ratio: String) throws {
+    @Test(arguments: ["0.1869", "0.19", "0.5"])
+    func `matching nonzero ratios and counts use the more exhausted reading`(_ ratio: String) throws {
         let usage = try Self.parse("""
         {"usage":{"limit":"100","used":"19","resetTime":"2026-09-19T16:45:59Z"},
          "usages":{"limit_7d":{"used_ratio":\(ratio),"reset_time":"2026-09-19T16:45:59Z"}}}
         """)
-        let expected = try #require(Double(ratio)) * 100
+        let expected = try max(19, #require(Double(ratio)) * 100)
         let actual = try #require(usage.primary?.usedPercent)
         #expect(abs(actual - expected) < 0.00001)
+        #expect(usage.primary?.resetDescription == (ratio == "0.1869" ? "19/100 requests" : nil))
     }
 
     @Test
-    func `monthly ratio accounts retain zero ratios even with matching legacy counts`() throws {
+    func `monthly ratio accounts also reconcile matching weekly counters`() throws {
         let usage = try Self.parse("""
         {"usage":{"limit":"100","used":"19","resetTime":"2026-09-19T16:45:59Z"},
          "usages":{"limit_7d":{"used_ratio":0,"reset_time":"2026-09-19T16:45:59Z"},
                    "limit_month_total":{"used_ratio":0.0313}}}
         """)
-        #expect(usage.primary?.usedPercent == 0)
+        #expect(usage.primary?.usedPercent == 19)
         #expect(try abs(#require(usage.extraRateWindows?.first?.window.usedPercent) - 3.13) < 0.00001)
     }
 

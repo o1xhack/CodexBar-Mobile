@@ -18,6 +18,7 @@ enum OpenCodexUsageAggregator {
         var tokens = CostUsageDailyReport.OptionalCountAccumulator()
         var cost: Double = 0
         var sawCost = false
+        var incompleteRequestCount = 0
     }
 
     struct SessionAccumulator {
@@ -28,8 +29,6 @@ enum OpenCodexUsageAggregator {
         var cost: Double?
         var models: [String: ModelAccumulator] = [:]
     }
-
-    typealias HourAccumulator = CostUsageTemporalTotals
 
     /// Aggregates OpenCodex usage entries into a per-window token/cost snapshot.
     ///
@@ -80,7 +79,7 @@ enum OpenCodexUsageAggregator {
 
         var daysByKey: [String: DayAccumulator] = [:]
         var sessions: [String: SessionAccumulator] = [:]
-        var hoursByStart: [Date: HourAccumulator] = [:]
+        var hoursByStart: [Date: CostUsageTemporalTotals] = [:]
         // `windowed` is sorted by timestamp, so the day/hour memos hit on almost every entry; a miss only costs one
         // Calendar interval lookup. Price once per entry and reuse it for the day, session and hour merges.
         var windowTokens = CostUsageDailyReport.OptionalCountAccumulator()
@@ -106,8 +105,8 @@ enum OpenCodexUsageAggregator {
             sessions[sessionID] = session
 
             let hour = hourMemo.start(for: entry.timestamp, calendar: calendar)
-            var hourBucket = hoursByStart[hour] ?? HourAccumulator()
-            Self.merge(entry, cost: cost, into: &hourBucket)
+            var hourBucket = hoursByStart[hour] ?? CostUsageTemporalTotals()
+            hourBucket.add(totalTokens: entry.resolvedTotalCount.value, costUSD: cost)
             hoursByStart[hour] = hourBucket
         }
 
@@ -137,7 +136,7 @@ enum OpenCodexUsageAggregator {
         }
 
         let hourly = hoursByStart.keys.sorted().map { hour in
-            let bucket = hoursByStart[hour] ?? HourAccumulator()
+            let bucket = hoursByStart[hour] ?? CostUsageTemporalTotals()
             return bucket.hourlyEntry(hour: hour)
         }
 
@@ -220,18 +219,15 @@ enum OpenCodexUsageAggregator {
     private static func merge(
         _ entry: OpenCodexUsageEntry,
         cost: Double?,
-        into hour: inout HourAccumulator)
-    {
-        hour.add(totalTokens: entry.resolvedTotalCount.value, costUSD: cost)
-    }
-
-    private static func merge(
-        _ entry: OpenCodexUsageEntry,
-        cost: Double?,
         into model: inout ModelAccumulator)
     {
         model.mix.merge(entry.usage?.tokenMix ?? .init())
         model.tokens.merge(entry.resolvedTotalCount)
+        // Missing usage is an exclusion, not a failure of the other model rows. An overflowing
+        // total still has token evidence and must remain invalid rather than becoming an exclusion.
+        if entry.resolvedTotalTokens == nil, entry.usage?.tokenMix.hasAnyClass != true {
+            model.incompleteRequestCount = CostUsageIncompleteRequests.sum([model.incompleteRequestCount, 1])
+        }
         if let cost {
             model.cost += cost
             model.sawCost = true
@@ -267,7 +263,8 @@ enum OpenCodexUsageAggregator {
                 outputTokens: model.mix.outputTokens,
                 cacheReadTokens: model.mix.cacheReadTokens,
                 cacheCreationTokens: model.mix.cacheCreationTokens,
-                reasoningTokens: model.mix.reasoningTokens)
+                reasoningTokens: model.mix.reasoningTokens,
+                incompleteRequestCount: model.incompleteRequestCount > 0 ? model.incompleteRequestCount : nil)
         }
     }
 

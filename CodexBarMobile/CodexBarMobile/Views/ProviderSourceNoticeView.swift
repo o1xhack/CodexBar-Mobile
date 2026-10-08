@@ -44,20 +44,26 @@ struct ProviderSourceNoticeContent: Equatable {
                     locale: locale)
             lines.append(Line(text: format("Data from %@, updated %@.", [device, relative(captured)]), detail: nil))
         } else {
-            self.title = MobileLocalizedString.value(
-                "No Mac could refresh this provider",
-                defaultValue: "No Mac could refresh this provider",
-                locale: locale)
+            // Every Mac answered without data; it is a failure only when one of them reported an error.
+            let key = status.errors(at: now).isEmpty
+                ? "No Mac has usage data for this account"
+                : "No Mac could refresh this provider"
+            self.title = MobileLocalizedString.value(key, defaultValue: key, locale: locale)
         }
         let failures = status.failures(at: now)
         for failure in failures {
-            let message = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
-            lines.append(Line(
-                text: format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)]),
-                detail: message?.isEmpty == false ? message : nil))
+            let trimmed = failure.message?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let message = trimmed.map { text in
+                ProviderDetailLocalization.localizedStatusMessage(
+                    text, isError: failure.isError != false, locale: locale)
+            }
+            let text = failure.isError == false
+                ? format("%@ has no usage data for this account.", [failure.deviceName])
+                : format("%@ could not refresh %@.", [failure.deviceName, relative(failure.reportedAt)])
+            lines.append(Line(text: text, detail: message?.isEmpty == false ? message : nil))
         }
         if let sourceDeviceID = status.report.sourceDeviceID,
-           failures.contains(where: { $0.deviceID != sourceDeviceID })
+           failures.contains(where: { $0.deviceID != sourceDeviceID && $0.isError != false })
         {
             lines.append(Line(
                 text: MobileLocalizedString.value(

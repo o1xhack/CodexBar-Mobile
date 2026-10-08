@@ -140,6 +140,7 @@ extension UsageStore {
         }
 
         for (instanceID, usage) in self.snapshots {
+            guard instanceID.firstPartyProvider.map(Self.requiresBrowserSession) != true else { continue }
             let identity = usage.identity?.accountID ?? usage.identity?.accountEmail
             let label = usage.identity?.accountEmail
                 ?? usage.identity?.accountOrganization
@@ -156,6 +157,7 @@ extension UsageStore {
         }
 
         for (provider, accountSnapshots) in self.accountSnapshots {
+            guard provider.firstPartyProvider.map(Self.requiresBrowserSession) != true else { continue }
             for accountSnapshot in accountSnapshots {
                 guard let usage = accountSnapshot.snapshot else { continue }
                 let identity = usage.identity?.accountID
@@ -293,10 +295,17 @@ extension UsageStore {
         self.invalidatedQueuedWidgetProviders.insert(provider.instanceID)
     }
 
+    static func supportsWidgetUsage(_ provider: UsageProvider) -> Bool {
+        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+        return metadata.widgetSelectable || metadata.burnDownWidgetSelectable
+    }
+
     private func makeWidgetSnapshot(previousSnapshot: WidgetSnapshot?) -> WidgetSnapshot {
         let now = Date()
-        let enabledProviders = self.enabledProviders()
-        let entries = UsageProvider.allCases.compactMap { provider -> WidgetSnapshot.ProviderEntry? in
+        let widgetProviders = UsageProvider.allCases.filter(Self.supportsWidgetUsage)
+        let widgetIDs = Set(widgetProviders.map(\.instanceID))
+        let enabledProviders = self.enabledProviders().filter(widgetIDs.contains)
+        let entries = widgetProviders.compactMap { provider -> WidgetSnapshot.ProviderEntry? in
             if let entry = self.makeWidgetEntry(
                 for: provider,
                 now: now,

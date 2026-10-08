@@ -169,6 +169,8 @@ public enum QuotaProviderList {
         // Append only so existing zone and subscription identifiers stay stable.
         Provider(id: "museai", displayName: "Muse (muse.ai)"),
         Provider(id: "workbuddy", displayName: "WorkBuddy"),
+        // iOS 2.6.0 / Mac v0.73.0 percentage provider. Append only.
+        Provider(id: "langdock", displayName: "Langdock"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

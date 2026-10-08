@@ -617,8 +617,6 @@ enum MenuBarLayoutBalanceResolver {
             guard let codexCredits, codexCredits.balanceReadSucceeded else { return nil }
             return codexCredits.remaining.rounded().formatted(
                 .number.precision(.fractionLength(0)).locale(Locale(identifier: "en_US")))
-        case .openrouter:
-            return snapshot?.detailRow(label: "Remaining")?.value
         case .deepseek:
             return MenuBarDisplayText.deepSeekBalanceText(snapshot: snapshot)
         case .deepinfra:
@@ -630,50 +628,29 @@ enum MenuBarLayoutBalanceResolver {
             else { return nil }
             return (balanceDetail.contains(" owed") ? "-" : "") + String(value)
         case .moonshot:
-            return self.displayValue(
+            return MenuBarDisplayText.prefixedValue(
                 from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")?
                 .split(separator: "·", maxSplits: 1).first?.trimmingCharacters(in: .whitespacesAndNewlines)
         case .mistral:
-            return self.displayValue(
+            return MenuBarDisplayText.prefixedValue(
                 from: snapshot?.identity?.loginMethod, prefix: "API spend:", removingSuffix: " this month")
         case .opencodego:
             guard let cost = snapshot?.providerCost, cost.period == "Zen balance" else { return nil }
             return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
         case .mimo, .hyper:
             return snapshot?.detailRow(label: "Balance")?.value.components(separatedBy: " (Paid:").first
-        case .atlascloud, .vercel:
-            return snapshot?.detailRow(label: "Available balance")?.value
-        case .devpass:
-            return snapshot?.detailRow(label: "Cycle remaining")?.value
         default:
             let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-            if descriptor.metadata.balanceOnly,
-               snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID,
-               let balance = snapshot?.detailRow(label: "Balance")?.value, !balance.isEmpty
+            let labels = descriptor.presentation.menuBarBalanceDetailLabels
+                ?? (descriptor.metadata.balanceOnly ? ["Balance"] : [])
+            if snapshot?.identity?.providerID == nil || snapshot?.identity?.providerID == provider.instanceID,
+               let balance = labels.lazy.compactMap({ snapshot?.detailRow(label: $0)?.value }).first
             { return balance }
+            guard descriptor.presentation.menuBarBalanceDetailLabels == nil else { return nil }
             guard descriptor.presentation.planRow.stripsBalancePrefix else { return nil }
-            return self.displayValue(
+            return MenuBarDisplayText.prefixedValue(
                 from: snapshot?.loginMethod(for: provider), prefix: "Balance:", removingSuffix: "")
         }
-    }
-
-    private static func displayValue(
-        from text: String?,
-        prefix: String,
-        removingSuffix suffix: String)
-        -> String?
-    {
-        guard let rawValue = text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              rawValue.hasPrefix(prefix)
-        else {
-            return nil
-        }
-        var value = rawValue.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !suffix.isEmpty, value.hasSuffix(suffix) {
-            value = String(value.dropLast(suffix.count)).trimmingCharacters(
-                in: .whitespacesAndNewlines)
-        }
-        return value.isEmpty ? nil : value
     }
 
     /// Numeric USD amounts behind OpenRouter's "Credits" detail rows. The plugin formats both rows as

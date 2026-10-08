@@ -78,6 +78,8 @@ public struct ClaudeStatusProbe: Sendable {
         "Claude CLI /usage returned a subscription notice without session quota data. " +
         "Local cost and token history remain available."
 
+    private static let usageInsightsMarker = "What's contributing to your limits usage?"
+
     public var claudeBinary: String = "claude"
     public var timeout: TimeInterval = 20.0
     public var keepCLISessionsAlive: Bool = false
@@ -204,11 +206,11 @@ extension ClaudeStatusProbe {
     // MARK: - Parsing helpers
 
     private static func cleanCapture(_ text: String) -> String {
-        // Insights contain arbitrary tool names and percentages, not account or quota fields.
+        // Keep the heading to classify insights-only reports, but exclude tool names and usage-share percentages.
         let rendered = ClaudeCLIScreen.render(text, preservePlainReports: true)
-        let marker = "What's contributing to your limits usage?"
-        guard let insights = rendered.range(of: marker, options: .caseInsensitive) else { return rendered }
-        return String(rendered[..<insights.lowerBound])
+        guard let insights = rendered.range(of: self.usageInsightsMarker, options: .caseInsensitive)
+        else { return rendered }
+        return String(rendered[..<insights.upperBound])
     }
 
     private struct LabelSearchContext {
@@ -688,7 +690,9 @@ extension ClaudeStatusProbe {
             return "Claude CLI usage endpoint is rate limited right now. Please try again later."
         }
         if self.isSubscriptionNoticeOnly(text: text) {
-            return self.subscriptionQuotaUnavailableDescription
+            return text.localizedCaseInsensitiveContains(self.usageInsightsMarker)
+                ? "Claude CLI /usage returned usage insights without quota data."
+                : self.subscriptionQuotaUnavailableDescription
         }
         if lower.contains("failed to load usage data") {
             return "Claude CLI could not load usage data. Open the CLI and retry `/usage`."

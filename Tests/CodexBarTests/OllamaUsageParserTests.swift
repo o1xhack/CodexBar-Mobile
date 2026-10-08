@@ -206,8 +206,8 @@ struct OllamaUsageParserTests {
         #expect(snapshot.weeklyUsedPercent == 3.4)
     }
 
-    @Test
-    func `parses monthly dollar usage from new settings HTML`() throws {
+    @Test(arguments: ["", "<p>Free usage credits can be used with the following cloud models:</p>"])
+    func `parses monthly dollar usage from new settings HTML`(labelProse: String) throws {
         // Captured monthly-credit markup includes line breaks inside closing tags.
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let html = """
@@ -237,6 +237,7 @@ struct OllamaUsageParserTests {
                 </div>
               </div>
             </div>
+            \(labelProse)
             <div
               class="text-xs text-neutral-500 mt-1 local-time"
               data-time="2026-09-30T15:14:29Z"
@@ -360,5 +361,62 @@ struct OllamaUsageParserTests {
         let usage = snapshot.toUsageSnapshot()
         #expect(usage.primary?.windowMinutes == 5 * 60)
         #expect(usage.secondary == nil)
+    }
+
+    @Test
+    func `parses free usage meter as the primary monthly window`() throws {
+        // Sanitized settings-page fragment from #4308; explanatory prose is not a meter label.
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let html = """
+        <div>
+          <h2 class="text-xl font-medium flex items-center space-x-2">
+            <span>Included usage</span>
+            <span
+              class="text-xs font-normal px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 capitalize"
+              >free</span
+            >
+          </h2>
+          <h2 id="header-email">user@example.com</h2>
+          <div id="free-plan-models">
+            <p>Free usage credits can be used with the following cloud models:</p>
+          </div>
+          <div>
+            <div class="flex justify-between mb-2">
+              <span class="text-sm">Free usage</span>
+              <span class="text-sm">69.5% used</span>
+            </div>
+            <div class="relative group" data-usage-meter>
+              <div
+                class="relative h-3 overflow-hidden rounded-full bg-neutral-200"
+                data-usage-track
+                aria-label="Free usage 69.5% used"
+              >
+                <div class="flex h-full overflow-hidden bg-neutral-950" style="width: 69.5%; "></div>
+              </div>
+            </div>
+            <div class="text-xs text-neutral-500 mt-1 local-time" data-time="2026-10-26T15:19:11Z">
+              Resets in 2 weeks.
+            </div>
+          </div>
+        </div>
+        """
+
+        let snapshot = try OllamaUsageParser.parse(html: html, now: now)
+
+        #expect(snapshot.planName == "free")
+        #expect(snapshot.accountEmail == "user@example.com")
+        #expect(snapshot.monthlyUsedPercent == 69.5)
+        #expect(snapshot.sessionUsedPercent == nil)
+        #expect(snapshot.weeklyUsedPercent == nil)
+
+        let expectedReset = ISO8601DateFormatter().date(from: "2026-10-26T15:19:11Z")
+        #expect(snapshot.monthlyResetsAt == expectedReset)
+
+        let usage = snapshot.toUsageSnapshot()
+        #expect(usage.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
+        #expect(usage.primary?.usedPercent == 69.5)
+        #expect(usage.primary?.resetsAt == expectedReset)
+        #expect(usage.secondary == nil)
+        #expect(usage.identity?.loginMethod == "free")
     }
 }

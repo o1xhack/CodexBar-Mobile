@@ -1559,7 +1559,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "Envoie à chaque synchronisation 105 instantanés fictifs stables couvrant 95 identifiants de fournisseur, notamment les cas multicompte, sub2api, Wayfinder et le repli pour fournisseur inconnu. Les adresses fictives utilisent le TLD `.test`, afin que l’iPhone affiche un badge MOCK. La désactivation permet à CloudKit de supprimer les enregistrements fictifs en environ un cycle de synchronisation. Désactivé par défaut.";
+"mobile_toggle_mock_subtitle" = "Envoie à chaque synchronisation 106 instantanés fictifs stables couvrant 96 identifiants de fournisseur, notamment les cas multicompte, sub2api, Wayfinder et le repli pour fournisseur inconnu. Les adresses fictives utilisent le TLD `.test`, afin que l’iPhone affiche un badge MOCK. La désactivation permet à CloudKit de supprimer les enregistrements fictifs en environ un cycle de synchronisation. Désactivé par défaut.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1568,6 +1568,8 @@
 "icloud_diagnostics_run" = "Run Read-Only Check";
 "Cumulative" = "Cumulé";
 "Token activity" = "Activité des tokens";
+"Earlier activity" = "Activité plus ancienne";
+"More recent activity" = "Activité plus récente";
 "View" = "Vue";
 "in the last year" = "sur l'année écoulée";
 "No activity in the last 12 months" = "Aucune activité au cours des 12 derniers mois";
@@ -1708,6 +1710,11 @@
 "account_widgets_title" = "Actualiser les comptes pour les widgets";
 "account_widgets_description" = "Choisissez un compte dans chaque widget Account Usage. Actualise jusqu’à six comptes par fournisseur.";
 
+/* Spend time zone */
+"Statistics time zone" = "Fuseau horaire des statistiques";
+"Use Mac's current time zone" = "Utiliser le fuseau horaire actuel du Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "L’utilisation quotidienne est regroupée selon un fuseau horaire fixe. Le modifier peut déplacer une partie de l’utilisation vers un autre jour.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Usage local × tarifs API publics · ni frais ni crédits Antigravity";
 "antigravity_quota_window_note" = "Le coût de la fenêtre couvre tous les modèles · la fenêtre affichée est la famille la plus contrainte";
@@ -1729,3 +1736,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Navigateurs pris en charge : %@. Utilisez le mode Manuel pour les autres navigateurs.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Collez l’en-tête Cookie d’une requête Chrome vers www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Réservé";
+
+/* Selected browser profile */
+"Browser profile" = "Profil du navigateur";
+"Unavailable profile: %@" = "Profil indisponible : %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Lire uniquement le profil %@ sélectionné. Les comptes ne sont jamais sélectionnés automatiquement.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Dépenses enregistrées";
+"Highest recorded spend" = "Dépenses enregistrées maximales";
+"Previous day" = "Jour précédent";
+"Next day" = "Jour suivant";
+"Click to isolate a source. Click again to show all." = "Cliquez pour isoler une source. Cliquez à nouveau pour tout afficher.";
+"Recorded hourly spend" = "Dépenses horaires enregistrées";
+"Highest spend" = "Dépense maximale";
+"Models for this day" = "Modèles de ce jour";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Cliquez sur une barre pour explorer. Le menu ci-dessous affiche les montants exacts.";

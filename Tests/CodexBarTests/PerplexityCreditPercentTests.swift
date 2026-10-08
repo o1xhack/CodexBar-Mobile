@@ -85,7 +85,7 @@ struct PerplexityCreditPercentTests {
                     now: self.now))
             if let path = ProcessInfo.processInfo.environment["CODEXBAR_PERPLEXITY_PERCENT_PROOF_DIR"] {
                 let file = URL(fileURLWithPath: path)
-                    .appendingPathComponent("\(preference.rawValue)-\(showUsed ? "used" : "remaining").txt")
+                    .appendingPathComponent("\(preference.id)-\(showUsed ? "used" : "remaining").txt")
                 try output.attributedTitle.string.write(to: file, atomically: true, encoding: .utf8)
             }
             #expect(output.attributedTitle.string == expected)

@@ -1561,7 +1561,7 @@
 "mobile_dev_restored" = "Restored";
 "mobile_sync_status_last_attempt_format" = "Last attempt: %@";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_toggle_mock_subtitle" = "同期のたびに、95 個の provider ID をカバーする 105 個の安定したモックスナップショットを送信します。複数アカウント、sub2api、Wayfinder、不明な provider のフォールバックを含みます。モックのメールアドレスは `.test` TLD を使用するため、iPhone には MOCK バッジが表示されます。オフにすると、CloudKit は約 1 回の同期サイクルでモックレコードを削除します。デフォルトはオフです。";
+"mobile_toggle_mock_subtitle" = "同期のたびに、96 個の provider ID をカバーする 106 個の安定したモックスナップショットを送信します。複数アカウント、sub2api、Wayfinder、不明な provider のフォールバックを含みます。モックのメールアドレスは `.test` TLD を使用するため、iPhone には MOCK バッジが表示されます。オフにすると、CloudKit は約 1 回の同期サイクルでモックレコードを削除します。デフォルトはオフです。";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1569,6 +1569,8 @@
 "Renews: %@" = "Renews: %@";
 "Cumulative" = "累計";
 "Token activity" = "トークンアクティビティ";
+"Earlier activity" = "以前の記録";
+"More recent activity" = "最近の記録";
 "View" = "表示";
 "in the last year" = "過去1年";
 "No activity in the last 12 months" = "過去12か月にアクティビティなし";
@@ -1709,6 +1711,11 @@
 "account_widgets_title" = "ウィジェット用にアカウントを更新する";
 "account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";
 
+/* Spend time zone */
+"Statistics time zone" = "統計のタイムゾーン";
+"Use Mac's current time zone" = "Macの現在のタイムゾーンを使用";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "日別の使用量は固定のタイムゾーンで集計されます。変更すると、一部の使用量が別の日に移る場合があります。";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "ローカル使用量 × 公開API価格 · Antigravity の請求やクレジットではありません";
 "antigravity_quota_window_note" = "ウィンドウの費用は全モデルを含みます · 表示中のウィンドウは最も制限の厳しいファミリーです";
@@ -1732,3 +1739,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "対応ブラウザ: %@。その他のブラウザでは「手動」を使用してください。";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Chrome で www.workbuddy.cn/profile/plans-usage に送信したリクエストの Cookie ヘッダーを貼り付けてください。";
 "Reserved" = "確保済み";
+
+/* Selected browser profile */
+"Browser profile" = "ブラウザープロファイル";
+"Unavailable profile: %@" = "利用できないプロファイル: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "選択した %@ プロファイルのみを読み取ります。アカウントが自動で選択されることはありません。";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "記録済みの支出";
+"Highest recorded spend" = "記録済みの最大支出";
+"Previous day" = "前の日";
+"Next day" = "次の日";
+"Click to isolate a source. Click again to show all." = "クリックでこのソースのみ表示。再クリックで全て表示。";
+"Recorded hourly spend" = "記録された時間別支出";
+"Highest spend" = "最大支出";
+"Models for this day" = "この日のモデル";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "棒をクリックして詳しく確認できます。下のメニューで正確な金額を確認できます。";

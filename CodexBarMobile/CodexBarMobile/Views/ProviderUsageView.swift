@@ -105,13 +105,14 @@ struct ProviderUsageView: View {
             }
             .padding(.horizontal, 16)
 
-            // Error / status message
+            // Error / status message. A Mac can explain missing data without failing (for example
+            // no usage limits on the account); that note is neutral, not an error.
             if let message = self.provider.statusMessage {
                 HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.bubble.fill")
+                    Image(systemName: self.provider.isError ? "exclamationmark.bubble.fill" : "info.circle")
                         .font(.subheadline)
-                        .foregroundStyle(.red)
-                    Text(message)
+                        .foregroundStyle(self.provider.isError ? Color.red : Color.secondary)
+                    Text(ProviderDetailLocalization.localizedStatusMessage(message, isError: self.provider.isError))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(3)

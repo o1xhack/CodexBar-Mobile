@@ -1,0 +1,190 @@
+{
+  "fixture": "synthetic-only; generated accounts, model, token counts and amounts",
+  "productCommit": "f3a75a5c974fbcc9d01e9318850154187d4d3bed",
+  "bundleProductCommit": "f3a75a5c9",
+  "host": "fresh ad-hoc signed packaged CodexBar executable; complete production SpendDashboardPane and controller",
+  "capture": "target-window CUA screenshots; ancillary metadata removed, encoded raster unchanged; originals retained privately",
+  "isolated": {
+    "keychainDisabled": true,
+    "inMemoryPreferences": true,
+    "providerTransports": "fatal if attempted",
+    "normalAppStartup": "bypassed"
+  },
+  "activityDays": 365,
+  "coveredActivityDays": 365,
+  "viewport": {
+    "narrowWindowWidth": 435,
+    "annualWidth": 689,
+    "narrowActivityWidth": 355,
+    "wideWindowWidth": 930,
+    "wideActivityWidth": 850
+  },
+  "actions": [
+    {
+      "action": "initialRecent",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 334
+    },
+    {
+      "action": "earliest",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "disabledEarlier",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "recent",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 334
+    },
+    {
+      "action": "disabledLater",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 334
+    },
+    {
+      "action": "selectedDay",
+      "activityMode": "daily",
+      "selectedDay": "2026-04-07",
+      "offsetX": 0
+    },
+    {
+      "action": "keyboardLeft",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 321
+    },
+    {
+      "action": "pagedAway",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "keyboardRevealSameWeek",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 321
+    },
+    {
+      "action": "wide",
+      "activityMode": "daily",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "weeklyWide",
+      "activityMode": "weekly",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "weeklyNarrow",
+      "activityMode": "weekly",
+      "selectedDay": "none",
+      "offsetX": 0
+    },
+    {
+      "action": "cumulativeNarrow",
+      "activityMode": "cumulative",
+      "selectedDay": "none",
+      "offsetX": 334
+    },
+    {
+      "action": "horizontalAccessibilityScroll",
+      "activityMode": "cumulative",
+      "selectedDay": "none",
+      "offsetX": 0
+    }
+  ],
+  "accessibility": {
+    "earlierAndLaterButtonsExposed": true,
+    "endButtonsDisabled": true,
+    "dailyAdjustableDateValue": [
+      "Oct 6, 2026: 0",
+      "Oct 5, 2026: 2M"
+    ],
+    "keyboardLeftThenDown": [
+      "Sep 28, 2026: 1M",
+      "Sep 29, 2026: 4M"
+    ],
+    "wideNavigationAbsent": true,
+    "weeklyAndCumulativeNavigationExposed": true,
+    "nativeHorizontalScrollActionWorks": true
+  },
+  "unverified": [
+    "physical trackpad gesture",
+    "spoken VoiceOver session"
+  ],
+  "sourceHashes": {
+    "Sources/CodexBar/SpendActivityHeatmap.swift": "be2ac8dbf1936352b487e3ed8e47b70585045c58c5173a0700b122f488ca4e50",
+    "Sources/CodexBar/SpendActivityScrollableGrid.swift": "10f60fbbe82a3de8c02052e0a7293ad2b941e534cd129c8a0da0b4eaa19103f9",
+    "Sources/CodexBar/SpendActivityPalette.swift": "924ed15ac2ab758bdc75f558eb21577d8ee6d73f34f167266071cfdc54d2f760"
+  },
+  "screenshots": {
+    "dark-recent.jpg": {
+      "sha256": "39f6c1924c855b59ab06b0f6adee652ef18d7b0d579ffcd5f6a5cec5311c2b84",
+      "originalSha256": "b43cdf32a55490bb4c7d30d49ef1ce4d58287d90fd6b5eaca785978a32b978c0",
+      "bytes": 165915,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "dark-earliest.jpg": {
+      "sha256": "6901ba9bfee2be73eb6f1159ed293d4bb3f9ef2a4c82c26788529075e2aeafe6",
+      "originalSha256": "7fbab3754b115623a244ea221b4deb23c17dba593dce72cb02be28637cf8c5b2",
+      "bytes": 154279,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "dark-tooltip.jpg": {
+      "sha256": "f4319bfb6e043ce81b01829df5191d15cbb2b535a345e6b5959b6d1057ff03e2",
+      "originalSha256": "76a089aa6d44ddd5b7fb0815d25c4bfd1ed9d83586c663a4395613574d62a064",
+      "bytes": 159207,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "selected-day-dashboard.jpg": {
+      "sha256": "06fba19d20bb89406d7d0afeee9acd481449da3e10df5f59ef8b31a3f11b6d8a",
+      "originalSha256": "7a0b518569a87c995fe1d46740549a5431882c49fbf44e1dca19843fd5f0ec90",
+      "bytes": 154484,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "keyboard-reveal.jpg": {
+      "sha256": "159becf4605eaeb9d281ad6149096c291e89682237cffa8c7b01cf71c5ed521b",
+      "originalSha256": "71fcdf5a5d3c7596f16286082e2056686ba550c77dda709802408f9f44a55258",
+      "bytes": 160469,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "light-narrow.jpg": {
+      "sha256": "a14858c93ca18e6343b9b5f2e30f316998c7b00663eedbd9a6c16d646326f94a",
+      "originalSha256": "1a19bd650db15f25f1a76cb1c0b6488b6bc178298cfd72108b06d91de86098d7",
+      "bytes": 159327,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "dark-wide.jpg": {
+      "sha256": "0213e29f9bcc5d3055caf7e47eb5a2e8e8e6d4587e18f18f21afbc300764cc09",
+      "originalSha256": "7c98a2b897561b11bb63ab71579cddd13083fd32a801bc0c452dad7355b71225",
+      "bytes": 239903,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    },
+    "cumulative-narrow.jpg": {
+      "sha256": "812d9ee27a0deda205381010d9257851e337cb984082b332e3c2e4b4d9074355",
+      "originalSha256": "c114f525f68d0b1b15244e489cb20e65e5e444b0d7ff6929c36053add8c25efc",
+      "bytes": 157493,
+      "encodedRasterUnchanged": true,
+      "ancillaryMetadataRemoved": true
+    }
+  }
+}

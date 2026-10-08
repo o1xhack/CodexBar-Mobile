@@ -25,7 +25,7 @@ extension UsageStore {
             return Self.recordCodexWeeklyResetPersistenceDecision(.ambiguousActiveAccount)
         }
 
-        // Single-account refresh clears memory before admission; keep the persisted rows and their credits intact.
+        // Runtime rows may be unavailable; keep persisted rows and their credits intact during admission.
         var records = self.codexAccountSnapshots
         let persisted = self.codexAccountUsageSnapshotStore?.load(for: visibleAccounts) ?? []
         records += persisted.filter { row in !records.contains { $0.id == row.id } }

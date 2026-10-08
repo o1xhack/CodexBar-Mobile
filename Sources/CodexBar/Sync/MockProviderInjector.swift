@@ -16,8 +16,8 @@ import Foundation
 ///
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
-/// snapshots. The full catalog now has 105 snapshots: 100 using current
-/// provider IDs (90 distinct), three legacy-ID compatibility fixtures,
+/// snapshots. The full catalog now has 106 snapshots: 101 using current
+/// provider IDs (91 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
 /// the iOS app does not yet know about. All values and accounts remain
@@ -239,6 +239,8 @@ enum MockProviderInjector {
         "hyper", "gitkraken", "devpass", "atlascloud", "vercel", "llmman",
         // Upstream v0.67.0 provider additions; keep in sync with simple profiles.
         "xkiro", "raycast", "aixy", "museai", "lithosai", "workbuddy",
+        // Upstream v0.73.0.
+        "langdock",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1825,6 +1827,20 @@ enum MockProviderInjector {
             primaryResetsInSeconds: 18 * 86400,
             primaryResetDescription: "3,800 / 5,000 credits left",
             secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        // Provider-specific by design: iOS 2.6.0 mock sample for upstream v0.73 Langdock.
+        .init(
+            providerID: "langdock", providerName: "Langdock",
+            accountLocal: "personal", loginMethod: "Browser session",
+            primaryUsage: 42, primaryLabel: "Session",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 2 * 3600,
+            primaryResetDescription: "",
+            secondary: .init(
+                label: "Weekly", usedPercent: 27,
+                windowMinutes: 10080,
+                resetsInSeconds: 4 * 86400,
+                resetDescription: ""),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-

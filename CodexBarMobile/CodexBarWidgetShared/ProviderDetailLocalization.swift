@@ -13,7 +13,7 @@ enum ProviderDetailLocalization {
         "aiand", "aixy", "amp", "atlascloud", "bifrost", "chutes", "claude", "clawrouter",
         "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
         "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
-        "huggingface", "hyper", "ibmbob", "kiro", "litellm", "lithosai", "llmman", "llmproxy",
+        "huggingface", "hyper", "ibmbob", "kiro", "langdock", "litellm", "lithosai", "llmman", "llmproxy",
         "mimo", "minimax", "moonshot", "muse", "museai", "nous", "openai", "openrouter",
         "perplexity", "pi", "poe", "raycast", "replicate", "sakana", "sub2api", "typesafe",
         "v0", "vercel", "wayfinder", "workbuddy", "xai", "xkiro", "zai", "zoommate",
@@ -47,7 +47,7 @@ enum ProviderDetailLocalization {
         "Premium weekly",
         "Professional voices", "Project", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
-        "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Session", "Shared",
+        "Included limits", "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved", "Session", "Shared",
         "Rest of organization", "Reviews", "Rollover credits", "Routed", "Saved", "Scope", "Shared pool",
         "Spend history", "Spending limit", "Spent", "Spent this month", "Stored", "Subscription",
         "Subscription credits", "Team credits", "Top-up credits",
@@ -123,6 +123,16 @@ enum ProviderDetailLocalization {
 
     /// Localizes only stable value fragments emitted by bundled providers. Dynamic values and
     /// custom-plugin content remain verbatim, and the canonical CloudKit payload stays unchanged.
+    /// A Mac's status line: known non-error explanations are localized, anything else stays verbatim.
+    static func localizedStatusMessage(
+        _ message: String,
+        isError: Bool,
+        locale: Locale = .current) -> String
+    {
+        guard !isError, message == SyncStatusNote.limitsUnavailable else { return message }
+        return MobileLocalizedString.value("mac_note_limits_unavailable", defaultValue: message, locale: locale)
+    }
+
     static func localizedValue(
         _ value: String,
         providerID: String,
@@ -172,6 +182,9 @@ enum ProviderDetailLocalization {
             return MobileLocalizedString.value(key, defaultValue: value, locale: locale)
         case "workbuddy":
             return self.localizedCreditsLeft(value, locale: locale) ?? value
+        case "langdock":
+            guard value == "No included usage limits available" else { return value }
+            return MobileLocalizedString.value("langdock_value_no_included_limits", defaultValue: value, locale: locale)
         case "museai":
             return self.localizedAmountLeft(value, locale: locale) ?? value
         case "kiro":

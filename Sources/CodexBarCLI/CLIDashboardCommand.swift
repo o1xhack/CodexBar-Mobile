@@ -45,11 +45,6 @@ struct DashboardSnapshotResult {
     let usageCacheKeys: [String?]
 }
 
-struct DashboardClaudeSwapCollection: Sendable {
-    let accounts: [ProviderAccountUsageSnapshot]?
-    let adapterError: String?
-}
-
 /// Collects the stable dashboard-v1 payload independently of its transport.
 /// The CLI command encodes it directly while `codexbar serve` wraps it in the
 /// existing authenticated HTTP cache.
@@ -57,7 +52,7 @@ struct DashboardSnapshotProducer: Sendable {
     let collectUsage: @Sendable ([UsageProvider]) async throws -> UsageCommandOutput
     let collectCost: @Sendable ([UsageProvider], CodexBarConfig) async -> [CostPayload]
     let now: @Sendable () -> Date
-    var collectClaudeSwapAccounts: @Sendable (CodexBarConfig) async -> DashboardClaudeSwapCollection? = { _ in nil }
+    var collectAccounts: @Sendable (CodexBarConfig, UsageProvider) async -> DashboardAccountsInput? = { _, _ in nil }
     var weeklyWorkDays: @Sendable () -> Int? = { nil }
     var usageBarsShowUsed: @Sendable () -> Bool = { false }
 
@@ -75,12 +70,15 @@ struct DashboardSnapshotProducer: Sendable {
         let costPayloads = await self.collectCost(
             CodexBarCLI.costProviders(from: selection),
             config)
-        // Provider-specific by design: claude-swap account enrichment is a
-        // Claude-only integration, so provider-filtered snapshots skip it
-        // unless the Claude row is requested.
-        let claudeSwap = selection.asList.contains(.claude)
-            ? await self.collectClaudeSwapAccounts(config)
-            : nil
+        var accountCollections: [UsageProvider: DashboardAccountsInput] = [:]
+        for provider in selection.asList {
+            if let collection = await self.collectAccounts(config, provider) {
+                accountCollections[provider] = DashboardAccountsInput(
+                    accounts: collection.accounts,
+                    adapterError: collection.adapterError,
+                    weeklyWorkDays: self.weeklyWorkDays())
+            }
+        }
         let generatedAt = self.now()
 
         let payload = DashboardSnapshotBuilder.makeSnapshot(
@@ -91,12 +89,7 @@ struct DashboardSnapshotProducer: Sendable {
             generatedAt: generatedAt,
             refreshInterval: refreshInterval,
             codexBarVersion: codexBarVersion,
-            claudeSwap: claudeSwap.map {
-                DashboardClaudeSwapInput(
-                    accounts: $0.accounts,
-                    adapterError: $0.adapterError,
-                    weeklyWorkDays: self.weeklyWorkDays())
-            },
+            accountCollections: accountCollections,
             usageBarsShowUsed: self.usageBarsShowUsed())
         return DashboardSnapshotResult(
             payload: payload,
@@ -151,9 +144,10 @@ struct DashboardSnapshotProducer: Sendable {
                 }
             },
             now: { Date() },
-            collectClaudeSwapAccounts: { config in
-                // Provider-specific by design: the dashboard opts into Claude's local multi-account adapter.
-                guard CodexBarCLI.dashboardClaudeSwapIsEligible(config: config) else { return nil }
+            collectAccounts: { config, provider in
+                // Provider-specific by design: Codex projects saved metadata; Claude uses its opt-in adapter.
+                if provider == .codex { return DashboardManagedCodexAccounts.collect(config: config) }
+                guard provider == .claude, CodexBarCLI.dashboardClaudeSwapIsEligible(config: config) else { return nil }
                 let path = config.providerConfig(for: .claude)?.sanitizedClaudeSwapExecutablePath ?? ""
                 let timeout = min(
                     ClaudeSwapAccountReader.defaultTimeout,
@@ -166,14 +160,16 @@ struct DashboardSnapshotProducer: Sendable {
                         from: list,
                         previousAccounts: ClaudeSwapRetainedUsageStore.load())
                     ClaudeSwapRetainedUsageStore.save(accounts)
-                    return DashboardClaudeSwapCollection(
+                    return DashboardAccountsInput(
                         accounts: accounts,
-                        adapterError: nil)
+                        adapterError: nil,
+                        weeklyWorkDays: nil)
                 } catch {
                     let diagnostic = CLIClaudeSwapText.sanitizeDiagnostic(error.localizedDescription)
-                    return DashboardClaudeSwapCollection(
+                    return DashboardAccountsInput(
                         accounts: nil,
-                        adapterError: diagnostic.isEmpty ? "claude-swap list failed." : diagnostic)
+                        adapterError: diagnostic.isEmpty ? "claude-swap list failed." : diagnostic,
+                        weeklyWorkDays: nil)
                 }
             },
             weeklyWorkDays: { CodexBarCLI.weeklyProgressWorkDaysFromDefaults() },

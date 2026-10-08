@@ -60,21 +60,13 @@ public enum VertexAIUsageFetcher {
 
     public static func fetchUsage(
         accessToken: String,
-        projectId: String?) async throws -> VertexAIUsageResponse
+        projectId: String?,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> VertexAIUsageResponse
     {
         guard let projectId, !projectId.isEmpty else {
             throw VertexAIFetchError.noProject
         }
 
-        return try await Self.fetchQuotaUsage(
-            accessToken: accessToken,
-            projectId: projectId)
-    }
-
-    private static func fetchQuotaUsage(
-        accessToken: String,
-        projectId: String) async throws -> VertexAIUsageResponse
-    {
         let usageFilter = """
         metric.type="serviceruntime.googleapis.com/quota/allocation/usage" \
         AND resource.type="consumer_quota" \
@@ -89,11 +81,13 @@ public enum VertexAIUsageFetcher {
         let usageSeries = try await Self.fetchTimeSeries(
             accessToken: accessToken,
             projectId: projectId,
-            filter: usageFilter)
+            filter: usageFilter,
+            transport: transport)
         let limitSeries = try await Self.fetchTimeSeries(
             accessToken: accessToken,
             projectId: projectId,
-            filter: limitFilter)
+            filter: limitFilter,
+            transport: transport)
 
         return try Self.makeQuotaUsageResponse(
             usageSeries: usageSeries,
@@ -220,12 +214,14 @@ public enum VertexAIUsageFetcher {
     private static func fetchTimeSeries(
         accessToken: String,
         projectId: String,
-        filter: String) async throws -> [MonitoringTimeSeries]
+        filter: String,
+        transport: any ProviderHTTPTransport) async throws -> [MonitoringTimeSeries]
     {
         let now = Date()
         let start = now.addingTimeInterval(-Self.usageWindowSeconds)
         let formatter = ISO8601DateFormatter()
         var pageToken: String?
+        var seenPageTokens: Set<String> = []
         var allSeries: [MonitoringTimeSeries] = []
 
         repeat {
@@ -259,7 +255,7 @@ public enum VertexAIUsageFetcher {
             let response: ProviderHTTPResponse
 
             do {
-                response = try await ProviderHTTPClient.shared.response(for: request)
+                response = try await transport.response(for: request)
             } catch {
                 throw VertexAIFetchError.networkError(error)
             }
@@ -280,8 +276,14 @@ public enum VertexAIUsageFetcher {
             if let series = decoded.timeSeries {
                 allSeries.append(contentsOf: series)
             }
-            pageToken = decoded.nextPageToken?.isEmpty == false ? decoded.nextPageToken : nil
-        } while pageToken != nil
+            // Retain this distinct page before stopping a repeated cursor.
+            guard let nextToken = decoded.nextPageToken, !nextToken.isEmpty,
+                  seenPageTokens.insert(nextToken).inserted else { break }
+            guard seenPageTokens.count < 100 else {
+                throw VertexAIFetchError.invalidResponse("Monitoring page limit exceeded")
+            }
+            pageToken = nextToken
+        } while true
 
         return allSeries
     }
@@ -291,7 +293,7 @@ public enum VertexAIUsageFetcher {
 
         for entry in series {
             guard let key = Self.quotaKey(from: entry),
-                  let value = Self.maxPointValue(from: entry.points)
+                  let value = entry.points.compactMap(self.pointValue).max()
             else {
                 continue
             }
@@ -310,10 +312,6 @@ public enum VertexAIUsageFetcher {
         let limitName = metricLabels["limit_name"] ?? ""
         let location = resourceLabels["location"] ?? "global"
         return QuotaKey(quotaMetric: quotaMetric, limitName: limitName, location: location)
-    }
-
-    private static func maxPointValue(from points: [MonitoringPoint]) -> Double? {
-        points.compactMap(self.pointValue).max()
     }
 
     private static func pointValue(from point: MonitoringPoint) -> Double? {

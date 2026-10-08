@@ -4,6 +4,13 @@ import Foundation
 struct JetBrainsProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .jetbrains
 
+    /// JetBrains AI reads a local IDE quota file and has no CLI/version detector, so the default
+    /// detail line and version row ("jetbrains not detected") would misleadingly read as "IDE not found".
+    @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation(showsVersionInSettings: false) { _ in "local" }
+    }
+
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
         _ = context

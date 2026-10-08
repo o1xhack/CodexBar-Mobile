@@ -31,12 +31,6 @@ struct SpendDashboardMetricTextTests {
     }
 
     @Test
-    func `hourly trend appears only when hourly data exists`() {
-        #expect(spendDashboardAvailableTrendSections(hasHourlyData: false) == [.daily])
-        #expect(spendDashboardAvailableTrendSections(hasHourlyData: true) == [.daily, .hourly])
-    }
-
-    @Test
     func `provider metric marks partial aggregates without hiding known values`() {
         let text = spendDashboardBreakdownMetricText(
             cost: 2.5,

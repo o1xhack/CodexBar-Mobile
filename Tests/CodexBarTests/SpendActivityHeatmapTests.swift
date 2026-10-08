@@ -552,14 +552,72 @@ struct SpendActivityHeatmapTests {
     }
 
     @Test
-    func `weekday labels and cells share the same row pitch`() {
-        let frame = SpendActivityGridGeometry.gridFrame(containerWidth: 1088)
-        let pitch = frame.width / CGFloat(SpendActivitySeries.weekCount)
+    func `scroll controls indicate available history and clamp bounced offsets`() {
+        for offset: CGFloat in [-20, 0, 84.5, 169, 200] {
+            let navigation = SpendActivityScrollNavigation(contentWidth: 689, viewportWidth: 520, offset: offset)
+            #expect(navigation.isScrollable)
+            #expect(navigation.canScrollEarlier == (offset > 0.5))
+            #expect(navigation.canScrollLater == (offset < 168.5))
+        }
+        for width: CGFloat in [0, 689, 760] {
+            let navigation = SpendActivityScrollNavigation(
+                contentWidth: max(width, 689), viewportWidth: width, offset: 0)
+            #expect(!navigation.isScrollable)
+            #expect(!navigation.canScrollEarlier)
+            #expect(!navigation.canScrollLater)
+        }
+    }
 
-        #expect(SpendActivityGridGeometry.weekdayCenter(row: 1, rowPitch: pitch) == pitch * 1.5)
-        #expect(SpendActivityGridGeometry.weekdayCenter(row: 3, rowPitch: pitch) == pitch * 3.5)
-        #expect(SpendActivityGridGeometry.weekdayCenter(row: 5, rowPitch: pitch) == pitch * 5.5)
-        #expect(frame.height == pitch * 7)
+    @Test
+    func `scroll buttons reach both ends with a week of overlap between pages`() {
+        for width: CGFloat in [339, 520] {
+            let maximumOffset = 689 - width
+            for direction in [SpendActivityScrollNavigation.Direction.earlier, .later] {
+                var offset = direction == .earlier ? maximumOffset : 0
+                var steps = 0
+                while direction == .earlier ? offset > 0.5 : offset < maximumOffset - 0.5 {
+                    let navigation = SpendActivityScrollNavigation(
+                        contentWidth: 689,
+                        viewportWidth: width,
+                        offset: offset)
+                    let column = navigation.targetColumn(toward: direction)
+                    let next = min(CGFloat(column) * 13, maximumOffset)
+                    #expect(direction == .earlier ? next < offset : next > offset)
+                    #expect(abs(next - offset) <= width - 13)
+                    offset = next
+                    steps += 1
+                    #expect(steps <= 3)
+                    if steps > 3 { break }
+                }
+                #expect(offset == (direction == .earlier ? 0 : maximumOffset))
+            }
+        }
+    }
+
+    @Test
+    func `annual grid keeps readable square cells and grows beyond narrow viewports`() {
+        for viewportWidth: CGFloat in [339, 520, 689, 760] {
+            let frame = SpendActivityGridGeometry.gridFrame(containerWidth: viewportWidth)
+            let pitch = frame.width / CGFloat(SpendActivitySeries.weekCount)
+            #expect(frame.minX == 0)
+            #expect(frame.width >= viewportWidth)
+            #expect(pitch - SpendActivityGridGeometry.cellSpacing >= 10)
+            #expect(frame.height == pitch * 7)
+            #expect(frame.width == max(viewportWidth, 689))
+        }
+    }
+
+    @Test
+    func `tooltips remain inside the visible portion of a scrolled annual grid`() {
+        for offset: CGFloat in [0, 150, 350] {
+            let visible = CGRect(x: offset, y: 0, width: 339, height: 91)
+            for anchor: CGFloat in [visible.minX + 6.5, visible.midX, visible.maxX - 6.5] {
+                let center = SpendActivityGridGeometry.tooltipCenterX(
+                    anchorX: anchor, tooltipWidth: 148, gridWidth: 689, visibleRect: visible)
+                #expect(center - 74 >= visible.minX + SpendActivityGridGeometry.tooltipInset)
+                #expect(center + 74 <= visible.maxX - SpendActivityGridGeometry.tooltipInset)
+            }
+        }
     }
 
     @Test
@@ -632,15 +690,12 @@ struct SpendActivityHeatmapTests {
     }
 
     @Test
-    func `weekday and date formatting follow the selected resource locale`() throws {
+    func `date formatting follows the selected resource locale`() throws {
         let date = try #require(Self.calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 1, hour: 12)))
         let english = Locale(identifier: "en_US")
         let chinese = Locale(identifier: "zh_Hans")
 
-        #expect(SpendActivityWeekday.label(for: 1, locale: english) == "Mon")
-        #expect(SpendActivityWeekday.label(for: 3, locale: english) == "Wed")
-        #expect(SpendActivityWeekday.label(for: 5, locale: english) == "Fri")
         #expect(SpendActivityDateFormatting.mediumDateString(date, locale: english).contains("Aug"))
         #expect(!SpendActivityDateFormatting.mediumDateString(date, locale: english).contains("年"))
         #expect(SpendActivityDateFormatting.mediumDateString(date, locale: chinese).contains("年"))

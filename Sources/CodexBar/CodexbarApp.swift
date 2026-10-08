@@ -422,12 +422,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         })
     private var hasInstalledLimitResetObservers = false
     private var hasStartedMobileSync = false
+    private var isWaitingForConfigPersistence = false
     #if DEBUG
     private var debugMemoryPressureObserver: NSObjectProtocol?
     #endif
     var terminateActiveProcessesForAppShutdown: () -> Void = {
         TTYCommandRunner.terminateActiveProcessesForAppShutdown()
     }
+
+    var replyToApplicationShouldTerminate: (NSApplication, Bool) -> Void = { application, shouldTerminate in
+        application.reply(toApplicationShouldTerminate: shouldTerminate)
+    }
+
+    #if DEBUG
+    func _test_configureSettings(_ settings: SettingsStore) {
+        self.settings = settings
+    }
+    #endif
 
     func configure(_ dependencies: Dependencies) {
         self.store = dependencies.store
@@ -530,6 +541,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.close()
             }
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !self.isWaitingForConfigPersistence else { return .terminateLater }
+        guard let save = self.settings?.persistPendingConfigForTermination() else { return .terminateNow }
+        self.isWaitingForConfigPersistence = true
+        Task.detached {
+            await save.value
+            // NSApplication may be inside a modal loop entered from the main dispatch queue.
+            // A MainActor task cannot reliably resume there; deliver the reply on that run loop.
+            RunLoop.main.perform(inModes: [.default, .modalPanel]) {
+                MainActor.assumeIsolated {
+                    self.isWaitingForConfigPersistence = false
+                    self.replyToApplicationShouldTerminate(sender, true)
+                }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
+        return .terminateLater
     }
 
     func applicationWillTerminate(_ notification: Notification) {

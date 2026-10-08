@@ -193,6 +193,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let deepseekPlatformProfiles: [DeepSeekPlatformProfile]
     /// Live-only ownership proof; decoded usage cannot authorize browser balance retention.
     public let deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner?
+    /// Live-only ownership proof; a profile directory alone does not identify an account.
+    public let browserSessionOwner: ProviderBrowserSessionOwner?
     public let opencodegoUsage: OpenCodeGoUsageSnapshot?
     /// Fork-only live bridge fields. These remain intentionally transient: upstream's
     /// stable Codable schema is `details`, while the Mac-to-iOS mapper can still use
@@ -257,6 +259,7 @@ public struct UsageSnapshot: Codable, Sendable {
         deepseekDetailedUsageState: DeepSeekDetailedUsageState = .notRequested,
         deepseekPlatformProfiles: [DeepSeekPlatformProfile] = [],
         deepseekPlatformBalanceOwner: DeepSeekPlatformBalanceOwner? = nil,
+        browserSessionOwner: ProviderBrowserSessionOwner? = nil,
         opencodegoUsage: OpenCodeGoUsageSnapshot? = nil,
         perplexityUsage: PerplexityUsageSnapshot? = nil,
         grokUsage: GrokUsageSnapshot? = nil,
@@ -293,6 +296,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekDetailedUsageState = deepseekDetailedUsageState
         self.deepseekPlatformProfiles = deepseekPlatformProfiles
         self.deepseekPlatformBalanceOwner = deepseekPlatformBalanceOwner
+        self.browserSessionOwner = browserSessionOwner
         self.opencodegoUsage = opencodegoUsage
         self.perplexityUsage = perplexityUsage
         self.grokUsage = grokUsage
@@ -399,6 +403,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
         self.deepseekPlatformProfiles = [] // Live-only browser profile catalog
         self.deepseekPlatformBalanceOwner = nil // Live-only balance ownership
+        self.browserSessionOwner = nil // Live-only browser session ownership
         self.opencodegoUsage = nil // Not persisted, fetched fresh each time
         self.perplexityUsage = nil // Live-only fork bridge
         self.grokUsage = nil // Live-only fork bridge
@@ -619,6 +624,7 @@ public struct UsageSnapshot: Codable, Sendable {
         details: Replacement<[ProviderDetailSection]> = .unchanged,
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
+        browserSessionOwner: Replacement<ProviderBrowserSessionOwner?> = .unchanged,
         codexResetCredits: Replacement<CodexRateLimitResetCreditsSnapshot?> = .unchanged,
         grokResetCredits: Replacement<GrokRateLimitResetCreditsSnapshot?> = .unchanged,
         subscriptionExpiresAt: Replacement<Date?> = .unchanged,
@@ -637,6 +643,7 @@ public struct UsageSnapshot: Codable, Sendable {
             deepseekDetailedUsageState: deepseekDetailedUsageState.resolving(self.deepseekDetailedUsageState),
             deepseekPlatformProfiles: deepseekPlatformProfiles.resolving(self.deepseekPlatformProfiles),
             deepseekPlatformBalanceOwner: self.deepseekPlatformBalanceOwner,
+            browserSessionOwner: browserSessionOwner.resolving(self.browserSessionOwner),
             opencodegoUsage: self.opencodegoUsage,
             perplexityUsage: self.perplexityUsage,
             grokUsage: self.grokUsage,

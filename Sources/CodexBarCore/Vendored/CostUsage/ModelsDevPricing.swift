@@ -235,9 +235,18 @@ struct ModelsDevModel: Codable, Equatable {
 
         // models.dev publishes USD per 1M tokens. CodexBar cost math uses USD per token.
         let unit = 1_000_000.0
+        let normalizedProviderID = ModelsDevProvider.normalizeProviderID(providerID)
         let contextOver200K = self.cost?.contextOver200K
+        // The legacy lane name is not the threshold. Match its rates to an explicit context tier.
+        let contextThreshold = self.cost?.tiers?.first {
+            var rates = $0
+            rates.tier = nil
+            return $0.tier?.type == "context" && ($0.tier?.size ?? 0) > 0 && rates == contextOver200K
+        }?.tier?.size
+        let legacyThreshold = normalizedProviderID == CostUsagePricing.codexModelsDevProviderID
+            ? CostUsagePricing.codexLongContextThreshold(model: self.id) : nil
         return ModelsDevPricingInfo(
-            providerID: ModelsDevProvider.normalizeProviderID(providerID),
+            providerID: normalizedProviderID,
             providerName: providerName,
             modelID: self.id,
             modelName: self.name,
@@ -246,7 +255,7 @@ struct ModelsDevModel: Codable, Equatable {
             cacheReadInputCostPerToken: self.cost?.cacheRead.map { $0 / unit },
             cacheCreationInputCostPerToken: self.cost?.cacheWrite.map { $0 / unit },
             contextWindow: self.limit?.context,
-            thresholdTokens: contextOver200K == nil ? nil : 200_000,
+            thresholdTokens: contextOver200K == nil ? nil : contextThreshold ?? legacyThreshold ?? 200_000,
             inputCostPerTokenAboveThreshold: contextOver200K?.input.map { $0 / unit },
             outputCostPerTokenAboveThreshold: contextOver200K?.output.map { $0 / unit },
             cacheReadInputCostPerTokenAboveThreshold: contextOver200K?.cacheRead.map { $0 / unit },
@@ -260,6 +269,7 @@ struct ModelsDevCost: Codable, Equatable {
     var cacheRead: Double?
     var cacheWrite: Double?
     var contextOver200K: ModelsDevContextOver200KCost?
+    var tiers: [ModelsDevContextOver200KCost]?
 
     private enum CodingKeys: String, CodingKey {
         case input
@@ -267,6 +277,7 @@ struct ModelsDevCost: Codable, Equatable {
         case cacheRead = "cache_read"
         case cacheWrite = "cache_write"
         case contextOver200K = "context_over_200k"
+        case tiers
     }
 }
 
@@ -275,8 +286,15 @@ struct ModelsDevContextOver200KCost: Codable, Equatable {
     var output: Double?
     var cacheRead: Double?
     var cacheWrite: Double?
+    var tier: ContextTier?
+
+    struct ContextTier: Codable, Equatable {
+        var type: String
+        var size: Int
+    }
 
     private enum CodingKeys: String, CodingKey {
+        case tier
         case input
         case output
         case cacheRead = "cache_read"

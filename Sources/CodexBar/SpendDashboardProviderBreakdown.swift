@@ -124,7 +124,7 @@ struct SpendProviderBreakdownRows: View {
             ForEach(Array(self.breakdowns.enumerated()), id: \.element.id) { index, breakdown in
                 if index > 0 {
                     Divider()
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                 }
                 self.providerGroup(breakdown)
             }
@@ -145,9 +145,11 @@ struct SpendProviderBreakdownRows: View {
     private func providerGroup(_ breakdown: SpendProviderBreakdown) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                SpendProviderIcon(provider: breakdown.provider, size: 22)
+                SpendProviderIcon(provider: breakdown.provider)
                 Text(breakdown.displayName)
                     .font(.headline)
+                    .lineLimit(1)
+                    .help(breakdown.displayName)
                 Spacer()
                 Text(spendDashboardBreakdownMetricText(
                     cost: breakdown.totalCost,
@@ -161,8 +163,9 @@ struct SpendProviderBreakdownRows: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(breakdown.totalCost == nil && breakdown.totalTokens == nil ? .secondary : .primary)
                     .monospacedDigit()
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            .padding(.vertical, 7)
+            .padding(.vertical, 5)
 
             if self.showsSubscriptionChildren(breakdown) {
                 self.subsectionLabel(breakdown.subscriptions.contains { $0.sourceKind != .native }
@@ -172,7 +175,10 @@ struct SpendProviderBreakdownRows: View {
                         self.childDivider
                     }
                     HStack(spacing: 9) {
-                        SpendProviderIcon(provider: row.provider, sourceKind: row.sourceKind, size: 16)
+                        SpendProviderIcon(
+                            provider: row.provider,
+                            sourceKind: row.sourceKind,
+                            style: .monochrome)
                             .opacity(0.76)
                         Text(row.displayName)
                             .lineLimit(1)
@@ -187,15 +193,20 @@ struct SpendProviderBreakdownRows: View {
                             tokensAreLowerBound: row.tokensAreLowerBound))
                             .foregroundStyle(row.totalCost == nil && row.totalTokens == nil ? .secondary : .primary)
                             .monospacedDigit()
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 34)
-                    .padding(.vertical, 6)
+                    .padding(.leading, 32)
+                    .padding(.vertical, 4)
                 }
             }
 
             if !breakdown.models.isEmpty {
-                self.subsectionLabel(L("Models"), showsPartialWarning: breakdown.hasPartialModelHistory)
+                if breakdown.models.count > 1 || self.showsSubscriptionChildren(breakdown)
+                    || breakdown.hasPartialModelHistory
+                {
+                    self.subsectionLabel(L("Models"), showsPartialWarning: breakdown.hasPartialModelHistory)
+                }
                 let models = self.expandedProviders.contains(breakdown.provider)
                     ? breakdown.models : Array(breakdown.models.prefix(spendProviderModelDisplayLimit))
                 ForEach(Array(models.enumerated()), id: \.element.id) { index, row in
@@ -203,12 +214,14 @@ struct SpendProviderBreakdownRows: View {
                         self.childDivider
                     }
                     HStack(spacing: 9) {
-                        SpendProviderIcon(provider: row.provider, size: 16)
+                        SpendProviderIcon(provider: row.provider, style: .monochrome)
                             .opacity(0.76)
                         Text(row.modelName)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
+                            .truncationMode(.middle)
                             .help(row.modelName)
+                            .accessibilityLabel(L("Models") + ": " + row.modelName)
                         Spacer()
                         Text(spendDashboardMetricText(
                             cost: row.totalCost,
@@ -217,10 +230,12 @@ struct SpendProviderBreakdownRows: View {
                             incompleteRequestCount: row.incompleteRequestCount))
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .font(.subheadline)
-                    .padding(.leading, 34)
-                    .padding(.vertical, 6)
+                    .padding(.leading, 32)
+                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
                 if breakdown.modelCount > spendProviderModelDisplayLimit {
                     let isExpanded = self.expandedProviders.contains(breakdown.provider)
@@ -235,7 +250,7 @@ struct SpendProviderBreakdownRows: View {
                     }
                     .buttonStyle(.link)
                     .font(.caption)
-                    .padding(.leading, 59)
+                    .padding(.leading, 61)
                     .padding(.top, 5)
                 }
             } else if breakdown.hasPartialModelHistory {
@@ -252,50 +267,70 @@ struct SpendProviderBreakdownRows: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.leading, 59)
-                .padding(.vertical, 6)
+                .padding(.leading, 61)
+                .padding(.vertical, 4)
         }
     }
 
     private func subsectionLabel(_ title: String, showsPartialWarning: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .tracking(0.6)
+            Text(title)
+                .font(.caption2.weight(.medium))
             if showsPartialWarning {
                 Label(L("Partial model breakdown"), systemImage: "exclamationmark.triangle")
                     .font(.caption2)
             }
         }
         .foregroundStyle(.secondary)
-        .padding(.leading, 34)
-        .padding(.top, 7)
+        .padding(.leading, 32)
+        .padding(.top, 5)
         .padding(.bottom, 2)
     }
 
     private var childDivider: some View {
         Divider()
-            .padding(.leading, 59)
+            .padding(.leading, 61)
     }
 }
 
 struct SpendProviderIcon: View {
     let provider: UsageProvider
     var sourceKind: SpendDashboardModel.SourceKind = .native
+    var style: ProviderBrandIcon.Style = .brand
     var size: CGFloat = 20
 
     var body: some View {
         Group {
             if self.sourceKind == .openCodex {
                 Image(systemName: "arrow.triangle.branch")
-                    .font(.body.weight(.semibold))
-            } else if let icon = ProviderBrandIcon.image(for: self.provider) {
-                Image(nsImage: icon).resizable().scaledToFit()
+                    .resizable().scaledToFit()
+            } else if let icon = ProviderBrandIcon.image(for: self.provider, style: self.style) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .renderingMode(icon.isTemplate ? .template : .original)
+                    .scaledToFit()
+                    .frame(
+                        width: self.size * self.artworkScale(for: icon),
+                        height: self.size * self.artworkScale(for: icon))
             } else {
                 Image(systemName: "circle.dotted")
+                    .resizable().scaledToFit()
             }
         }
+        .foregroundStyle(.primary)
         .frame(width: self.size, height: self.size)
         .accessibilityHidden(true)
+    }
+
+    private func artworkScale(for icon: NSImage) -> CGFloat {
+        // Provider-specific by design: normalize each bundled mark's transparent padding in the shared icon slot.
+        switch self.provider {
+        case .cursor: 1.25
+        case .codex: icon.isTemplate ? 1.24 : 1.17
+        case .antigravity: icon.isTemplate ? 1.14 : 1.38
+        case .bedrock: icon.isTemplate ? 1 : 0.84
+        case .muse, .vertexai: icon.isTemplate ? 1 : 1.08
+        default: 1
+        }
     }
 }

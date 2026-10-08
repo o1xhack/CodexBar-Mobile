@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
     parser.addOption(QCommandLineOption("autostart", "Set login startup: enable, disable, status", "action"));
     parser.addOption(QCommandLineOption("configure", "Update desktop settings through local IPC", "json"));
     parser.addOption(QCommandLineOption("cli", "CodexBar CLI executable for a new instance", "path"));
+    parser.addOption(QCommandLineOption("with-spending", "With --snapshot, refresh local spending when its cache is stale"));
     parser.process(*application);
     QString command = "usage";
     for (const auto &name : {"background", "usage", "settings", "spending", "refresh", "snapshot", "quit", "configure", "autostart"})
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
     const auto cli = parser.value("cli");
     QJsonObject message{{"command", command}};
     if (command == "autostart") message["action"] = parser.value("autostart");
+    if (command == "snapshot" && parser.isSet("with-spending")) message["spending"] = true;
     if (command == "configure") {
         QJsonParseError error;
         const auto document = QJsonDocument::fromJson(parser.value("configure").toUtf8(), &error);

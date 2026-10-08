@@ -1,0 +1,31 @@
+{
+  "testedProductCommit": "f3a75a5c974fbcc9d01e9318850154187d4d3bed",
+  "entrypoint": "Scripts/ci_swift_test_by_suite.py --direct-workers 4",
+  "inventoryVerifiedTestMethods": 13837,
+  "selectedSelections": 1567,
+  "selectedGroups": 143,
+  "firstPassSuccessfulGroups": 143,
+  "failedGroups": 0,
+  "retries": 0,
+  "timeouts": 0,
+  "exitCode": 0,
+  "performanceBudgetMilliseconds": 50,
+  "performanceBudgetPassed": true,
+  "fullSourceRunSeconds": 318.0,
+  "originalMakeTest": {
+    "testedCommit": "47479f3a0eaf82ffb0081a4fa41dbdc36dc1abe4",
+    "selectedGroups": 143,
+    "recoveredGroups": 1,
+    "isolatedSelectionRetries": 12,
+    "exitCode": 0
+  },
+  "enabledNativeProof": {
+    "testCases": 3,
+    "exitCode": 0,
+    "initialAttempt": "one asynchronous navigation-click assertion failed; unchanged isolated rerun passed"
+  },
+  "focusedSwiftTesting": {
+    "testCount": 85,
+    "exitCode": 0
+  }
+}

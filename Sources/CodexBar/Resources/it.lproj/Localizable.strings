@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "Sincronizzazione…";
 "mobile_sync_status_syncing_elapsed_format" = "Sincronizzazione — %@ · %d s";
 "mobile_sync_status_syncing_phase_format" = "Sincronizzazione — %@";
-"mobile_toggle_mock_subtitle" = "Invia 105 snapshot simulati stabili per 95 ID provider a ogni sincronizzazione, inclusi i casi con più account, sub2api, Wayfinder e il fallback per provider sconosciuti. Le email simulate usano il TLD `.test`, così iPhone mostra un badge MOCK. Disattivando l’opzione, CloudKit rimuove i record simulati entro circa un ciclo di sincronizzazione. Disattivata per impostazione predefinita.";
+"mobile_toggle_mock_subtitle" = "Invia 106 snapshot simulati stabili per 96 ID provider a ogni sincronizzazione, inclusi i casi con più account, sub2api, Wayfinder e il fallback per provider sconosciuti. Le email simulate usano il TLD `.test`, così iPhone mostra un badge MOCK. Disattivando l’opzione, CloudKit rimuove i record simulati entro circa un ciclo di sincronizzazione. Disattivata per impostazione predefinita.";
 "mobile_toggle_mock_title" = "Inietta dati provider simulati";
 "mobile_toggle_push_subtitle" = "Quando la quota della sessione si esaurisce o viene ripristinata, invia una notifica push visibile all'app iOS companion tramite iCloud. È indipendente dalle notifiche locali del Mac: puoi tenere il Mac silenzioso e ricevere comunque avvisi su iPhone.";
 "mobile_toggle_push_title" = "Notifiche push verso iOS";
@@ -1572,6 +1572,8 @@
 "∞ Unlimited" = "∞ Illimitato";
 "Cumulative" = "Cumulativo";
 "Token activity" = "Attività token";
+"Earlier activity" = "Attività precedente";
+"More recent activity" = "Attività più recente";
 "View" = "Vista";
 "in the last year" = "nell'ultimo anno";
 "No activity in the last 12 months" = "Nessuna attività negli ultimi 12 mesi";
@@ -1712,6 +1714,11 @@
 "account_widgets_title" = "Mantieni aggiornati gli account per i widget";
 "account_widgets_description" = "Scegli un account in ogni widget Account Usage. Aggiorna fino a sei account per fornitore.";
 
+/* Spend time zone */
+"Statistics time zone" = "Fuso orario delle statistiche";
+"Use Mac's current time zone" = "Usa il fuso orario attuale del Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "L’utilizzo giornaliero viene raggruppato in un fuso orario fisso. Modificarlo può spostare parte dell’utilizzo a un altro giorno.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Uso locale × prezzi API pubblici · non sono addebiti o crediti Antigravity";
 "antigravity_quota_window_note" = "Il costo della finestra copre tutti i modelli · la finestra mostrata è la famiglia più vincolata";
@@ -1733,3 +1740,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Browser supportati: %@. Usa Manuale per gli altri browser.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Incolla l’intestazione Cookie di una richiesta Chrome a www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Riservato";
+
+/* Selected browser profile */
+"Browser profile" = "Profilo del browser";
+"Unavailable profile: %@" = "Profilo non disponibile: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Leggi solo il profilo %@ selezionato. Gli account non vengono mai selezionati automaticamente.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Spesa registrata";
+"Highest recorded spend" = "Spesa registrata più alta";
+"Previous day" = "Giorno precedente";
+"Next day" = "Giorno successivo";
+"Click to isolate a source. Click again to show all." = "Fai clic per isolare una fonte. Fai clic di nuovo per mostrarle tutte.";
+"Recorded hourly spend" = "Spesa oraria registrata";
+"Highest spend" = "Spesa massima";
+"Models for this day" = "Modelli di questo giorno";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Fai clic su una barra per esplorare. Il menu sotto mostra gli importi esatti.";

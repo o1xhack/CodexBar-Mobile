@@ -1510,7 +1510,7 @@
 "mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
 "mobile_section_mock_data" = "调试 · Mock provider 数据";
 "mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步会推送 105 个稳定的模拟快照，覆盖 95 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
+"mobile_toggle_mock_subtitle" = "每次同步会推送 106 个稳定的模拟快照，覆盖 96 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
 "mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
 "mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
 "mobile_section_dev_test" = "DEV — iOS 推送测试";
@@ -1575,6 +1575,8 @@
 "hide_critters_title" = "隐藏小动物";
 "Cumulative" = "累计";
 "Token activity" = "Token 活动";
+"Earlier activity" = "更早记录";
+"More recent activity" = "最近记录";
 "View" = "视图";
 "in the last year" = "近一年";
 "No activity in the last 12 months" = "近 12 个月暂无活动";
@@ -1723,6 +1725,11 @@
 "account_widgets_title" = "为小组件保持账户更新";
 "account_widgets_description" = "在每个 Account Usage 小组件中选择一个账户。每个服务商最多刷新六个账户。";
 
+/* Spend time zone */
+"Statistics time zone" = "统计时区";
+"Use Mac's current time zone" = "使用电脑当前时区";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "每日用量按固定时区统计。更改时区后，部分用量可能会归入不同的日期。";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "本地用量 × 公开 API 价格 · 并非 Antigravity 账单或额度";
 "antigravity_quota_window_note" = "窗口费用涵盖所有模型 · 所示窗口为最受限的模型系列";
@@ -1746,3 +1753,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "支持的浏览器：%@。其他浏览器请使用“手动”模式。";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "粘贴 Chrome 向 www.workbuddy.cn/profile/plans-usage 发送的请求中的 Cookie 标头。";
 "Reserved" = "已预留";
+
+/* Selected browser profile */
+"Browser profile" = "浏览器配置文件";
+"Unavailable profile: %@" = "配置文件不可用：%@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "仅读取所选的 %@ 配置文件。绝不会自动选择账户。";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "已记录支出";
+"Highest recorded spend" = "最高已记录支出";
+"Previous day" = "前一天";
+"Next day" = "后一天";
+"Click to isolate a source. Click again to show all." = "点击单独查看此来源，再次点击显示全部。";
+"Recorded hourly spend" = "已记录的小时支出";
+"Highest spend" = "最高支出";
+"Models for this day" = "查看当天模型";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "点击柱形逐层查看，下方菜单可查询具体金额。";

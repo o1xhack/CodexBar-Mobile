@@ -183,15 +183,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let isApplicable: Bool
         let interaction: ProviderInteraction
 
-        var canPromptNow: Bool {
-            switch self.mode {
-            case .never:
-                false
-            case .onlyOnUserAction:
-                self.interaction == .userInitiated
-            case .always:
-                true
-            }
+        var canRepairOnUserAction: Bool {
+            self.interaction == .userInitiated && self.mode != .never
         }
 
         /// Respect the Keychain prompt cooldown for background operations to avoid spamming system dialogs.
@@ -314,7 +307,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 let promptPolicy = ClaudeUsageFetcher.currentClaudeOAuthInteractivePromptPolicy()
                 let credentialRecord = try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
                     environment: self.fetcher.configuration.environment,
-                    allowKeychainPrompt: false,
+                    allowKeychainPrompt: promptPolicy.canRepairOnUserAction,
                     respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown,
                     safeCredentialSourcesOnly: self.fetcher.oauthSafeCredentialSourcesOnly,
                     clearInvalidCache: !self.fetcher.configuration.preserveInvalidOAuthCache)
@@ -439,7 +432,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     delegatedOutcome: delegatedOutcome,
                     didSyncSilently: didSyncSilently,
                     policy: promptPolicy)
-                let retryAllowKeychainPrompt = false
+                let retryAllowKeychainPrompt = promptPolicy.canRepairOnUserAction
                 if ClaudeUsageFetcher.isClaudeOAuthFlowDebugEnabled {
                     ClaudeUsageFetcher.log.debug(
                         "Claude OAuth credential load (post-delegation retry start)",
@@ -685,6 +678,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 }
                 guard Self.shouldTryDirectCLIUsage(after: error) else { throw error }
                 let ptyError = error
+                ClaudeUsageFetcher.log.debug(
+                    "Claude PTY usage failed; trying direct usage",
+                    metadata: ["error": error.localizedDescription])
                 do {
                     snapshot = try await self.fetcher.loadViaDirectCLI(
                         timeout: Self.directCLIUsageTimeout(for: timeout))
@@ -696,7 +692,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                         ClaudeCLIRateLimitGate.recordRateLimit()
                         throw directError
                     }
-                    guard Self.directCLIErrorShouldReplacePTYError(directError) else { throw ptyError }
+                    guard ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(directError.localizedDescription)
+                    else { throw ptyError }
                     throw directError
                 }
             }
@@ -707,16 +704,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
         private static func directCLIUsageTimeout(for ptyTimeout: TimeInterval) -> TimeInterval {
             min(max(ptyTimeout / 3, 6), 8)
-        }
-
-        private static func directCLIErrorShouldReplacePTYError(_ error: Error) -> Bool {
-            if case let ClaudeStatusProbeError.parseFailed(message) = error {
-                return message.lowercased().contains("subscription")
-            }
-            if case let ClaudeUsageError.parseFailed(message) = error {
-                return message.lowercased().contains("subscription")
-            }
-            return false
         }
 
         private static func shouldTryDirectCLIUsage(after error: Error) -> Bool {

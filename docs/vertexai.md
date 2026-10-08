@@ -24,6 +24,9 @@ read_when:
   - Usage: `serviceruntime.googleapis.com/quota/allocation/usage`
   - Limit: `serviceruntime.googleapis.com/quota/limit`
   - Resource: `consumer_quota` with `service="aiplatform.googleapis.com"`.
+  - Each usage/limit query follows distinct page tokens only. A repeated token ends pagination after retaining
+    the current page, so no page is requested twice. Queries that still have a new token after 100 pages fail
+    instead of continuing indefinitely; a final page with no next token still succeeds at that boundary.
 
 ## Mapping
 - Matches usage + limit series by quota metric + limit name + location.

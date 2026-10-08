@@ -61,9 +61,9 @@ final class MenuBarPercentWindowNativeProofTests: XCTestCase {
                 "pid": String(ProcessInfo.processInfo.processIdentifier),
                 "window": String(window.windowNumber),
                 "codex": MenuBarPercentWindowPreference.current(
-                    in: settings.menuBarLayoutResolution(for: .codex).layout)?.rawValue ?? "custom",
+                    in: settings.menuBarLayoutResolution(for: .codex).layout)?.id ?? "custom",
                 "claude": MenuBarPercentWindowPreference.current(
-                    in: settings.menuBarLayoutResolution(for: .claude).layout)?.rawValue ?? "custom",
+                    in: settings.menuBarLayoutResolution(for: .claude).layout)?.id ?? "custom",
             ]
             try JSONEncoder().encode(receipt).write(to: output.appendingPathComponent("state.json"), options: .atomic)
             if let event = app.nextEvent(

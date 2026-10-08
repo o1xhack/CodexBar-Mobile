@@ -951,6 +951,19 @@ extension ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `jetbrains presentation surfaces local source and hides the undetected version row`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-jetbrains-presentation")
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.jetbrains])
+        let context = fixture.presentationContext(provider: .jetbrains, metadata: metadata)
+
+        let presentation = JetBrainsProviderImplementation().presentation(context: context)
+
+        // Local quota-file provider with versionDetector: nil — must not fall back to "jetbrains not detected".
+        #expect(presentation.detailLine(context) == "local")
+        #expect(presentation.showsVersionInSettings == false)
+    }
+
+    @Test
     func `devin presentation follows store source label`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-presentation")
         fixture.store.lastSourceLabels[.devin] = "web"

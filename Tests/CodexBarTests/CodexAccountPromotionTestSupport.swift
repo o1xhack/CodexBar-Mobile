@@ -40,14 +40,9 @@ final class CodexAccountPromotionTestContainer {
         try FileManager.default.createDirectory(at: self.managedHomesURL, withIntermediateDirectories: true)
         _ = try self.fileStore.ensureFileExists()
 
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        defaults.set(true, forKey: "providerDetectionCompleted")
-        self.settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+        self.settings = testSettingsStore(suiteName: suiteName, userDefaults: InMemoryUserDefaults(), prepareDefaults: {
+            $0.set(true, forKey: "providerDetectionCompleted")
+        })
         self.settings._test_activeManagedCodexAccount = nil
         self.settings._test_activeManagedCodexRemoteHomePath = nil
         self.settings._test_unreadableManagedCodexAccountStore = false
@@ -142,15 +137,23 @@ final class CodexAccountPromotionTestContainer {
         useAuthAccountIDAsPersistedProviderAccountID: Bool = true,
         workspaceLabel: String? = nil,
         workspaceAccountID: String? = nil,
-        plan: String = "Pro") throws -> ManagedCodexAccount
+        plan: String = "Pro",
+        legacyRecord: Bool = false,
+        writeAuthFile: Bool = true) throws -> ManagedCodexAccount
     {
         let homeURL = self.managedHomesURL.appendingPathComponent(id.uuidString, isDirectory: true)
         let createdAt = Date().timeIntervalSince1970
-        let authData = try self.writeOAuthAuthFile(
-            homeURL: homeURL,
-            email: authEmail ?? persistedEmail,
-            plan: plan,
-            accountID: authAccountID)
+        let authData: Data?
+        if writeAuthFile {
+            authData = try self.writeOAuthAuthFile(
+                homeURL: homeURL,
+                email: authEmail ?? persistedEmail,
+                plan: plan,
+                accountID: authAccountID)
+        } else {
+            try FileManager.default.createDirectory(at: homeURL, withIntermediateDirectories: true)
+            authData = nil
+        }
         let persistedProviderAccountIDValue: String? =
             if useAuthAccountIDAsPersistedProviderAccountID {
                 persistedProviderAccountID ?? authAccountID
@@ -160,10 +163,10 @@ final class CodexAccountPromotionTestContainer {
         return ManagedCodexAccount(
             id: id,
             email: persistedEmail,
-            providerAccountID: persistedProviderAccountIDValue,
+            providerAccountID: legacyRecord ? nil : persistedProviderAccountIDValue,
             workspaceLabel: workspaceLabel,
-            workspaceAccountID: workspaceAccountID ?? authAccountID,
-            authFingerprint: CodexAuthFingerprint.fingerprint(data: authData),
+            workspaceAccountID: legacyRecord ? nil : workspaceAccountID ?? authAccountID,
+            authFingerprint: legacyRecord ? nil : authData.map { CodexAuthFingerprint.fingerprint(data: $0) },
             managedHomePath: homeURL.path,
             createdAt: createdAt,
             updatedAt: createdAt,
@@ -408,6 +411,10 @@ private struct TestPromotionCodexFetchStrategy: ProviderFetchStrategy {
 
 final class RecordingManagedCodexAccountStore: ManagedCodexAccountStoring, @unchecked Sendable {
     let base: any ManagedCodexAccountStoring
+    var lockURL: URL? {
+        self.base.lockURL
+    }
+
     var storedSnapshots: [ManagedCodexAccountSet] = []
     var onStore: (@Sendable (ManagedCodexAccountSet) throws -> Void)?
 
@@ -453,6 +460,54 @@ final class RecordingCodexLiveAuthSwapper: CodexLiveAuthSwapping, @unchecked Sen
         self.swappedData.append(data)
         try self.onSwap?(data, liveHomeURL)
         try self.base.swapLiveAuthData(data, liveHomeURL: liveHomeURL)
+    }
+}
+
+/// Reads through to disk, but once the trigger home has been read `triggerOnRead` times it rewrites
+/// the victim home's auth.json — modeling an external writer landing between two promotion steps.
+final class RacingAuthMaterialReader: CodexAuthMaterialReading, @unchecked Sendable {
+    private let base = DefaultCodexAuthMaterialReader()
+    let triggerHomePath: String
+    let triggerOnRead: Int
+    let victimHomePath: String
+    let replacementData: Data
+    private var triggerReads = 0
+
+    init(triggerHomePath: String, triggerOnRead: Int, victimHomePath: String, replacementData: Data) {
+        self.triggerHomePath = triggerHomePath
+        self.triggerOnRead = triggerOnRead
+        self.victimHomePath = victimHomePath
+        self.replacementData = replacementData
+    }
+
+    func readAuthData(homeURL: URL) throws -> Data? {
+        if homeURL.path == self.triggerHomePath {
+            self.triggerReads += 1
+            if self.triggerReads == self.triggerOnRead {
+                try self.replacementData.write(
+                    to: CodexAuthFingerprint.authFileURL(homePath: self.victimHomePath),
+                    options: .atomic)
+            }
+        }
+        return try self.base.readAuthData(homeURL: homeURL)
+    }
+}
+
+/// Deterministic home factory so a test can point the racing reader at the staged import home
+/// before the executor creates it.
+final class FixedManagedHomeFactory: ManagedCodexHomeProducing, @unchecked Sendable {
+    let stagedHomeURL: URL
+    private let base: ManagedCodexHomeFactory
+
+    init(base: ManagedCodexHomeFactory, stagedHomeURL: URL) {
+        self.base = base
+        self.stagedHomeURL = stagedHomeURL
+    }
+
+    func makeHomeURL() -> URL { self.stagedHomeURL }
+
+    func validateManagedHomeForDeletion(_ url: URL) throws {
+        try self.base.validateManagedHomeForDeletion(url)
     }
 }
 

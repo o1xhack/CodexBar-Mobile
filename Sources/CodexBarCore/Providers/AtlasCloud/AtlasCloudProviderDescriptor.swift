@@ -15,6 +15,7 @@ public enum AtlasCloudProviderDescriptor {
         noDataMessage: "Atlas Cloud cost history is not available.",
         environmentKey: "ATLASCLOUD_API_KEY",
         missingCredentialMessage: { _ in "Set an Atlas Cloud API key in Settings or ATLASCLOUD_API_KEY." },
+        presentation: ProviderUsagePresentation(menuBarBalanceDetailLabels: ["Available balance"]),
         apiKeyField: .init(
             id: "atlascloud-api-key",
             title: "Atlas Cloud API key",

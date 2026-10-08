@@ -306,6 +306,10 @@ interface CodexBarProviderDefinition {
     requiredCookies?: string[];
     missingCookies?: "reject" | "omit";
     imports?: "app-interactive" | "access-gated";
+    /** Restrict reads to the configured browser profile and revalidate ownership before publication. */
+    store?: "selected-profile";
+    /** URL whose requiredCookies establish session ownership; required for selected-profile. */
+    sessionURL?: string;
     sessionFile?: { tokenField: string; cookieName: string };
     /** Host-only echo of a required cookie into a custom X- header on one declared HTTPS origin. */
     headerEcho?: { origin: string; cookie: string; header: string };

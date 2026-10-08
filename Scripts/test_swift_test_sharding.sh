@@ -205,20 +205,32 @@ grep -Fq '| Shard | `2/2` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected selections | `4` |' "${GITHUB_STEP_SUMMARY}"
 grep -Fq '| Selected groups | `1` |' "${GITHUB_STEP_SUMMARY}"
 
-reset_case shard-list-0
-run_harness --group-size 4 --timeout 10 --shard-index 0 --shard-count 2 --list-only \
-  > "${TEMP_DIR}/shard-list-0.log"
-reset_case shard-list-1
-run_harness --group-size 4 --timeout 10 --shard-index 1 --shard-count 2 --list-only \
-  > "${TEMP_DIR}/shard-list-1.log"
-cat "${TEMP_DIR}/shard-list-0.log" "${TEMP_DIR}/shard-list-1.log" \
-  | grep -v '^Discovered ' \
-  | sort > "${TEMP_DIR}/shards-combined.log"
 reset_case shard-list-all
 run_harness --group-size 4 --timeout 10 --list-only \
   | grep -v '^Discovered ' \
   | sort > "${TEMP_DIR}/shards-expected.log"
-diff -u "${TEMP_DIR}/shards-expected.log" "${TEMP_DIR}/shards-combined.log"
+for shard_count in 2 3; do
+  for ((shard_index = 0; shard_index < shard_count; shard_index++)); do
+    reset_case "shard-list-${shard_count}-${shard_index}"
+    CODEXBAR_TEST_SHARD_INDEX="$shard_index" CODEXBAR_TEST_SHARD_COUNT="$shard_count" \
+      "${ROOT_DIR}/Scripts/test.sh" --group-size 4 --timeout 10 --list-only \
+        --swift-command /bin/bash \
+        --swift-command-arg=-c \
+        --swift-command-arg="${FAKE_SWIFT_SCRIPT}" \
+        --swift-command-arg=fake-swift \
+        > "${TEMP_DIR}/shard-list-${shard_count}-${shard_index}.log"
+    for workers in 2 3; do
+      run_harness --group-size 4 --timeout 10 --list-only --direct-workers "$workers" \
+        --shard-index "$shard_index" --shard-count "$shard_count" \
+        > "${TEMP_DIR}/direct-list.log"
+      diff -u "${TEMP_DIR}/shard-list-${shard_count}-${shard_index}.log" "${TEMP_DIR}/direct-list.log"
+    done
+  done
+  cat "${TEMP_DIR}"/shard-list-"${shard_count}"-?.log \
+    | grep -v '^Discovered ' \
+    | sort > "${TEMP_DIR}/shards-combined.log"
+  diff -u "${TEMP_DIR}/shards-expected.log" "${TEMP_DIR}/shards-combined.log"
+done
 
 reset_case group-timeout
 export FAKE_SWIFT_MODE=group_timeout

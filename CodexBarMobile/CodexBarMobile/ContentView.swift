@@ -4955,7 +4955,7 @@ private enum MobileReleaseNotesCatalog {
             sections: [
                 .init(title: String(localized: "What's New"), items: [
                     String(
-                        localized: "See WorkBuddy, Muse (muse.ai), and LithosAI from your Mac, each with its own color."),
+                        localized: "See WorkBuddy, Muse (muse.ai), LithosAI, and Langdock from your Mac, each with its own color."),
                     String(
                         localized: "Cards show remaining credits or tokens next to the reset time when your Mac reports them."),
                     String(
@@ -4971,7 +4971,7 @@ private enum MobileReleaseNotesCatalog {
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(
-                        localized: "Update CodexBar on Mac to 0.72.0.1 or later for these providers and balances."),
+                        localized: "Update CodexBar on Mac to 0.73.0.1 or later for these providers and balances."),
                 ]),
             ]),
         ReleaseNotesVersion(

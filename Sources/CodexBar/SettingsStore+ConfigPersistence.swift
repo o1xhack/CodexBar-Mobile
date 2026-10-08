@@ -7,32 +7,6 @@ enum ConfigChangeOrigin: Equatable {
     case externalSync
 }
 
-private struct ConfigChangeContext {
-    let origin: ConfigChangeOrigin
-    let reason: String
-    let affectsBackgroundWork: Bool
-
-    static func local(reason: String, affectsBackgroundWork: Bool) -> Self {
-        Self(origin: .localUser, reason: reason, affectsBackgroundWork: affectsBackgroundWork)
-    }
-
-    static func external(
-        origin: ConfigChangeOrigin = .externalSync,
-        reason: String,
-        affectsBackgroundWork: Bool) -> Self
-    {
-        Self(origin: origin, reason: reason, affectsBackgroundWork: affectsBackgroundWork)
-    }
-
-    var shouldBroadcast: Bool {
-        self.origin == .localUser
-    }
-
-    var shouldNotifyCloudSync: Bool {
-        self.origin == .localFile
-    }
-}
-
 extension SettingsStore {
     func startConfigFileWatcher() {
         let watcher = ConfigFileWatcher(fileURL: self.configStore.fileURL) { [weak self] in
@@ -55,7 +29,7 @@ extension SettingsStore {
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
-        self.bumpConfigRevision(.local(reason: reason, affectsBackgroundWork: affectsBackgroundWork))
+        self.bumpConfigRevision(reason: reason, affectsBackgroundWork: affectsBackgroundWork)
     }
 
     /// Pass `affectsBackgroundWork: false` for a purely cosmetic change, so open menus and status items
@@ -180,18 +154,18 @@ extension SettingsStore {
         guard !self.configLoading else { return }
         let previousConfig = self.config
         let normalized = config.normalized()
-        let inferredBackgroundWorkChange = Self.configChangeAffectsBackgroundWork(
-            from: self.config,
-            to: normalized)
+        let previousData = Self.orderIndependentConfigData(self.config)
+        let currentData = Self.orderIndependentConfigData(normalized)
+        let inferredBackgroundWorkChange = previousData == nil || currentData == nil || previousData != currentData
         let resolvedBackgroundWorkChange = (affectsBackgroundWork ?? false) || inferredBackgroundWorkChange
         self.configLoading = true
         self.config = normalized
         self.updateProviderState(config: normalized)
         self.configLoading = false
-        self.bumpConfigRevision(.external(
+        self.bumpConfigRevision(
             origin: origin,
             reason: "sync-\(reason)",
-            affectsBackgroundWork: resolvedBackgroundWorkChange))
+            affectsBackgroundWork: resolvedBackgroundWorkChange)
         if origin == .externalSync {
             NotificationCenter.default.post(
                 name: .codexbarExternalProviderConfigDidChange,
@@ -205,18 +179,6 @@ extension SettingsStore {
         }
     }
 
-    private static func configChangeAffectsBackgroundWork(
-        from previous: CodexBarConfig,
-        to current: CodexBarConfig) -> Bool
-    {
-        guard let previousData = orderIndependentConfigData(previous),
-              let currentData = orderIndependentConfigData(current)
-        else {
-            return true
-        }
-        return previousData != currentData
-    }
-
     private static func orderIndependentConfigData(_ config: CodexBarConfig) -> Data? {
         var canonical = config.normalized()
         canonical.providers = canonical.providers.map(\.fetchIdentityConfig)
@@ -226,38 +188,47 @@ extension SettingsStore {
         return try? encoder.encode(canonical)
     }
 
-    private func bumpConfigRevision(_ context: ConfigChangeContext) {
+    private func bumpConfigRevision(
+        origin: ConfigChangeOrigin = .localUser,
+        reason: String,
+        affectsBackgroundWork: Bool)
+    {
         // Account routing derives from config paths and source selection. Never let an old
         // reconciliation snapshot survive a config reload, even when another provider changed.
         self.invalidateCodexAccountReconciliationSnapshotCache()
         self.cachedCodexAccountMenuProjection = nil
         self.configRevision &+= 1
-        if context.affectsBackgroundWork {
+        if affectsBackgroundWork {
             self.noteBackgroundWorkSettingsChanged()
         }
         CodexBarLog.logger(LogCategories.settings)
             .debug(
-                "Config revision bumped (\(context.reason)) -> \(self.configRevision)",
-                metadata: ["backgroundWork": context.affectsBackgroundWork ? "1" : "0"])
-        if context.shouldNotifyCloudSync {
+                "Config revision bumped (\(reason)) -> \(self.configRevision)",
+                metadata: ["backgroundWork": affectsBackgroundWork ? "1" : "0"])
+        if origin == .localFile {
             NotificationCenter.default.post(
                 name: .codexbarLocalConfigFileDidChange,
                 object: self,
-                userInfo: ["reason": context.reason])
+                userInfo: ["reason": reason])
         }
-        guard context.shouldBroadcast else { return }
+        guard origin == .localUser else { return }
         NotificationCenter.default.post(
             name: .codexbarProviderConfigDidChange,
             object: self,
             userInfo: [
                 "config": self.config,
-                "reason": context.reason,
+                "reason": reason,
                 "revision": self.configRevision,
-                "affectsBackgroundWork": context.affectsBackgroundWork,
+                "affectsBackgroundWork": affectsBackgroundWork,
             ])
     }
 
     func normalizedConfigValue(_ raw: String) -> String? {
+        Self.normalizedConfigField(raw)
+    }
+
+    nonisolated static func normalizedConfigField(_ raw: String?) -> String? {
+        guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
@@ -284,13 +255,10 @@ extension SettingsStore {
                 .applying(values, to: original)
             guard !ProviderPluginResultPolicy.matches(updated, original) else { return .unchanged }
             config.setProviderConfig(updated)
-            let data = try self.configStore.encodedData(for: config)
-            try ConfigFileWatcher.withAppWrite(data, watcher: self.configFileWatcher) {
-                try self.configStore.saveEncodedData(data)
-            }
+            try Self.writeConfig(config, to: self.configStore, watcher: self.configFileWatcher)
             self.config = config.normalized()
             self.updateProviderState(config: self.config)
-            self.bumpConfigRevision(.local(reason: "plugin-settings", affectsBackgroundWork: false))
+            self.bumpConfigRevision(reason: "plugin-settings", affectsBackgroundWork: false)
             return .saved
         } catch {
             return .failed
@@ -299,50 +267,61 @@ extension SettingsStore {
 
     func schedulePersistConfig() {
         guard !self.configLoading else { return }
-        let previousSave = self.configPersistTask
-        previousSave?.cancel()
-        if Self.isRunningTests {
-            do {
-                let data = try self.configStore.encodedData(for: self.config)
-                try ConfigFileWatcher.withAppWrite(data, watcher: self.configFileWatcher) {
-                    try self.configStore.saveEncodedData(data)
-                }
-            } catch {
-                CodexBarLog.logger(LogCategories.configStore).error("Failed to persist config: \(error)")
-            }
+        self.configPersistTask?.cancel()
+        #if DEBUG
+        let persistSynchronously = Self.isRunningTests && !self._test_configPersistenceUsesDebounce
+        #else
+        let persistSynchronously = Self.isRunningTests
+        #endif
+        if persistSynchronously {
+            Self.persistConfig(self.config, to: self.configStore, watcher: self.configFileWatcher)
             return
         }
+        self.configPersistTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(350)) } catch { return }
+            guard !Task.isCancelled else { return }
+            let write = self.persistConfigInBackground()
+            await write.value
+            if self.configPersistWriteTask == write { self.configPersistWriteTask = nil }
+            if !Task.isCancelled { self.configPersistTask = nil }
+        }
+    }
+
+    func persistPendingConfigForTermination() -> Task<Void, Never>? {
+        guard let pending = self.configPersistTask else { return nil }
+        pending.cancel()
+        let save = self.persistConfigInBackground()
+        self.configPersistTask = save
+        return save
+    }
+
+    private func persistConfigInBackground() -> Task<Void, Never> {
+        let previousWrite = self.configPersistWriteTask
         let store = self.configStore
         let watcher = self.configFileWatcher
-        self.configPersistTask = Task { @MainActor in
-            await previousSave?.value
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let snapshot = self.config
-            let data: Data
-            do {
-                data = try store.encodedData(for: snapshot)
-            } catch {
-                CodexBarLog.logger(LogCategories.configStore).error("Failed to encode config: \(error)")
-                return
-            }
-            let error: (any Error)? = await Task.detached(priority: .utility) {
-                do {
-                    try ConfigFileWatcher.withAppWrite(data, watcher: watcher) {
-                        try store.saveEncodedData(data)
-                    }
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger(LogCategories.configStore).error("Failed to persist config: \(error)")
-            }
+        // Drain physical writes without needing the main actor, which may be in AppKit's quit loop.
+        let write = Task.detached(priority: .utility) { [snapshot = self.config] in
+            await previousWrite?.value
+            Self.persistConfig(snapshot, to: store, watcher: watcher)
         }
+        self.configPersistWriteTask = write
+        return write
+    }
+
+    private nonisolated static func persistConfig(
+        _ config: CodexBarConfig, to store: CodexBarConfigStore, watcher: ConfigFileWatcher?)
+    {
+        do {
+            try self.writeConfig(config, to: store, watcher: watcher)
+        } catch {
+            CodexBarLog.logger(LogCategories.configStore).error("Failed to persist config: \(error)")
+        }
+    }
+
+    nonisolated static func writeConfig(
+        _ config: CodexBarConfig, to store: CodexBarConfigStore, watcher: ConfigFileWatcher?) throws
+    {
+        let data = try store.encodedData(for: config)
+        try ConfigFileWatcher.withAppWrite(data, watcher: watcher) { try store.saveEncodedData(data) }
     }
 }

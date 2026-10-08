@@ -305,14 +305,6 @@ public struct ProviderDiagnosticFetchAttempt: Codable, Sendable {
             errorCategory: container.decodeIfPresent(String.self, forKey: .errorCategory))
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case strategyID
-        case kind
-        case outcome
-        case wasAvailable
-        case errorCategory
-    }
-
     private static func derivedOutcome(wasAvailable: Bool, errorCategory: String?) -> String {
         if !wasAvailable {
             return ProviderFetchAttempt.Outcome.skipped.rawValue
@@ -335,7 +327,8 @@ public struct ProviderDiagnosticFetchAttempt: Codable, Sendable {
 
     public static func errorCategoryLabel(_ description: String?) -> String {
         guard let desc = description?.lowercased() else { return "unknown" }
-        if desc.contains("endpoint override") {
+        // Recognize quota notices before the auth heuristic matches "token history".
+        if desc.contains("endpoint override") || ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(desc) {
             return "configuration"
         }
         if desc.contains("network") || desc.contains("timeout") || desc.contains("connection") {

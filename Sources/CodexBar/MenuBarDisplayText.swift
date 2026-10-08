@@ -2,6 +2,25 @@ import CodexBarCore
 import Foundation
 
 enum MenuBarDisplayText {
+    static func prefixedValue(
+        from text: String?,
+        prefix: String,
+        removingSuffix suffix: String = "")
+        -> String?
+    {
+        guard let rawValue = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.hasPrefix(prefix)
+        else {
+            return nil
+        }
+        var value = rawValue.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !suffix.isEmpty, value.hasSuffix(suffix) {
+            value = String(value.dropLast(suffix.count)).trimmingCharacters(
+                in: .whitespacesAndNewlines)
+        }
+        return value.isEmpty ? nil : value
+    }
+
     static func deepSeekBalanceText(snapshot: UsageSnapshot?) -> String? {
         guard
             let rawValue = snapshot?.primary?.resetDescription?

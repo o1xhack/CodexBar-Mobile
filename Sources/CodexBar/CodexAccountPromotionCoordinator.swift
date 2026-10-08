@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 import Observation
 
@@ -100,6 +101,8 @@ final class CodexAccountPromotionCoordinator {
                 L("CodexBar could not update managed account storage.")
             case .liveAuthSwapFailed:
                 L("CodexBar could not replace the live Codex auth on this Mac.")
+            case .liveAuthChangedDuringPromotion, .targetAuthChangedDuringPromotion, .liveHomeIsManaged:
+                error.localizedDescription
             }
 
             return CodexSystemAccountPromotionUserFacingError(title: title, message: message)

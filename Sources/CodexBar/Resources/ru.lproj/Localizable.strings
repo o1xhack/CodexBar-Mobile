@@ -1560,7 +1560,7 @@
 "icloud_sync_phase_idle" = "Idle";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
 "icloud_sync_phase_provider_upload" = "Provider upload";
-"mobile_toggle_mock_subtitle" = "При каждой синхронизации отправляет 105 стабильных тестовых снимков для 95 идентификаторов провайдеров, включая несколько учётных записей, sub2api, Wayfinder и резервный вариант для неизвестных провайдеров. Тестовые адреса используют домен верхнего уровня `.test`, поэтому iPhone показывает значок MOCK. После отключения CloudKit удалит тестовые записи примерно за один цикл синхронизации. По умолчанию отключено.";
+"mobile_toggle_mock_subtitle" = "При каждой синхронизации отправляет 106 стабильных тестовых снимков для 96 идентификаторов провайдеров, включая несколько учётных записей, sub2api, Wayfinder и резервный вариант для неизвестных провайдеров. Тестовые адреса используют домен верхнего уровня `.test`, поэтому iPhone показывает значок MOCK. После отключения CloudKit удалит тестовые записи примерно за один цикл синхронизации. По умолчанию отключено.";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1570,6 +1570,8 @@
 "Renews: %@" = "Renews: %@";
 "Cumulative" = "Накопительно";
 "Token activity" = "Активность токенов";
+"Earlier activity" = "Ранние записи";
+"More recent activity" = "Недавние записи";
 "View" = "Вид";
 "in the last year" = "за последний год";
 "No activity in the last 12 months" = "Нет активности за последние 12 месяцев";
@@ -1710,6 +1712,11 @@
 "account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
 "account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";
 
+/* Spend time zone */
+"Statistics time zone" = "Часовой пояс статистики";
+"Use Mac's current time zone" = "Использовать текущий часовой пояс Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "Использование за день рассчитывается в фиксированном часовом поясе. Его изменение может перенести часть использования на другой день.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "Локальное использование × публичные цены API · это не счета и не кредиты Antigravity";
 "antigravity_quota_window_note" = "Стоимость окна включает все модели · показано окно самого ограниченного семейства";
@@ -1731,3 +1738,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "Поддерживаемые браузеры: %@. Для других браузеров используйте ручной режим.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "Вставьте заголовок Cookie из запроса Chrome к www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "Зарезервировано";
+
+/* Selected browser profile */
+"Browser profile" = "Профиль браузера";
+"Unavailable profile: %@" = "Профиль недоступен: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "Читать только выбранный профиль %@. Аккаунты никогда не выбираются автоматически.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "Учтённые расходы";
+"Highest recorded spend" = "Максимальные учтённые расходы";
+"Previous day" = "Предыдущий день";
+"Next day" = "Следующий день";
+"Click to isolate a source. Click again to show all." = "Нажмите для просмотра одного источника. Нажмите снова для просмотра всех.";
+"Recorded hourly spend" = "Записанные почасовые расходы";
+"Highest spend" = "Максимальные расходы";
+"Models for this day" = "Модели за этот день";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "Нажмите на столбец для просмотра деталей. Точные суммы доступны в меню ниже.";

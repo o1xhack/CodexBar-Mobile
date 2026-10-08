@@ -551,6 +551,7 @@ struct ProviderColorPaletteTests {
             ("museai", UIColor(red: 6 / 255, green: 104 / 255, blue: 225 / 255, alpha: 1)),
             ("lithosai", UIColor(red: 107 / 255, green: 114 / 255, blue: 128 / 255, alpha: 1)),
             ("workbuddy", UIColor(red: 13 / 255, green: 200 / 255, blue: 166 / 255, alpha: 1)),
+            ("langdock", UIColor(red: 90 / 255, green: 74 / 255, blue: 231 / 255, alpha: 1)),
         ]
         for (id, color) in expected {
             // Mac-tuned accents darken only as far as needed for white Light Mode cards.

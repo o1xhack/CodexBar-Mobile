@@ -575,6 +575,7 @@ private enum OpenCodexUsageSnapshotReference {
         var cacheRead: Int?
         var cacheCreation: Int?
         var reasoning: Int?
+        var incompleteRequestCount = 0
     }
 
     struct SessionAccumulator {
@@ -813,6 +814,11 @@ private enum OpenCodexUsageSnapshotReference {
         if let tokens = entry.resolvedTotalTokens {
             model.tokens += tokens
             model.sawTokens = true
+        } else if [
+            entry.usage?.inputTokens, entry.usage?.outputTokens, entry.usage?.cacheReadTokens,
+            entry.usage?.cacheCreationInputTokens, entry.usage?.reasoningOutputTokens,
+        ].allSatisfy({ $0 == nil }) {
+            model.incompleteRequestCount += 1
         }
         if let cost {
             model.cost += cost
@@ -854,7 +860,8 @@ private enum OpenCodexUsageSnapshotReference {
                 outputTokens: model.output,
                 cacheReadTokens: model.cacheRead,
                 cacheCreationTokens: model.cacheCreation,
-                reasoningTokens: model.reasoning)
+                reasoningTokens: model.reasoning,
+                incompleteRequestCount: model.incompleteRequestCount > 0 ? model.incompleteRequestCount : nil)
         }
     }
 

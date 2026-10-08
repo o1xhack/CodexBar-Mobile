@@ -285,9 +285,10 @@ enum ProviderSnapshotMerger {
                 uniquingKeysWith: { first, _ in first }))
     }
 
-    /// A Mac that could not refresh a provider and had no earlier data publishes an error with no
-    /// observation at all (no quota lanes, details, balances or account). It proves only that this Mac
-    /// failed; it must never replace another Mac's real observation of the same account.
+    /// An entry with no observation at all (no quota lanes, details, balances or account): a Mac that
+    /// failed to refresh, or a refresh that ended with neither data nor an error (for example a Claude
+    /// subscription notice). It says nothing about the account, so it must never replace another
+    /// Mac's real observation of it. The name predates the no-error case.
     static func isFailureOnly(_ provider: ProviderUsageSnapshot) -> Bool {
         // Every field a Mac derives from a fetched usage snapshot must be empty. Shared local data
         // (costs, utilization history, icon, cached workspace/account lists) does not count.
@@ -302,8 +303,7 @@ enum ProviderSnapshotMerger {
             provider.alibabaTokenPlan, provider.deepSeekUsage, provider.codexResetCredits,
             provider.crossModelUsage, provider.wayfinderUsage, provider.sub2APIUsage, provider.zoomMateCredits,
         ]
-        return provider.isError
-            && provider.rateWindows.isEmpty
+        return provider.rateWindows.isEmpty
             && provider.details.isEmpty
             && (provider.accountEmail?.isEmpty ?? true)
             && (provider.loginMethod?.isEmpty ?? true)
@@ -335,13 +335,17 @@ enum ProviderSnapshotMerger {
     {
         let sourceCapturedAt = sourcePosition.map { _ in shownCapturedAt }
         let failures = group.indices.compactMap { position -> SyncProviderSourceReport.Failure? in
-            guard position != sourcePosition, group[position].isError else { return nil }
+            // Errors, and Macs that explain why they have no data, are worth telling the user about.
+            let explainsMissingData = Self.isFailureOnly(group[position])
+                && !(group[position].statusMessage?.isEmpty ?? true)
+            guard position != sourcePosition, group[position].isError || explainsMissingData else { return nil }
             return SyncProviderSourceReport.Failure(
                 deviceID: deviceIDs[position],
                 deviceName: deviceNames[position],
                 reportedAt: reportedAt[position],
                 message: group[position].statusMessage,
-                deviceSyncedAt: deviceSyncedAt?[position])
+                deviceSyncedAt: deviceSyncedAt?[position],
+                isError: group[position].isError)
         }
         .sorted { $0.reportedAt == $1.reportedAt ? $0.deviceID > $1.deviceID : $0.reportedAt > $1.reportedAt }
         return SyncProviderSourceReport(

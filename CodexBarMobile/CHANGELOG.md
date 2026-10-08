@@ -2,7 +2,15 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [2.6.0 (237)] — Cost ledger keeps history
+## [2.6.0 (237)] — Cost ledger keeps history; upstream v0.73 companion
+
+### Added
+- Langdock (`langdock`, upstream v0.73.0): Session and Weekly percentage windows with the upstream brand tint (`#5A4AE7`, darkened for Light Mode), first-party detail localization (including the "Included limits" row), and a QuotaTransition subscription appended at the tail (84 providers × 3 states = 252 zones) so existing subscription IDs stay stable.
+
+### Changed
+- Release notes require Mac 0.73.0.1 (0.72.0.1 was withdrawn for its Codex cost regression).
+- The multi-Mac merger treats an entry with no Mac-derived data as no observation whether or not it reports an error (for example a Claude refresh that ended with neither data nor an error): it never replaces another Mac's data, an identity-less one is absorbed into the only observed account (its costs still merge), and one with an explanation is listed in the detail notice. The every-Mac-failed notice needs at least one error or explanation, so cost-only providers on several Macs stay quiet.
+- A Mac's non-error explanation (for example "Usage limits are not available for this account on this Mac.") shows with a neutral icon on the card and "has no usage data for this account" in the detail notice; only errors make the notice a warning.
 
 ### Fixed
 - The Local History cost ledger no longer loses days a Mac may no longer hold. An unknown-cost publication (for example Mac 0.72.0.1 marking recent Codex days unknown) keeps a known positive amount and its tokens until a known publication arrives; merged days and per-day picks across Macs or former owners use one total order: a known amount (a known $0 is an authoritative correction) beats an unknown one, then the newer row, so the result never depends on fetch order. A missing, filtered, renamed or CloudKit-deleted snapshot, a turned-off provider and a clear tombstone remove only the snapshot row; unmatched history is kept but not displayed. Local machine cost (claude, codex, grok, opencodego, vertexai) follows a single new owner, including ledger-only owners; account-level spend stays with its account. Only an explicit user clear deletes the ledger. Research 069.

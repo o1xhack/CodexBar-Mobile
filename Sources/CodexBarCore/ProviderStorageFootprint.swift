@@ -350,15 +350,12 @@ public enum ProviderStoragePathCatalog {
 
     private static func uniqueStandardizedPaths(_ paths: [String]) -> [String] {
         var seen: Set<String> = []
-        var result: [String] = []
-        for path in paths {
+        return paths.compactMap { path in
             let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
+            guard !trimmed.isEmpty else { return nil }
             let standardized = URL(fileURLWithPath: trimmed, isDirectory: true).standardizedFileURL.path
-            guard seen.insert(standardized).inserted else { continue }
-            result.append(standardized)
+            return seen.insert(standardized).inserted ? standardized : nil
         }
-        return result
     }
 }
 
@@ -397,7 +394,7 @@ public struct ProviderStorageScanner: @unchecked Sendable {
 
             existingPaths.append(path)
             let url = URL(fileURLWithPath: path, isDirectory: isDirectory.boolValue)
-            if self.isSymbolicLink(at: url) {
+            if (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true {
                 continue
             }
             if isDirectory.boolValue {
@@ -433,35 +430,23 @@ public struct ProviderStorageScanner: @unchecked Sendable {
             updatedAt: now)
     }
 
-    private func isSymbolicLink(at url: URL) -> Bool {
-        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
-    }
-
     private func sizeOfFile(at url: URL) -> (bytes: Int64, unreadablePaths: [String]) {
         if Task.isCancelled { return (0, []) }
-        let keys: Set<URLResourceKey> = [
-            .isRegularFileKey,
-            .isSymbolicLinkKey,
-            .fileSizeKey,
-        ]
-
-        guard let values = try? url.resourceValues(forKeys: keys) else {
+        guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        else {
             return (0, [url.path])
         }
 
-        if values.isSymbolicLink == true {
-            return (0, [])
-        }
-
-        if values.isRegularFile == true {
-            return (Int64(values.fileSize ?? 0), [])
-        }
-
-        return (0, [])
+        let isRegularFile = values.isSymbolicLink != true && values.isRegularFile == true
+        return (isRegularFile ? Int64(values.fileSize ?? 0) : 0, [])
     }
 
     private func scanDirectory(at url: URL) -> DirectoryScanResult {
         if Task.isCancelled { return DirectoryScanResult() }
+        // Preserve the original traversal URL; enumerators can resolve macOS path aliases.
+        let rootPath = url.standardizedFileURL.path
+        let rootIsStandardized = url.path == rootPath
+        let pathPrefix = rootPath.hasSuffix("/") ? rootPath : "\(rootPath)/"
         let keys: Set<URLResourceKey> = [
             .isDirectoryKey,
             .isRegularFileKey,
@@ -483,7 +468,7 @@ public struct ProviderStorageScanner: @unchecked Sendable {
         }
 
         var result = DirectoryScanResult()
-        let rootPath = url.standardizedFileURL.path
+        var componentPaths: [String: String] = [:]
         for case let itemURL as URL in enumerator {
             if Task.isCancelled {
                 enumerator.skipDescendants()
@@ -502,7 +487,13 @@ public struct ProviderStorageScanner: @unchecked Sendable {
             if itemValues.isRegularFile == true {
                 let bytes = Int64(itemValues.fileSize ?? 0)
                 result.bytes += bytes
-                if bytes > 0, let componentPath = self.topLevelComponentPath(for: itemURL, rootPath: rootPath) {
+                if bytes > 0,
+                   let componentPath = self.topLevelComponentPath(
+                       for: itemURL,
+                       pathPrefix: pathPrefix,
+                       rootIsStandardized: rootIsStandardized,
+                       componentPaths: &componentPaths)
+                {
                     result.componentBytes[componentPath, default: 0] += bytes
                 }
             }
@@ -511,18 +502,25 @@ public struct ProviderStorageScanner: @unchecked Sendable {
         return result
     }
 
-    private func topLevelComponentPath(for url: URL, rootPath: String) -> String? {
-        let itemPath = url.standardizedFileURL.path
-        let pathPrefix = rootPath.hasSuffix("/") ? rootPath : "\(rootPath)/"
+    private func topLevelComponentPath(
+        for url: URL,
+        pathPrefix: String,
+        rootIsStandardized: Bool,
+        componentPaths: inout [String: String]) -> String?
+    {
+        let enumeratedPath = url.path
+        let itemPath = rootIsStandardized && enumeratedPath.hasPrefix(pathPrefix)
+            ? enumeratedPath
+            : url.standardizedFileURL.path
         guard itemPath.hasPrefix(pathPrefix) else { return nil }
-        let suffix = itemPath.dropFirst(pathPrefix.count)
-        let relative = suffix.drop { $0 == "/" }
-        guard let first = relative.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true).first else {
+        guard let first = itemPath.dropFirst(pathPrefix.count).split(separator: "/", maxSplits: 1).first else {
             return nil
         }
-        return URL(fileURLWithPath: rootPath, isDirectory: true)
-            .appendingPathComponent(String(first))
-            .path
+        let name = String(first)
+        if let cached = componentPaths[name] { return cached }
+        let path = pathPrefix + name
+        componentPaths[name] = path
+        return path
     }
 }
 
@@ -531,14 +529,10 @@ private final class ProviderStorageUnreadablePathCollector: @unchecked Sendable 
     private var storage: [String] = []
 
     var paths: [String] {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.storage
+        self.lock.withLock { self.storage }
     }
 
     func append(_ path: String) {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        self.storage.append(path)
+        self.lock.withLock { self.storage.append(path) }
     }
 }

@@ -49,14 +49,22 @@ struct CodexCostCatchUpActivity: Sendable, Equatable {
         case complete
     }
 
-    let phase: Phase
+    var phase: Phase
     let mode: CodexCostCatchUpMode
     let processedBytes: Int64
     let totalBytes: Int64
     let completedFiles: Int
     let totalFiles: Int
-    let pauseReason: CodexCostCatchUpPauseReason?
+    var pauseReason: CodexCostCatchUpPauseReason?
     let staleSnapshotUpdatedAt: Date?
+
+    var requiresExplicitResume: Bool {
+        guard self.phase == .paused else { return false }
+        return switch self.pauseReason {
+        case .user, .noProgress, .error: true
+        case .lowPower, .thermal, .none: false
+        }
+    }
 
     var fractionCompleted: Double? {
         guard self.totalBytes > 0 else {

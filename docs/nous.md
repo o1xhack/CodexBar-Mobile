@@ -63,6 +63,10 @@ Money fields are accepted as finite JSON numbers or decimal strings. Missing amo
 becoming zero; a monthly meter requires both a positive grant and a reported remaining balance. A Free tier with no
 monthly grant shows no meter and only the reported purchased balance. Malformed amounts fail the refresh.
 
+The menu bar **Balance** element shows **Total usable** credits when reported, falling back to **Top-up credits**.
+Reported zero balances remain visible; absent amounts stay unavailable. Automatic text uses this balance when no
+monthly meter exists, while accounts with a monthly meter keep their usage percentage.
+
 ## Local usage and spend
 
 Enable **Include OpenCodex usage logs** (default off) to attribute ledger rows with `provider: "nous"` to Nous in Usage & Spend. CodexBar reads `~/.opencodex/usage.jsonl` or `$OPENCODEX_HOME/usage.jsonl`, without running an extractor or reading Hermes's session database. These estimates retain the OpenCodex source label, separate from Portal credits. Nous has no native token-cost scanner; provider-level cost capability is disabled.

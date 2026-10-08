@@ -97,6 +97,7 @@ public enum OpenRouterProviderDescriptor {
                         menuCardStyle: .payAsYouGoSpend,
                         replacedDetailRows: replacedRows)
                 },
+                menuBarBalanceDetailLabels: ["Remaining"],
                 menuCard: ProviderMenuCardPresentation(
                     showsCreditsSection: false,
                     primaryDescriptionPlacement: .reset),

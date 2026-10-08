@@ -1541,7 +1541,7 @@
 "mobile_sync_status_syncing" = "جار المزامنة…";
 "mobile_sync_status_syncing_elapsed_format" = "جارٍ المزامنة — %@ · %d ث";
 "mobile_sync_status_syncing_phase_format" = "جارٍ المزامنة — %@…";
-"mobile_toggle_mock_subtitle" = "يدفع 105 لقطة وهمية ثابتة تغطي 95 معرّف مزوّد عند كل مزامنة، بما في ذلك حالات الحسابات المتعددة وsub2api وWayfinder والرجوع الاحتياطي للمزوّدات غير المعروفة. تستخدم رسائل البريد الوهمية نطاق المستوى الأعلى `.test`، لذلك يعرض iPhone شارة MOCK. يتيح إيقاف هذا الخيار لـ CloudKit إزالة السجلات الوهمية خلال دورة مزامنة واحدة تقريبًا. متوقف افتراضيًا.";
+"mobile_toggle_mock_subtitle" = "يدفع 106 لقطة وهمية ثابتة تغطي 96 معرّف مزوّد عند كل مزامنة، بما في ذلك حالات الحسابات المتعددة وsub2api وWayfinder والرجوع الاحتياطي للمزوّدات غير المعروفة. تستخدم رسائل البريد الوهمية نطاق المستوى الأعلى `.test`، لذلك يعرض iPhone شارة MOCK. يتيح إيقاف هذا الخيار لـ CloudKit إزالة السجلات الوهمية خلال دورة مزامنة واحدة تقريبًا. متوقف افتراضيًا.";
 "mobile_toggle_mock_title" = "حقن بيانات مزود وهمية";
 "mobile_toggle_push_subtitle" = "عند نفاد حصة الجلسة أو استعادتها، أرسل تنبيه دفع مرئيا إلى تطبيق iOS المرافق عبر iCloud. هذا مستقل عن إشعارات Mac المحلية — يمكنك إبقاء Mac صامتا مع الاستمرار في تلقي التنبيهات على iPhone.";
 "mobile_toggle_push_title" = "إشعارات الدفع إلى iOS";
@@ -1572,6 +1572,8 @@
 "∞ Unlimited" = "∞ غير محدود";
 "Cumulative" = "تراكمي";
 "Token activity" = "نشاط الرموز";
+"Earlier activity" = "نشاط أقدم";
+"More recent activity" = "نشاط أحدث";
 "View" = "عرض";
 "in the last year" = "في العام الماضي";
 "No activity in the last 12 months" = "لا يوجد نشاط في آخر 12 شهرًا";
@@ -1713,6 +1715,11 @@
 "account_widgets_title" = "تحديث الحسابات للأدوات";
 "account_widgets_description" = "اختر حسابًا في كل أداة Account Usage. يتم تحديث ما يصل إلى ستة حسابات لكل مزوّد.";
 
+/* Spend time zone */
+"Statistics time zone" = "المنطقة الزمنية للإحصاءات";
+"Use Mac's current time zone" = "استخدام المنطقة الزمنية الحالية للـ Mac";
+"Daily usage uses a fixed time zone. Changing it may move usage to a different day." = "يُحسب الاستخدام اليومي وفق منطقة زمنية ثابتة. قد يؤدي تغييرها إلى نقل الاستخدام إلى يوم مختلف.";
+
 /* Antigravity local cost estimates */
 "antigravity_cost_estimate_hint" = "الاستخدام المحلي × أسعار واجهة البرمجة العامة · ليست رسوم أو أرصدة Antigravity";
 "antigravity_quota_window_note" = "تكلفة النافذة تشمل كل النماذج · النافذة المعروضة هي الفئة الأكثر تقييدًا";
@@ -1734,3 +1741,20 @@
 "Supported browsers: %@. Use Manual for other browsers." = "المتصفحات المدعومة: %@. استخدم الوضع اليدوي للمتصفحات الأخرى.";
 "Paste the Cookie header from a Chrome request to www.workbuddy.cn/profile/plans-usage." = "الصق ترويسة Cookie من طلب Chrome إلى www.workbuddy.cn/profile/plans-usage.";
 "Reserved" = "محجوز";
+
+/* Selected browser profile */
+"Browser profile" = "ملف تعريف المتصفح";
+"Unavailable profile: %@" = "ملف التعريف غير متاح: %@";
+"Read only the selected %@ profile. Accounts are never selected automatically." = "قراءة ملف تعريف %@ المحدد فقط. لا يتم اختيار الحسابات تلقائيًا مطلقًا.";
+
+// Spend chart navigation and inspection
+"Recorded spend" = "الإنفاق المسجل";
+"Highest recorded spend" = "أعلى إنفاق مسجل";
+"Previous day" = "اليوم السابق";
+"Next day" = "اليوم التالي";
+"Click to isolate a source. Click again to show all." = "انقر لعرض مصدر واحد. انقر مجددًا لعرض الكل.";
+"Recorded hourly spend" = "الإنفاق المسجل حسب الساعة";
+"Highest spend" = "أعلى إنفاق";
+"Models for this day" = "نماذج هذا اليوم";
+
+"Click a bar to explore. Use the menu below for exact amounts." = "انقر على عمود لاستكشاف البيانات. استخدم القائمة أدناه لعرض المبالغ الدقيقة.";

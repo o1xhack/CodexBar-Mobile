@@ -323,13 +323,31 @@ QJsonObject DesktopController::snapshot() const {
                 {window.value("resetsAt").toString(), double(QDateTime::currentMSecsSinceEpoch()), m_settings.value("resetDisplay").toString()}).toString();
             windows.append(QJsonObject::fromVariantMap(window));
         }
+        // Plan, status and balances carry no account identity; accountLabel stays out of IPC.
         compact.append(QJsonObject{{"provider", row.value("provider").toString()},
             {"windows", windows},
+            {"error", row.value("error").toString()},
+            {"plan", row.value("plan").toString()},
+            {"status", row.value("status").toString()},
+            {"statusLevel", row.value("statusLevel").toString()},
+            {"updatedAt", row.value("updatedAt").toString()},
+            {"credits", QJsonValue::fromVariant(row.value("credits"))},
+            {"extraUsage", QJsonValue::fromVariant(row.value("extraUsage"))},
+            {"resetCredits", QJsonValue::fromVariant(row.value("resetCredits"))}});
+    }
+    QJsonArray spending;
+    for (const auto &item : m_spending) {
+        const auto row = item.toMap();
+        spending.append(QJsonObject{{"provider", row.value("provider").toString()},
+            {"today", QJsonValue::fromVariant(row.value("today"))},
+            {"month", QJsonValue::fromVariant(row.value("month"))},
+            {"tokens", QJsonValue::fromVariant(row.value("tokens"))},
+            {"provenance", row.value("provenance").toString()},
             {"error", row.value("error").toString()}});
     }
     return {{"schemaVersion", 1}, {"pid", QCoreApplication::applicationPid()}, {"summary", m_summary}, {"barEntries", m_barEntries},
         {"entries", compact}, {"quotaDisplay", m_settings.value("quotaDisplay").toString()}, {"busy", busy()}, {"stale", stale()}, {"error", m_error},
-        {"updated", updated()}, {"costBusy", costBusy()}, {"costProviders", m_spending.size()}, {"costError", m_costError}};
+        {"updated", updated()}, {"costBusy", costBusy()}, {"costProviders", m_spending.size()}, {"costError", m_costError}, {"spending", spending}};
 }
 
 bool DesktopController::listen(const QString &socketPath) {
@@ -349,7 +367,17 @@ bool DesktopController::listen(const QString &socketPath) {
                 const auto request = QJsonDocument::fromJson(input->left(input->indexOf('\n'))).object();
                 const auto command = request.value("command").toString();
                 QJsonObject response{{"ok", true}};
-                if (command == "snapshot" || command == "background") response = snapshot();
+                if (command == "snapshot" || command == "background") {
+                    // Panel adapters may opt in to spending without opening the window; reuse its five-minute
+                    // cache, and after a failed scan retry at most every few seconds so polling stays bounded.
+                    const auto now = QDateTime::currentMSecsSinceEpoch();
+                    if (request.value("spending").toBool() && !costBusy() && now - m_costUpdated > 300000 &&
+                        (m_costError.isEmpty() || now - m_costRequested > 5000)) {
+                        m_costRequested = now;
+                        refreshCosts();
+                    }
+                    response = snapshot();
+                }
                 else if (command == "autostart") {
                     const auto action = request.value("action").toString();
                     const bool ok = action == "status" || ((action == "enable" || action == "disable") && setLaunchAtLogin(action == "enable"));

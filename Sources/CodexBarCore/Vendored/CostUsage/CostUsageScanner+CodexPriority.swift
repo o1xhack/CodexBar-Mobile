@@ -152,27 +152,12 @@ extension CostUsageScanner {
     /// separate map is bounded to keep memory constant while preserving ordering.
     static let codexPriorityCompletedModelRetentionLimit = 4096
 
-    private final class CodexPriorityLockedState<State>: @unchecked Sendable {
-        private let lock = NSLock()
-        private var state: State
-
-        init(_ state: State) {
-            self.state = state
-        }
-
-        func withLock<Result>(_ body: (inout State) throws -> Result) rethrows -> Result {
-            self.lock.lock()
-            defer { self.lock.unlock() }
-            return try body(&self.state)
-        }
-    }
-
     private static let codexPriorityTurnsMemo =
-        CodexPriorityLockedState<[String: CodexPriorityTurnsMemoState]>([:])
-    private static let codexPriorityTurnsObservationCounter = CodexPriorityLockedState<UInt64>(0)
+        CostUsageScanExecutor.LockedState<[String: CodexPriorityTurnsMemoState]>([:])
+    private static let codexPriorityTurnsObservationCounter = CostUsageScanExecutor.LockedState<UInt64>(0)
     #if DEBUG
     private static let codexPriorityBeforeFallbackColdScanHook =
-        CodexPriorityLockedState<[String: (OpaquePointer?) -> Void]>([:])
+        CostUsageScanExecutor.LockedState<[String: (OpaquePointer?) -> Void]>([:])
     #endif
 
     private static func nextCodexPriorityTurnsObservationID() -> UInt64 {

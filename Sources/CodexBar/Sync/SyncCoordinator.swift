@@ -69,6 +69,16 @@ final class SyncCoordinator {
     private(set) var lastSyncDuration: TimeInterval?
     private(set) var recentSyncEvents: [String] = []
     private var syncRequestedWhileRunning = false
+    /// A failed push retries on its own with backoff instead of waiting for the next provider
+    /// refresh, so a slow or overloaded CloudKit path cannot leave the iPhone minutes behind.
+    private var failedPushRetryTask: Task<Void, Never>?
+    private(set) var consecutivePushFailures = 0
+    static let defaultFailedPushRetryDelays: [TimeInterval] = [30, 60, 120, 300]
+    /// Backoff after consecutive failed pushes; the last delay repeats. Tests shorten it.
+    var failedPushRetryDelays: [TimeInterval] = SyncCoordinator.defaultFailedPushRetryDelays
+    var hasPendingPushRetry: Bool {
+        self.failedPushRetryTask != nil
+    }
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
@@ -285,7 +295,13 @@ final class SyncCoordinator {
             let succeeded = await self.performPushCurrentSnapshot()
             pushesRemaining -= 1
 
-            guard succeeded else { return }
+            guard succeeded else {
+                self.scheduleFailedPushRetry()
+                return
+            }
+            self.consecutivePushFailures = 0
+            self.failedPushRetryTask?.cancel()
+            self.failedPushRetryTask = nil
             guard self.syncRequestedWhileRunning,
                   self.settings.iCloudSyncEnabled
             else { return }
@@ -360,7 +376,11 @@ final class SyncCoordinator {
                 sharedUtilizationHistory: sharedUtilizationHistory,
                 clearSharedCostOwnership: detachesProviderCost,
                 accountRecordKey: self.settings.effectiveSelectedTokenAccount(for: provider)
-                    .map(Self.tokenAccountRecordKey))
+                    .map(Self.tokenAccountRecordKey),
+                statusNote: Self.limitsUnavailableNote(
+                    snapshot: syncSnapshot,
+                    error: error,
+                    availability: self.store.knownLimitsAvailability(for: provider)))
 
             providerSnapshots.append(providerSnapshot)
             if detachesProviderCost, let sharedCostSummary {
@@ -1096,7 +1116,8 @@ final class SyncCoordinator {
         sharedCostSummary: SyncCostSummary?,
         sharedUtilizationHistory: [SyncUtilizationSeries]?,
         clearSharedCostOwnership: Bool = false,
-        accountRecordKey requestedAccountRecordKey: String? = nil) -> ProviderUsageSnapshot
+        accountRecordKey requestedAccountRecordKey: String? = nil,
+        statusNote: String? = nil) -> ProviderUsageSnapshot
     {
         // Build dynamic rate windows array with labels from metadata.
         var rateWindows: [SyncRateWindow] = []
@@ -1289,7 +1310,7 @@ final class SyncCoordinator {
             secondary: secondaryWindow,
             accountEmail: snapshot?.identity?.accountEmail,
             loginMethod: snapshot?.identity?.loginMethod,
-            statusMessage: error,
+            statusMessage: error ?? statusNote,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: resolvedCostSummary,
@@ -2285,8 +2306,39 @@ final class SyncCoordinator {
         return Int(bitPattern: UInt(truncatingIfNeeded: hash))
     }
 
+    /// A refresh that ended without usage data or an error (for example a Claude subscription notice
+    /// with no quota) would otherwise reach the iPhone as an unexplained empty card. Explain it without
+    /// marking the Mac as failing.
+    static func limitsUnavailableNote(
+        snapshot: UsageSnapshot?,
+        error: String?,
+        availability: UsageLimitsAvailability?) -> String?
+    {
+        guard snapshot == nil, error == nil, availability?.isUnavailable == true else { return nil }
+        return SyncStatusNote.limitsUnavailable
+    }
+
     func stopObserving() {
         self.isObserving = false
+        self.failedPushRetryTask?.cancel()
+        self.failedPushRetryTask = nil
+        self.consecutivePushFailures = 0
+    }
+
+    /// One pending retry at a time; the delay grows with consecutive failures and resets on success.
+    private func scheduleFailedPushRetry() {
+        self.consecutivePushFailures += 1
+        guard self.failedPushRetryTask == nil else { return }
+        let delays = self.failedPushRetryDelays
+        let delay = delays[min(self.consecutivePushFailures - 1, delays.count - 1)]
+        self.recordSyncEvent("Push failed; retrying in \(Int(delay)) seconds")
+        self.failedPushRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            self.failedPushRetryTask = nil
+            guard self.isObserving, self.settings.iCloudSyncEnabled else { return }
+            await self.pushCurrentSnapshot()
+        }
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {

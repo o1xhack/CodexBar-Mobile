@@ -114,12 +114,12 @@ struct MenuBarLayoutRendererTests {
             icon: nil,
             options: self.options())
 
-        #expect(output.attributedTitle.string == "10%\u{2009}9%\u{2009}17%\u{2009}42%")
+        #expect(output.attributedTitle.string == "10%\u{2009}9%\u{2009}17%\u{2009}Grok Bot 42%")
         #expect(output.accessibilityLabel == "Total 10%, Cursor 9%, Third Party 17%, Grok Bot 42%")
     }
 
     @Test
-    func `missing Grok Bot extra percentage keeps sibling tokens visible`() {
+    func `missing Grok Bot extra percentage shows unknown beside sibling tokens`() {
         let renderer = MenuBarLayoutRenderer()
         let output = renderer.render(
             layout: MenuBarLayout(lines: [[.lanePercent(lane: .primary), .extraPercent(id: "cursor-grok-bot")]]),
@@ -127,8 +127,8 @@ struct MenuBarLayoutRendererTests {
             icon: nil,
             options: self.options())
 
-        #expect(output.attributedTitle.string == "10%")
-        #expect(output.accessibilityLabel == "Total 10%")
+        #expect(output.attributedTitle.string == "10%\u{2009}Grok Bot –")
+        #expect(output.accessibilityLabel == "Total 10%, Grok Bot unavailable")
     }
 
     @Test
@@ -145,7 +145,7 @@ struct MenuBarLayoutRendererTests {
                 data: self.data(provider: .cursor, extraRateWindows: [extra]),
                 icon: nil,
                 options: self.options(showUsed: false))
-            #expect(output.attributedTitle.string == "90%\n\(Int(100 - used))%")
+            #expect(output.attributedTitle.string == "90%\nGrok Bot \(Int(100 - used))%")
             let other = renderer.render(
                 layout: layout,
                 data: self.data(provider: .codex, extraRateWindows: [extra]),
@@ -155,7 +155,26 @@ struct MenuBarLayoutRendererTests {
         }
         let missing = renderer.render(
             layout: layout, data: self.data(provider: .cursor), icon: nil, options: self.options())
-        #expect(missing.attributedTitle.string == "10%")
+        #expect(missing.attributedTitle.string == "10%\nGrok Bot –")
+    }
+
+    @Test(arguments: [0.0, 42.0])
+    func `extra unknown readings stay distinct from a real zero`(used: Double) {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.extraPercent(id: "cursor-grok-bot")]])
+        for known in [false, true] {
+            let extra = MenuBarLayoutRenderExtra(NamedRateWindow(
+                id: "cursor-grok-bot",
+                title: "Grok Bot",
+                window: RateWindow(usedPercent: used, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+                usageKnown: known))
+            let rendered = renderer.render(
+                layout: layout,
+                data: self.data(provider: .cursor, extraRateWindows: [extra]),
+                icon: nil,
+                options: self.options())
+            #expect(rendered.attributedTitle.string == (known ? "Grok Bot \(Int(used))%" : "Grok Bot –"))
+        }
     }
 
     @Test
