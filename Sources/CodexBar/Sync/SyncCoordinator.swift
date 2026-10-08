@@ -69,6 +69,11 @@ final class SyncCoordinator {
     private(set) var lastSyncDuration: TimeInterval?
     private(set) var recentSyncEvents: [String] = []
     private var syncRequestedWhileRunning = false
+    /// A failed push retries on its own with backoff instead of waiting for the next provider
+    /// refresh, so a slow or overloaded CloudKit path cannot leave the iPhone minutes behind.
+    private var failedPushRetryTask: Task<Void, Never>?
+    private(set) var consecutivePushFailures = 0
+    static let failedPushRetryDelays: [TimeInterval] = [30, 60, 120, 300]
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
@@ -285,7 +290,13 @@ final class SyncCoordinator {
             let succeeded = await self.performPushCurrentSnapshot()
             pushesRemaining -= 1
 
-            guard succeeded else { return }
+            guard succeeded else {
+                self.scheduleFailedPushRetry()
+                return
+            }
+            self.consecutivePushFailures = 0
+            self.failedPushRetryTask?.cancel()
+            self.failedPushRetryTask = nil
             guard self.syncRequestedWhileRunning,
                   self.settings.iCloudSyncEnabled
             else { return }
@@ -2287,6 +2298,24 @@ final class SyncCoordinator {
 
     func stopObserving() {
         self.isObserving = false
+        self.failedPushRetryTask?.cancel()
+        self.failedPushRetryTask = nil
+    }
+
+    /// One pending retry at a time; the delay grows with consecutive failures and resets on success.
+    private func scheduleFailedPushRetry() {
+        self.consecutivePushFailures += 1
+        guard self.failedPushRetryTask == nil else { return }
+        let delays = Self.failedPushRetryDelays
+        let delay = delays[min(self.consecutivePushFailures - 1, delays.count - 1)]
+        self.recordSyncEvent("Push failed; retrying in \(Int(delay)) seconds")
+        self.failedPushRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            self.failedPushRetryTask = nil
+            guard self.isObserving, self.settings.iCloudSyncEnabled else { return }
+            await self.pushCurrentSnapshot()
+        }
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {

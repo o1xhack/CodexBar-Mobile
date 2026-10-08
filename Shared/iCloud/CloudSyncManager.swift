@@ -415,7 +415,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         configuration.timeoutIntervalForRequest = deadline
         configuration.timeoutIntervalForResource = deadline
         operation.configuration = configuration
-        operation.qualityOfService = .utility
+        // The Mac snapshot push is small and user-visible on the iPhone; utility QoS starved it into
+        // repeated timeouts on a heavily loaded Mac.
+        operation.qualityOfService = .userInitiated
     }
 
     private static func pushFailureDescription(_ error: Error) -> String {
