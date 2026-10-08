@@ -505,7 +505,9 @@ enum CostUsagePricing {
     /// Version 15: v0.58 merged scanners use one catalog snapshot for amount and estimate provenance.
     /// Version 19: v0.71.0-v0.72.0 merged Codex resumed-session recovery, Claude transcript-window reuse,
     /// Pi cache-write pricing, and Grok scan scope changes.
-    static let parserLogicVersion = 19
+    /// Version 20: v0.73.0 request-ledger pricing recovery and drifted-mirror pairing; published fork
+    /// stores rebuild instead of adopting rows corrupted by the 0.72 request-ledger migration.
+    static let parserLogicVersion = 20
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
