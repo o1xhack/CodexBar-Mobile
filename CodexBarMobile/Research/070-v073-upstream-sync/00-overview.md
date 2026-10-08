@@ -2,7 +2,7 @@
 
 Status: `done`
 Date: 2026-10-08
-Versions: Mac 0.73.0.1（BUILD_NUMBER 165.1，Sparkle 165.1.2.6.0），iOS 2.6.0 (237)
+Versions: Mac 0.73.0.1（BUILD_NUMBER 165.1，Sparkle 165.1.2.6.0，已公开发布），iOS 2.6.0 (237；238 另含小组件窗口选择，均在 TestFlight)
 Branch: `upstream-sync/v0.73.0-mobile.2.6.0`
 
 ## 背景
@@ -22,3 +22,5 @@ iPhone 账本的保护单独在 PR #184 修复，见 Research 069。
 ## 文档
 - [01-design.md](01-design.md)：合并规则、Codex 成本根因与缓存重建、Claude 空条目、推送重试、Langdock、README 与 CloudKit 审计
 - [03-testing.md](03-testing.md)：测试与兼容矩阵证据
+- [04-mac-release.md](04-mac-release.md)：Mac 0.73.0.1 签名、公证、公开发布与 appcast 恢复
+- [05-ios-testflight.md](05-ios-testflight.md)：iOS 2.6.0 (237/238) TestFlight、图标验收与送审前待办
