@@ -55,8 +55,8 @@
 ### 2.4 选项内容
 
 - **来源**：所选服务商最近一次同步的窗口里，用量已知的窗口（`usageKnown`），按卡片顺序（原生槽位在前，附加窗口在后）。没有 id 的旧 Mac 数据保留它原来的槽位名：只有 `primary` / `secondary` 字段时按字段名，`rateWindows` 里按位置叫 `primary` / `secondary` / `tertiary` / `window-N`。同一服务商多个账号的窗口取并集。
-- **什么时候列出窗口**：有两个及以上窗口时全部列出；只有一个窗口且时长至少一天（Codex、muse.ai 的每周）时，默认已经就是它，只给“默认（每周）”；只有一个窗口但不足一天、或没有时长时也列出来，因为默认走不到它，只能手动选。
-- **标题**：和 App 的服务商卡片同一套 `ProviderWindowLabel`（从 App target 挪到 `CodexBarWidgetShared`，App 和小组件共用），普通槽位名（Session、Weekly）再走一次和小组件曲线标签相同的 `ProviderDetailLocalization`。没有 label 的窗口和卡片用同一套兜底名：第 1 个叫“当前周期”、第 2 个叫“每周”、之后叫“限额 N”；Aixy 叫“预算 / 次级预算”，xkiro 第 1 个叫“每日免费 Token”。所以没有 label 的 muse.ai 每周窗口和卡片一样叫“当前周期”。四种语言的标题由 App 写进 catalogue，Intents 扩展按自己的首选语言取。
+- **什么时候列出窗口**：有两个及以上窗口时全部列出；只有一个窗口时，**默认到不了它才列出**（App 写 catalogue 时一并写入当时的默认窗口 `defaultWindowID`）。Codex、muse.ai 的单个每周窗口就是默认，只给“默认（每周）”；单个 5 小时窗口、没有时长的窗口，或 Claude 只剩一个 Sonnet / 仅 Fable 额度（没有 session 也没有账号每周）时会列出来，只能手动选。
+- **标题**：和 App 的服务商卡片同一套 `ProviderWindowLabel`（从 App target 挪到 `CodexBarWidgetShared`，App 和小组件共用），普通槽位名（Session、Weekly）再走一次和小组件曲线标签相同的 `ProviderDetailLocalization`。没有 label 的窗口和卡片用同一套兜底名：第 1 个叫“当前周期”、第 2 个叫“每周”、之后叫“限额 N”；Aixy 叫“预算 / 次级预算”，xkiro 第 1 个叫“每日免费 Token”。所以编辑面板里没有 label 的 muse.ai 每周窗口和卡片一样叫“当前周期”。**这个卡片兜底名只用于编辑面板**；小组件主数字旁显示窗口名时，没有 label 但时长 10080 分钟（或 period 为每周）的窗口一律叫“每周”，不会出现和时长矛盾的名字。四种语言的标题由 App 写进 catalogue，Intents 扩展按自己的首选语言取。
 - **时长**：每个选项的副标题是窗口时长（例如“7 天”“5 小时”），用系统的 `DateComponentsFormatter` 本地化。两个选项标题相同时，标题后面再加时长区分。
 - 例子：
   - Claude：默认（每周）、当前周期、每周、仅 Fable。
@@ -79,7 +79,7 @@
 **默认窗口**（`QuotaPaceWindowSelection.defaultWindowID(for:now:)`，只考虑用量已知、还没重置的窗口）：
 
 1. 原来的配速窗口（`QuotaPace.window(for:)`）是每周的、且不是 Claude 的模型限定额度，就用它。Codex、Claude 都在这一步，和以前一样。
-2. 否则按 Mac 端每周切换器的规则（`UsageSnapshot+SwitcherWeeklyWindow` 的 `mostConstrainedSwitcherWeeklyWindow`）：所有时长 7 天的窗口里取**用得最多的那个**（最受限）；Claude 排除 tertiary（Sonnet/Opus 每周）、`claude-weekly-scoped-*`（仅 Fable 等）和 `claude-routines`。Antigravity 取最受限的每周桶；MiniMax 类（secondary 是 Today、tertiary 是每周）取 tertiary 的每周，和以前显示 Today 不同，这是用户要的“默认每周”。
+2. 否则按 Mac 端每周切换器的规则（`UsageSnapshot+SwitcherWeeklyWindow` 的 `mostConstrainedSwitcherWeeklyWindow`）：所有时长 7 天的窗口里取**用得最多的那个**（最受限）；Claude 排除 tertiary（Sonnet/Opus 每周）、`claude-weekly-scoped-*`（仅 Fable 等）和 `claude-routines`。Antigravity 有 `antigravity-quota-summary-*` 桶时只在这组里取最受限的（与 `AntigravityProviderDescriptor.mostConstrained` 一致，平局取 id 较小的），没有时才看模型行；MiniMax 类（secondary 是 Today、tertiary 是每周）取 tertiary 的每周，和以前显示 Today 不同，这是用户要的“默认每周”。
 3. 否则沿用 Research/065：原来的配速窗口有配速、且不是 Claude 的模型限定额度时用它（例如只有月度窗口的服务商）。
 4. 都没有：跟随有曲线的账号窗口（每周，其次当前周期）；再没有就显示“暂无配速数据”。不会落到 Claude 的 Sonnet/Opus 曲线上。
 
@@ -99,7 +99,7 @@
 ### 3.3 显示
 
 - 小：选了窗口、或默认窗口和以前显示的窗口不同时，主数字后面写窗口名（“29% 仅 Fable · 剩余”）；默认窗口和以前相同时保持原样。
-- 中：跟随某个窗口时，主数字后的标签用这个窗口的名字；它有曲线就画曲线，没有曲线（仅 Fable、Antigravity）就在右栏画剩余进度条，并且不再显示当前周期那一行，免得进度条被看成当前周期的。
+- 中：主数字后的标签和小、大尺寸同一规则（`heroLabel`）：需要点名窗口时（`namesWindow`）用窗口在小组件里的名字，否则用所画曲线的名字，没有曲线就不加；它有曲线就画曲线，没有曲线（仅 Fable、Antigravity）就在右栏画剩余进度条，并且不再显示当前周期那一行，免得进度条被看成当前周期的。
 - 大：所选窗口有曲线时，显示包含它的前两条曲线（当前周期和每周）；没有曲线时显示主数字和进度条。
 - 超大：两列，每列只画所选窗口的曲线。
 - 重置时间：不到一天的窗口改成按小时（“2.4小时”，不到 0.1 小时显示“<0.1小时”），新增文案 `%@h`、`<0.1h` 四语言。
@@ -109,7 +109,7 @@
 | 情况 | 行为 |
 | --- | --- |
 | 237 之前添加、没选服务商的小组件 | 自动选择，和以前完全一样 |
-| 237 之前添加、选了服务商的小组件 | 编辑面板没有“额度窗口”参数（配置结构存死），按 3.1 的默认窗口。Codex、Claude 和以前一样；MiniMax 类改为每周、Antigravity 改为最受限的每周桶 |
+| 237 之前添加、选了服务商的小组件 | 编辑面板没有“额度窗口”参数（配置结构存死），按 3.1 的默认窗口。**正常数据下**（账号每周窗口有用量、未重置）Codex、Claude 和以前一样；MiniMax 类改为每周、Antigravity 改为最受限的每周桶。每周窗口用量未知、被卡住（blocked）或已过期时有变化：以前按 065 跟配速窗口顺序或曲线回退，可能显示 Claude 的 Sonnet/Opus 每周（tertiary）或它的曲线；现在跳过这些模型限定额度，改跟有曲线的账号窗口（每周，其次当前周期），都没有就显示“暂无配速数据”。被卡住的每周窗口仍有剩余百分比时照常跟随它（无配速） |
 | 旧 catalogue（App 还没在新版本里刷新过） | 服务商只给“默认（每周）” |
 | 新窗口出现（例如 Antigravity 新桶） | App 下次同步刷新后写入 catalogue，编辑面板才有 |
 | 改了服务商 | 原窗口选项不属于新服务商（系统不会清空它），静默走默认 |
