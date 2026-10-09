@@ -97,16 +97,13 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
             display: QuotaPaceWindowChoice.defaultTitle)
     }
 
+    /// An unreadable catalogue still offers "Not selected" (Research/072).
     private func provideOptions(
         with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
     {
-        do {
-            let records = try WidgetProviderCatalogue.read()
-            let choices = records.map { StatusWidgetProvider(identifier: $0.id, display: $0.name) }
-            completion(INObjectCollection(items: [self.emptyChoice()] + choices), nil)
-        } catch {
-            completion(nil, error)
-        }
+        let choices = StatusWidgetProviderChoice.choices { try WidgetProviderCatalogue.read() }
+            .map { StatusWidgetProvider(identifier: $0.id, display: $0.name) }
+        completion(INObjectCollection(items: choices), nil)
     }
 
     private func emptyChoice() -> StatusWidgetProvider {

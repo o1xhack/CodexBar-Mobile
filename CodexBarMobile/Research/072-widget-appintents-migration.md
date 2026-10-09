@@ -37,7 +37,7 @@
 - `CodexBarWidgetShared/WidgetActivityProjection.swift`：新 Token 活动 kind。
 - `CodexBarWidgetShared/StatusWidgetConfigurationAdapter.swift`：AppIntent 入口。
 - `CodexBarMobileWidgets/CodexBarWidgets.swift`：新小组件、图库隐藏。
-- `CodexBarMobileWidgets/StatusWidgetTimeline.swift`、`WidgetActivityTimeline.swift`：4 个 `AppIntentTimelineProvider`（DEBUG 日志带 `appintent` / `sirikit` 前缀）。
+- `CodexBarMobileWidgets/StatusWidgetTimeline.swift`、`WidgetActivityTimeline.swift`：4 个 `AppIntentTimelineProvider`。DEBUG 日志统一为 `sirikit <小组件> timeline …` 和 `appintent <小组件> timeline …`（小组件为 status / pace / single / comparison；SiriKit 的 Token 活动另有 `sirikit single snapshot`），实测靠它区分走的是哪条路径。共用的 `Overview configuration count` 不带前缀。第 6 节引用的是统一前缀之前的日志（SiriKit 的 CodexBar 小组件当时是 `status] mode=…`、Token 活动是 `single timeline source: TokenActivitySource(rawValue: N)`）。
 - `CodexBarMobile/Models/WidgetActivityPublisher.swift`：刷新新 kind。
 - `CodexBarWidgetShared/WidgetConfiguration.xcstrings`：编辑面板文案，四语言措辞逐条取自 SiriKit 的 `.strings`（主 `Localizable` 表里同名 key 已被 App 用成另一套译法）。
 - `CodexBarMobileTests/WidgetConfigurationAppIntentsTests.swift`。
@@ -55,18 +55,21 @@
 | `TokenActivityWidgetAppIntent`（`SelectTokenActivity`） | `source` | `TokenActivitySourceAppEnum`（all / claude / codex） | `all` |
 | `TokenActivityComparisonAppIntent`（`CompareTokenActivity`） | `firstSource` / `secondSource` | `TokenActivitySourceAppEnum` | `all` / `claude` |
 
-- 服务商 query：第一项“未选择”（保留 id `codexbar-widget-choice:none`），后面是 App Group catalogue；`defaultResult()` 是“未选择”；catalogue 里没有的 id 仍保留（标题用 id）。
-- 额度窗口 query：`@IntentParameterDependency<QuotaPaceWidgetAppIntent>(\.$provider)` 读当前编辑的服务商，选项与 071 的 `QuotaPaceWindowChoice.options` 完全相同；`defaultResult()` 是“默认（每周）”；`entities(for:)` 按 id 里的服务商前缀取标题，窗口消失时保留 id。
+- 服务商 query：第一项“未选择”（保留 id `codexbar-widget-choice:none`），后面是 App Group catalogue；`defaultResult()` 是“未选择”；catalogue 里没有的 id 仍保留，标题用 id（与 SiriKit 不同：SiriKit 存着当时的显示名，App Intents 只存 id，所以已下线的服务商会显示成 id，渲染仍按 id 取数据）。选项由 `StatusWidgetProviderChoice.choices` 生成，两代小组件共用。
+- 额度窗口 query：`@IntentParameterDependency<QuotaPaceWidgetAppIntent>(\.$provider)` 读当前编辑的服务商，选项与 071 的 `QuotaPaceWindowChoice.options` 完全相同；`defaultResult()` 是“默认（每周）”；`entities(for:)` 先按 id 里的服务商前缀在该服务商的选项里找；选项里没有时（例如只剩一个窗口、它就是默认窗口，选项只给“默认（每周）”），再到 catalogue 的 `record.windows` 里按窗口 id 找，用 `title(preferredLocalizations:)` 作标题；都找不到才用窗口 id。
 - 参数名和 SiriKit 一致（单测核对），只是为了两代小组件配置方式相同，不再用于迁移。
+- **隐藏参数会保留值**：App Intents 版在父参数切走后（例如 CodexBar 从概览切到服务商详情）仍保留服务商 1–4 的值，切回概览时原来的选择还在；SiriKit 版不保存被隐藏的参数（附录 A.1）。渲染不受影响：只有概览和额度消耗趋势读配置的服务商，服务商详情、今日费用、同步状态不读。
+- **catalogue 读不出来时**：新版服务商选项回落为只有“未选择”，额度窗口回落为只有“默认（每周）”。SiriKit 的 `IntentHandler.provideOptions` 原来出错时把错误交给系统（选择器打不开），这次改为同样回落到“未选择”（共用 `StatusWidgetProviderChoice.choices`，单测覆盖的是这个共用函数；`IntentHandler` 只编进 Options 扩展，没有测试 target 能直接调用它）。
 
 ## 5. 单测与 lint
 
 - `WidgetConfigurationAppIntentsTests`（Swift Testing）：
-  - 读 App bundle 里的两份 `.intentdefinition`，核对四个 App Intent 的参数名、类型、枚举 case 与 SiriKit 一致；
-  - **不映射到 SiriKit**：四个类型都不遵循 `CustomIntentMigratedAppIntent`、类型名不等于 SiriKit 类名；再读 App bundle 的 `Metadata.appintents/extract.actionsdata`，确认没有 action id 等于 SiriKit 类名、没有 `customIntentClassName`；
+  - 读 App bundle 里的两份 `.intentdefinition`，核对四个 App Intent 的参数名、类型、枚举 case 与 SiriKit 一致；枚举参数的默认值直接拿 `.intentdefinition` 的 `INIntentParameterMetadataDefaultValue` 和 App Intent `init()` 后的 rawValue 比，不在测试里写死；
+  - **不映射到 SiriKit**：四个类型都不遵循 `CustomIntentMigratedAppIntent`、类型名不等于 SiriKit 类名（iOS 27 起才跑）；另一项不带 `@available`、所有系统都跑：读 App 的 `Metadata.appintents/extract.actionsdata` 和 `PlugIns/CodexBarMobileWidgets.appex/Metadata.appintents/extract.actionsdata`，整份文件里不能出现四个 SiriKit 类名（用 `NSStringFromClass` 取）和 `customIntentClassName`，文件不存在就失败；
   - kind：新旧 8 个 kind 互不相同，SiriKit 的 4 个 kind 保持原值，`WidgetActivityKind.all` 含四个 Token 活动 kind；
-  - 默认值；AppIntent 与 SiriKit 同样输入经 adapter 的结果一致（四种模式 × 两种颜色、去重、空名回落 id、“未选择”、窗口 id）；Token 来源 id；
-  - 两个 query 的选项、默认值、按 id 解析、catalogue 读不出来时的兜底。
+  - 对象参数初始为空、经 query 的 `defaultResult()` 取默认值；AppIntent 与 SiriKit 同样输入经 adapter 的结果一致（四种模式 × 两种颜色、去重、空名回落 id、“未选择”、窗口 id）；Token 来源 id；
+  - 两个 query 的选项、默认值、按 id 解析（含“不再提供的单一默认窗口仍有标题”）、catalogue 读不出来时的兜底；共用的服务商选项函数。
+  - **依赖接线没有单测**：额度窗口选项随服务商变化，单测是用测试注入的服务商 id（`providerIDOverride`）验证选项计算；`@IntentParameterDependency` 本身由系统在编辑面板里注入，只有 SpringBoard 实测证据（第 6 节动态选项）。
   - `@Suite` 不能加 `@available`，所以可用性标在各个 `@Test` 上。
 - 全量 iOS 单测（`-only-testing:CodexBarMobileTests`，iOS 27.0 模拟器，区域 en_US）：Swift Testing 1046 项（64 个 suite）+ XCTest 60 项全部通过（`logs/v2-full.log`、`xcresult/v2-full.xcresult`；开跑时 load average 约 153）。
 - 构建产物检查：App 和小组件扩展的 `Metadata.appintents` 里搜不到四个 SiriKit 类名和 `customIntentClassName`。

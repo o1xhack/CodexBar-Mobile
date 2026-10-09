@@ -62,6 +62,20 @@ enum StatusWidgetProviderChoice {
             localized: "Not selected",
             comment: "An unused provider slot; leaving every slot unused selects providers automatically.")
     }
+
+    struct Choice: Equatable, Sendable {
+        let id: String
+        let name: String
+    }
+
+    /// Provider picker choices for both widget generations: "Not selected"
+    /// first, then the catalogue. An unreadable catalogue still offers
+    /// "Not selected", so the picker never fails.
+    static func choices(reading read: () throws -> [WidgetProviderRecord]) -> [Choice] {
+        let records = (try? read()) ?? []
+        return [Choice(id: self.emptyIdentifier, name: self.emptyTitle)]
+            + records.map { Choice(id: $0.id, name: $0.name) }
+    }
 }
 
 /// Quota pace widget window choices (Research/071). A choice identifier is

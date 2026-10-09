@@ -19,6 +19,8 @@ struct WidgetConfigurationAppIntentsTests {
         let type: String
         let enumType: String?
         let objectType: String?
+        /// `INIntentParameterMetadataDefaultValue` (an enum value name).
+        let defaultValue: String?
     }
 
     private static func definition(_ resource: String) throws -> [String: Any] {
@@ -39,7 +41,10 @@ struct WidgetConfigurationAppIntentsTests {
                 name: name,
                 type: type,
                 enumType: parameter["INIntentParameterEnumType"] as? String,
-                objectType: parameter["INIntentParameterObjectType"] as? String)
+                objectType: parameter["INIntentParameterObjectType"] as? String,
+                defaultValue: (parameter["INIntentParameterMetadata"] as? [String: Any])?[
+                    "INIntentParameterMetadataDefaultValue",
+                ] as? String)
         }
     }
 
@@ -70,15 +75,17 @@ struct WidgetConfigurationAppIntentsTests {
 
     /// Every SiriKit parameter exists on the App Intent under the same name;
     /// Integer enums map to an `AppEnum` whose cases carry the SiriKit value
-    /// names, custom objects to an optional `AppEntity`.
+    /// names and whose default (`enumDefaults`, read from a fresh `init()`)
+    /// is the SiriKit default; custom objects map to an optional `AppEntity`.
     @available(iOS 27.0, *)
     private static func expectParity(
-        intent: String,
-        definition: String,
+        _ siriKit: (intent: String, definition: String),
         appIntent: some AppIntent,
+        enumDefaults: [String: String],
         enumTypes: [String: String],
         entityTypes: [String: String]) throws
     {
+        let (intent, definition) = siriKit
         let siriParameters = try self.parameters(intent: intent, in: self.definition(definition))
         let appParameters = self.appIntentParameters(appIntent)
         #expect(Set(appParameters.keys) == Set(siriParameters.map(\.name)))
@@ -91,6 +98,8 @@ struct WidgetConfigurationAppIntentsTests {
                 #expect(typeName == "IntentParameter<\(appEnum)>", "\(intent).\(parameter.name)")
                 let names = try self.enumValueNames(siriEnum, in: self.definition(definition))
                 #expect(self.enumCases[appEnum] == names, "\(siriEnum) cases")
+                let siriDefault = try #require(parameter.defaultValue, "\(intent).\(parameter.name) default")
+                #expect(enumDefaults[parameter.name] == siriDefault, "\(intent).\(parameter.name) default")
             case "Object":
                 let siriType = try #require(parameter.objectType)
                 let entity = try #require(entityTypes[siriType])
@@ -101,41 +110,50 @@ struct WidgetConfigurationAppIntentsTests {
         }
     }
 
+    private static var sirikitIntentClasses: [String] {
+        [
+            SelectStatusWidgetIntent.self,
+            SelectQuotaPaceWidgetIntent.self,
+            SelectTokenActivityIntent.self,
+            CompareTokenActivityIntent.self,
+        ].map { NSStringFromClass($0) }
+    }
+
     @available(iOS 27.0, *)
-    @Test func `No App Intent maps to a SiriKit intent class`() throws {
+    @Test func `No App Intent type maps to a SiriKit intent class`() {
         let appIntents: [Any.Type] = [
             StatusWidgetAppIntent.self,
             QuotaPaceWidgetAppIntent.self,
             TokenActivityWidgetAppIntent.self,
             TokenActivityComparisonAppIntent.self,
         ]
-        let sirikitClasses = [
-            SelectStatusWidgetIntent.self,
-            SelectQuotaPaceWidgetIntent.self,
-            SelectTokenActivityIntent.self,
-            CompareTokenActivityIntent.self,
-        ].map { NSStringFromClass($0) }
         for type in appIntents {
             #expect(!(type is any CustomIntentMigratedAppIntent.Type), "\(type)")
-            #expect(!sirikitClasses.contains(String(describing: type)), "\(type)")
+            #expect(!Self.sirikitIntentClasses.contains(String(describing: type)), "\(type)")
         }
+    }
 
-        // The App Intents metadata the system reads must not name a SiriKit
-        // intent class either (no `customIntentClassName`, no action id equal
-        // to one).
-        let url = try #require(Bundle.main.url(
-            forResource: "extract",
-            withExtension: "actionsdata",
-            subdirectory: "Metadata.appintents"))
-        let metadata = try #require(
-            JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        let actions = try #require(metadata["actions"] as? [String: [String: Any]])
-        #expect(actions.keys.contains("StatusWidgetAppIntent"))
-        for (identifier, action) in actions {
-            #expect(!sirikitClasses.contains(identifier), "\(identifier)")
-            #expect(
-                action["customIntentClassName"] == nil || action["customIntentClassName"] is NSNull,
-                "\(identifier)")
+    /// Runs on every system (no `@available`): iOS 26 reads this metadata to
+    /// find a migrated App Intent for a SiriKit widget, so neither the app's
+    /// nor the widget extension's App Intents metadata may name a SiriKit
+    /// intent class or carry `customIntentClassName`. A missing file fails.
+    @Test func `App Intents metadata never names a SiriKit intent class`() throws {
+        let app = Bundle.main.bundleURL
+        let plugIns = try #require(Bundle.main.builtInPlugInsURL)
+        let files = [
+            app.appendingPathComponent("Metadata.appintents/extract.actionsdata"),
+            plugIns.appendingPathComponent("CodexBarMobileWidgets.appex/Metadata.appintents/extract.actionsdata"),
+        ]
+        let forbidden = Self.sirikitIntentClasses + ["customIntentClassName"]
+        #expect(forbidden.count == 5)
+        for file in files {
+            let text = try String(contentsOf: file, encoding: .utf8)
+            // The file is the App Intents metadata we expect, not an empty stub.
+            #expect(text.contains("StatusWidgetAppIntent"), "\(file.path)")
+            #expect(text.contains("QuotaPaceWidgetAppIntent"), "\(file.path)")
+            for name in forbidden {
+                #expect(!text.contains(name), "\(name) in \(file.path)")
+            }
         }
     }
 
@@ -170,10 +188,11 @@ struct WidgetConfigurationAppIntentsTests {
 
     @available(iOS 27.0, *)
     @Test func `Status widget parameters mirror the SiriKit definition`() throws {
+        let status = StatusWidgetAppIntent()
         try Self.expectParity(
-            intent: "SelectStatusWidget",
-            definition: "WidgetStatus",
-            appIntent: StatusWidgetAppIntent(),
+            (intent: "SelectStatusWidget", definition: "WidgetStatus"),
+            appIntent: status,
+            enumDefaults: ["mode": status.mode.rawValue, "colorStyle": status.colorStyle.rawValue],
             enumTypes: [
                 "StatusWidgetMode": "StatusWidgetModeAppEnum",
                 "StatusWidgetColorStyle": "StatusWidgetColorStyleAppEnum",
@@ -183,10 +202,11 @@ struct WidgetConfigurationAppIntentsTests {
 
     @available(iOS 27.0, *)
     @Test func `Quota pace widget parameters mirror the SiriKit definition`() throws {
+        let pace = QuotaPaceWidgetAppIntent()
         try Self.expectParity(
-            intent: "SelectQuotaPaceWidget",
-            definition: "WidgetStatus",
-            appIntent: QuotaPaceWidgetAppIntent(),
+            (intent: "SelectQuotaPaceWidget", definition: "WidgetStatus"),
+            appIntent: pace,
+            enumDefaults: ["colorStyle": pace.colorStyle.rawValue],
             enumTypes: ["StatusWidgetColorStyle": "StatusWidgetColorStyleAppEnum"],
             entityTypes: [
                 "StatusWidgetProvider": "StatusWidgetProviderAppEntity",
@@ -196,34 +216,36 @@ struct WidgetConfigurationAppIntentsTests {
 
     @available(iOS 27.0, *)
     @Test func `Token Activity widget parameters mirror the SiriKit definitions`() throws {
+        let single = TokenActivityWidgetAppIntent()
+        let comparison = TokenActivityComparisonAppIntent()
         try Self.expectParity(
-            intent: "SelectTokenActivity",
-            definition: "WidgetActivity",
-            appIntent: TokenActivityWidgetAppIntent(),
+            (intent: "SelectTokenActivity", definition: "WidgetActivity"),
+            appIntent: single,
+            enumDefaults: ["source": single.source.rawValue],
             enumTypes: ["TokenActivitySource": "TokenActivitySourceAppEnum"],
             entityTypes: [:])
         try Self.expectParity(
-            intent: "CompareTokenActivity",
-            definition: "WidgetActivity",
-            appIntent: TokenActivityComparisonAppIntent(),
+            (intent: "CompareTokenActivity", definition: "WidgetActivity"),
+            appIntent: comparison,
+            enumDefaults: [
+                "firstSource": comparison.firstSource.rawValue,
+                "secondSource": comparison.secondSource.rawValue,
+            ],
             enumTypes: ["TokenActivitySource": "TokenActivitySourceAppEnum"],
             entityTypes: [:])
     }
 
     @available(iOS 27.0, *)
-    @Test func `Defaults match the SiriKit defaults`() {
+    @Test func `Object parameters start unset and resolve through their query defaults`() async {
         let status = StatusWidgetAppIntent()
-        #expect(status.mode == .overview)
-        #expect(status.colorStyle == .mono)
-        #expect(status.provider1 == nil)
+        #expect([status.provider1, status.provider2, status.provider3, status.provider4].allSatisfy { $0 == nil })
         let pace = QuotaPaceWidgetAppIntent()
-        #expect(pace.colorStyle == .mono)
         #expect(pace.provider == nil)
         #expect(pace.quotaWindow == nil)
-        #expect(TokenActivityWidgetAppIntent().source == .all)
-        let comparison = TokenActivityComparisonAppIntent()
-        #expect(comparison.firstSource == .all)
-        #expect(comparison.secondSource == .claude)
+        #expect(await StatusWidgetProviderAppEntityQuery().defaultResult()?.id == StatusWidgetProviderChoice
+            .emptyIdentifier)
+        #expect(await QuotaPaceWindowOptionAppEntityQuery().defaultResult()?.id == QuotaPaceWindowChoice
+            .defaultIdentifier)
     }
 
     // MARK: Conversion to the rendering configuration
@@ -337,7 +359,6 @@ struct WidgetConfigurationAppIntentsTests {
         return url
     }
 
-    @available(iOS 27.0, *)
     private static let catalogue: [WidgetProviderRecord] = [
         WidgetProviderRecord(
             id: "claude",
@@ -422,6 +443,31 @@ struct WidgetConfigurationAppIntentsTests {
                 .suggestedEntities()
             #expect(options.map(\.id) == [QuotaPaceWindowChoice.defaultIdentifier])
         }
+    }
+
+    @available(iOS 27.0, *)
+    @Test func `A chosen window no longer offered keeps its catalogue title`() async throws {
+        // Codex's single weekly window is its default, so the picker only
+        // offers "Default (Weekly)"; a widget that chose the window when it
+        // was still listed must still show its name, not its id.
+        let url = try Self.catalogueURL(Self.catalogue)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let resolved = try await QuotaPaceWindowOptionAppEntityQuery(providerID: nil, catalogueURL: url)
+            .entities(for: ["codex|secondary"])
+        #expect(resolved.map(\.id) == ["codex|secondary"])
+        #expect(resolved.map(\.displayString) == ["Weekly"])
+        #expect(resolved.first?.subtitle != nil)
+    }
+
+    @Test func `Provider choices list Not selected first and survive an unreadable catalogue`() {
+        struct Unreadable: Error {}
+        let fallback = StatusWidgetProviderChoice.choices { throw Unreadable() }
+        #expect(fallback == [.init(
+            id: StatusWidgetProviderChoice.emptyIdentifier,
+            name: StatusWidgetProviderChoice.emptyTitle)])
+        let listed = StatusWidgetProviderChoice.choices { Self.catalogue }
+        #expect(listed.map(\.id) == [StatusWidgetProviderChoice.emptyIdentifier, "claude", "codex"])
+        #expect(listed.map(\.name).dropFirst() == ["Claude", "Codex"])
     }
 
     @available(iOS 27.0, *)

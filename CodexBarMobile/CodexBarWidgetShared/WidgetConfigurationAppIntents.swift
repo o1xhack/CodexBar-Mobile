@@ -147,17 +147,20 @@ struct StatusWidgetProviderAppEntityQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [StatusWidgetProviderAppEntity] {
-        [.notSelected] + self.catalogue().map { StatusWidgetProviderAppEntity(id: $0.id, displayString: $0.name) }
+        StatusWidgetProviderChoice.choices { try self.readCatalogue() }
+            .map { StatusWidgetProviderAppEntity(id: $0.id, displayString: $0.name) }
     }
 
     func defaultResult() async -> StatusWidgetProviderAppEntity? {
         .notSelected
     }
 
+    private func readCatalogue() throws -> [WidgetProviderRecord] {
+        try self.catalogueURL.map { try WidgetProviderCatalogue.read(from: $0) } ?? WidgetProviderCatalogue.read()
+    }
+
     private func catalogue() -> [WidgetProviderRecord] {
-        // An unreadable catalogue still offers "Not selected".
-        (try? self.catalogueURL.map { try WidgetProviderCatalogue.read(from: $0) } ?? WidgetProviderCatalogue.read())
-            ?? []
+        (try? self.readCatalogue()) ?? []
     }
 }
 
@@ -223,13 +226,28 @@ struct QuotaPaceWindowOptionAppEntityQuery: EntityQuery {
         let catalogue = self.catalogue()
         return identifiers.map { id in
             if id == QuotaPaceWindowChoice.defaultIdentifier { return .defaultWindow }
-            // A choice is `<providerID>|<windowID>`: title it from its own
-            // provider's options; a window that is gone keeps its id (the
-            // widget then follows the default, Research/071).
-            let providerID = id.split(separator: "|", maxSplits: 1).first.map(String.init)
-            let option = self.options(providerID: providerID, catalogue: catalogue).first { $0.identifier == id }
-            return option.map(QuotaPaceWindowOptionAppEntity.init)
-                ?? QuotaPaceWindowOptionAppEntity(id: id, displayString: Self.fallbackTitle(for: id))
+            // A choice is `<providerID>|<windowID>`: title it like its own
+            // provider's picker option; a window no longer offered there
+            // (e.g. a single window that is now the default) takes its
+            // catalogue title; a window that is gone keeps its id. The widget
+            // then follows the default (Research/071).
+            let parts = id.split(separator: "|", maxSplits: 1).map(String.init)
+            let providerID = parts.first
+            if let option = self.options(providerID: providerID, catalogue: catalogue)
+                .first(where: { $0.identifier == id })
+            {
+                return QuotaPaceWindowOptionAppEntity(option)
+            }
+            if parts.count == 2,
+               let window = catalogue.first(where: { $0.id == providerID })?.windows?
+                   .first(where: { $0.id == parts[1] })
+            {
+                return QuotaPaceWindowOptionAppEntity(
+                    id: id,
+                    displayString: window.title(preferredLocalizations: Bundle.main.preferredLocalizations),
+                    subtitle: window.windowMinutes.flatMap(QuotaPaceWindowChoice.durationText))
+            }
+            return QuotaPaceWindowOptionAppEntity(id: id, displayString: Self.fallbackTitle(for: id))
         }
     }
 

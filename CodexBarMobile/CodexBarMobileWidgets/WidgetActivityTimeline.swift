@@ -43,7 +43,8 @@ struct WidgetActivitySingleProvider: IntentTimelineProvider {
 
     func getSnapshot(for configuration: SelectTokenActivityIntent, in context: Context, completion: @escaping (WidgetActivityEntry) -> Void) {
         #if DEBUG
-        widgetActivityLogger.notice("single snapshot source: \(String(describing: configuration.source), privacy: .public)")
+        widgetActivityLogger.notice(
+            "sirikit single snapshot source: \(configuration.source.rawValue, privacy: .public)")
         #endif
         completion(WidgetActivityTimeline.entry(
             sourceIDs: [WidgetActivityTimeline.sourceID(configuration.source)],
@@ -52,7 +53,8 @@ struct WidgetActivitySingleProvider: IntentTimelineProvider {
 
     func getTimeline(for configuration: SelectTokenActivityIntent, in _: Context, completion: @escaping (Timeline<WidgetActivityEntry>) -> Void) {
         #if DEBUG
-        widgetActivityLogger.notice("single timeline source: \(String(describing: configuration.source), privacy: .public)")
+        widgetActivityLogger.notice(
+            "sirikit single timeline source: \(configuration.source.rawValue, privacy: .public)")
         #endif
         completion(WidgetActivityTimeline.timeline(sourceIDs: [WidgetActivityTimeline.sourceID(configuration.source)]))
     }

@@ -29,7 +29,7 @@ struct CodexBarStatusTimelineProvider: IntentTimelineProvider {
         Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "status")
             .notice(
                 """
-                mode=\(configuration.mode.rawValue, privacy: .public), \
+                sirikit status timeline mode=\(configuration.mode.rawValue, privacy: .public), \
                 style=\(configuration.colorStyle.rawValue, privacy: .public), \
                 providerIDs=\(providerIDs, privacy: .public)
                 """)
@@ -108,7 +108,7 @@ struct StatusAppIntentTimelineProvider: AppIntentTimelineProvider {
         let providerIDs = (configuration.providers ?? []).map(\.id).joined(separator: ",")
         appIntentTimelineLogger.notice(
             """
-            status timeline mode=\(configuration.mode.rawValue, privacy: .public), \
+            appintent status timeline mode=\(configuration.mode.rawValue, privacy: .public), \
             style=\(configuration.colorStyle.rawValue, privacy: .public), \
             providerIDs=\(providerIDs, privacy: .public)
             """)
@@ -138,7 +138,7 @@ struct QuotaPaceAppIntentTimelineProvider: AppIntentTimelineProvider {
         let providerIDs = (configuration.providers ?? []).map(\.id).joined(separator: ",")
         appIntentTimelineLogger.notice(
             """
-            pace timeline style=\(configuration.colorStyle.rawValue, privacy: .public), \
+            appintent pace timeline style=\(configuration.colorStyle.rawValue, privacy: .public), \
             providerIDs=\(providerIDs, privacy: .public), \
             window=\(windowChoice ?? "default", privacy: .public)
             """)

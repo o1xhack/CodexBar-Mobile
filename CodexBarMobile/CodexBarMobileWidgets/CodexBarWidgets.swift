@@ -166,7 +166,8 @@ struct CodexBarTokenActivitySingleAppIntentWidget: Widget {
             WidgetActivityView(entry: entry)
         }
         .configurationDisplayName("Token Activity")
-        .description("Tap the current source once, then choose All, Claude Code, or Codex.")
+        // The App Intents editor shows the source as a pop-up menu.
+        .description("Choose the token history to show.")
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()
     }

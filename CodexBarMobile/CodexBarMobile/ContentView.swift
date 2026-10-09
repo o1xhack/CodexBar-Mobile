@@ -4971,7 +4971,9 @@ private enum MobileReleaseNotesCatalog {
                     String(
                         localized: "Choose which quota the Quota pace widget follows, such as Session, Weekly, or a model-only limit. Weekly is the default; widgets added before this update need to be added again to show this option."),
                     String(
-                        localized: "On iOS 27 or later, the CodexBar widgets in the widget gallery are new versions: add them once more, and options added in later updates will appear in them without adding them again. Widgets you have already placed keep working."),
+                        localized: "On iOS 27 or later, four widgets in the widget gallery are new versions: CodexBar Widget, Quota pace, Token Activity, and Token Activity Comparison."),
+                    String(
+                        localized: "Widgets you have already placed keep working. To use the new versions, add them again from the widget gallery; options added to them later will usually appear in widgets you have already added."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(
