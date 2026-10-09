@@ -119,8 +119,9 @@ enum WidgetActivityPublisher {
     private static func publish(_ projection: WidgetActivityProjection) {
         do {
             try WidgetActivityStore.write(projection)
-            WidgetCenter.shared.reloadTimelines(ofKind: WidgetActivityKind.single)
-            WidgetCenter.shared.reloadTimelines(ofKind: WidgetActivityKind.comparison)
+            for kind in WidgetActivityKind.all {
+                WidgetCenter.shared.reloadTimelines(ofKind: kind)
+            }
         } catch {
             print("[CodexBar Widget] Token Activity projection unavailable: \(error)")
         }

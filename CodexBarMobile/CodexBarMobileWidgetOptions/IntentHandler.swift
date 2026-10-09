@@ -75,8 +75,8 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
             let options = QuotaPaceWindowChoice.options(
                 for: record,
                 preferredLocalizations: Bundle.main.preferredLocalizations,
-                defaultTitle: Self.defaultWindowTitle,
-                durationText: Self.durationText)
+                defaultTitle: QuotaPaceWindowChoice.defaultTitle,
+                durationText: QuotaPaceWindowChoice.durationText)
             let items = options.map { option in
                 QuotaPaceWindowOption(
                     identifier: option.identifier,
@@ -94,42 +94,21 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
     private func defaultWindowChoice() -> QuotaPaceWindowOption {
         QuotaPaceWindowOption(
             identifier: QuotaPaceWindowChoice.defaultIdentifier,
-            display: Self.defaultWindowTitle)
+            display: QuotaPaceWindowChoice.defaultTitle)
     }
 
-    private static var defaultWindowTitle: String {
-        String(
-            localized: "Default (Weekly)",
-            comment: "Quota pace widget window choice that follows the weekly quota when the provider has one.")
-    }
-
-    /// Window length such as "7 days" or "5 hours", localized by the system.
-    private static func durationText(minutes: Int) -> String? {
-        guard minutes > 0 else { return nil }
-        let formatter = DateComponentsFormatter()
-        formatter.unitsStyle = .full
-        formatter.maximumUnitCount = 1
-        formatter.allowedUnits = minutes % 1440 == 0 ? [.day] : minutes % 60 == 0 ? [.hour] : [.minute]
-        return formatter.string(from: TimeInterval(minutes * 60))
-    }
-
+    /// An unreadable catalogue still offers "Not selected" (Research/072).
     private func provideOptions(
         with completion: @escaping (INObjectCollection<StatusWidgetProvider>?, Error?) -> Void)
     {
-        do {
-            let records = try WidgetProviderCatalogue.read()
-            let choices = records.map { StatusWidgetProvider(identifier: $0.id, display: $0.name) }
-            completion(INObjectCollection(items: [self.emptyChoice()] + choices), nil)
-        } catch {
-            completion(nil, error)
-        }
+        let choices = StatusWidgetProviderChoice.choices { try WidgetProviderCatalogue.read() }
+            .map { StatusWidgetProvider(identifier: $0.id, display: $0.name) }
+        completion(INObjectCollection(items: choices), nil)
     }
 
     private func emptyChoice() -> StatusWidgetProvider {
         StatusWidgetProvider(
             identifier: StatusWidgetProviderChoice.emptyIdentifier,
-            display: String(
-                localized: "Not selected",
-                comment: "An unused provider slot; leaving every slot unused selects providers automatically."))
+            display: StatusWidgetProviderChoice.emptyTitle)
     }
 }
