@@ -1,3 +1,4 @@
+import AppIntents
 import Intents
 import SwiftUI
 import WidgetKit
@@ -10,10 +11,38 @@ struct CodexBarWidgetsBundle: WidgetBundle {
         CodexBarStatusWidget()
         CodexBarQuotaPaceWidget()
         CodexBarLegacyStatusWidget()
+        // Research/072: from iOS 27 the gallery offers App Intents versions
+        // under new kinds; placed SiriKit widgets keep working.
+        if #available(iOS 27.0, *) {
+            CodexBarTokenActivitySingleAppIntentWidget()
+        }
+        if #available(iOS 27.0, *) {
+            CodexBarTokenActivityComparisonAppIntentWidget()
+        }
+        if #available(iOS 27.0, *) {
+            CodexBarStatusAppIntentWidget()
+        }
+        if #available(iOS 27.0, *) {
+            CodexBarQuotaPaceAppIntentWidget()
+        }
     }
 }
 
+/// Where the SiriKit widgets are hidden from the gallery: nowhere before
+/// iOS 27, and every location from iOS 27, where their App Intents versions
+/// take their place (Research/072). Placed widgets are not affected.
+enum SiriKitWidgetGallery {
+    static var disfavoredLocations: [WidgetLocation] {
+        guard #available(iOS 27.0, *) else { return [] }
+        return [.homeScreen, .lockScreen, .standBy, .iPhoneWidgetsOnMac, .carPlay]
+    }
+}
+
+// MARK: - SiriKit widgets (every system)
+
 struct CodexBarTokenActivitySingleWidget: Widget {
+    private static let families: [WidgetFamily] = [.systemSmall, .systemMedium]
+
     var body: some WidgetConfiguration {
         IntentConfiguration(
             kind: WidgetActivityKind.single,
@@ -24,12 +53,15 @@ struct CodexBarTokenActivitySingleWidget: Widget {
         }
         .configurationDisplayName("Token Activity")
         .description("Tap the current source once, then choose All, Claude Code, or Codex.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies(Self.families)
+        .disfavoredLocations(SiriKitWidgetGallery.disfavoredLocations, for: Self.families)
         .contentMarginsDisabled()
     }
 }
 
 struct CodexBarTokenActivityComparisonWidget: Widget {
+    private static let families: [WidgetFamily] = [.systemLarge, .systemExtraLarge]
+
     var body: some WidgetConfiguration {
         IntentConfiguration(
             kind: WidgetActivityKind.comparison,
@@ -40,7 +72,8 @@ struct CodexBarTokenActivityComparisonWidget: Widget {
         }
         .configurationDisplayName("Token Activity Comparison")
         .description("Compare daily token activity from two sources.")
-        .supportedFamilies([.systemLarge, .systemExtraLarge])
+        .supportedFamilies(Self.families)
+        .disfavoredLocations(SiriKitWidgetGallery.disfavoredLocations, for: Self.families)
         .contentMarginsDisabled()
     }
 }
@@ -83,11 +116,86 @@ struct CodexBarLegacyStatusWidget: Widget {
 }
 
 struct CodexBarStatusWidget: Widget {
+    private static let families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge]
+
     var body: some WidgetConfiguration {
         IntentConfiguration(
-            kind: "CodexBarStatusWidgetV2",
+            kind: WidgetKinds.status,
             intent: SelectStatusWidgetIntent.self,
             provider: CodexBarStatusTimelineProvider())
+        { entry in
+            CodexBarWidgetView(entry: entry)
+        }
+        .configurationDisplayName("CodexBar Widget")
+        .description("View synced provider usage, cost, and sync health.")
+        .supportedFamilies(Self.families)
+        .disfavoredLocations(SiriKitWidgetGallery.disfavoredLocations, for: Self.families)
+        .contentMarginsDisabled()
+    }
+}
+
+struct CodexBarQuotaPaceWidget: Widget {
+    private static let families: [WidgetFamily] = [.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge]
+
+    var body: some WidgetConfiguration {
+        IntentConfiguration(
+            kind: WidgetKinds.quotaPace,
+            intent: SelectQuotaPaceWidgetIntent.self,
+            provider: QuotaPaceTimelineProvider())
+        { entry in
+            CodexBarWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Quota pace")
+        .description("See whether a provider's quota lasts until it resets.")
+        .supportedFamilies(Self.families)
+        .disfavoredLocations(SiriKitWidgetGallery.disfavoredLocations, for: Self.families)
+        .contentMarginsDisabled()
+    }
+}
+
+// MARK: - App Intents widgets (iOS 27 and later, Research/072)
+
+@available(iOS 27.0, *)
+struct CodexBarTokenActivitySingleAppIntentWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: WidgetActivityKind.singleAppIntent,
+            intent: TokenActivityWidgetAppIntent.self,
+            provider: WidgetActivitySingleAppIntentProvider())
+        { entry in
+            WidgetActivityView(entry: entry)
+        }
+        .configurationDisplayName("Token Activity")
+        .description("Tap the current source once, then choose All, Claude Code, or Codex.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
+    }
+}
+
+@available(iOS 27.0, *)
+struct CodexBarTokenActivityComparisonAppIntentWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: WidgetActivityKind.comparisonAppIntent,
+            intent: TokenActivityComparisonAppIntent.self,
+            provider: WidgetActivityComparisonAppIntentProvider())
+        { entry in
+            WidgetActivityView(entry: entry)
+        }
+        .configurationDisplayName("Token Activity Comparison")
+        .description("Compare daily token activity from two sources.")
+        .supportedFamilies([.systemLarge, .systemExtraLarge])
+        .contentMarginsDisabled()
+    }
+}
+
+@available(iOS 27.0, *)
+struct CodexBarStatusAppIntentWidget: Widget {
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(
+            kind: WidgetKinds.statusAppIntent,
+            intent: StatusWidgetAppIntent.self,
+            provider: StatusAppIntentTimelineProvider())
         { entry in
             CodexBarWidgetView(entry: entry)
         }
@@ -98,12 +206,13 @@ struct CodexBarStatusWidget: Widget {
     }
 }
 
-struct CodexBarQuotaPaceWidget: Widget {
+@available(iOS 27.0, *)
+struct CodexBarQuotaPaceAppIntentWidget: Widget {
     var body: some WidgetConfiguration {
-        IntentConfiguration(
-            kind: "CodexBarQuotaPaceWidget",
-            intent: SelectQuotaPaceWidgetIntent.self,
-            provider: QuotaPaceTimelineProvider())
+        AppIntentConfiguration(
+            kind: WidgetKinds.quotaPaceAppIntent,
+            intent: QuotaPaceWidgetAppIntent.self,
+            provider: QuotaPaceAppIntentTimelineProvider())
         { entry in
             CodexBarWidgetView(entry: entry)
         }

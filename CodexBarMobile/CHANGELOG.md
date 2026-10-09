@@ -2,6 +2,14 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [2.6.0 (239)] — App Intents widgets on iOS 27
+
+### Added
+- iOS 27 and later: App Intents versions of the four configurable widgets under new kinds (`CodexBarStatusWidgetAppIntent`, `CodexBarQuotaPaceWidgetAppIntent`, `CodexBarTokenActivitySingleAppIntent`, `CodexBarTokenActivityComparisonAppIntent`), added to the bundle with `if #available(iOS 27.0, *)` and using `AppIntentConfiguration` + `AppIntentTimelineProvider` only (Research 072). Their `WidgetConfigurationIntent`s mirror the SiriKit parameters (CodexBar: type, color style, provider 1–4 shown only for the overview; Quota pace: color style, provider, quota window shown with a provider; Token Activity: source; comparison: two sources) with the same defaults. Provider options list "Not selected" (`codexbar-widget-choice:none`) first and default to it; quota window options follow the edited provider through `@IntentParameterDependency` and default to "Default (Weekly)". Configurations convert through `StatusWidgetConfigurationAdapter` into the existing renderer. Edit-panel labels come from a new `WidgetConfiguration` string table with the SiriKit wording in all four languages. App Intents widgets keep their configuration across updates, and parameters added later appear on widgets already placed.
+
+### Changed
+- The SiriKit widgets (`IntentConfiguration`, original kinds) keep working on every system; from iOS 27 they are hidden from the widget gallery with `.disfavoredLocations`, so the gallery offers only the App Intents versions there. Before iOS 27 the gallery is unchanged. No `CustomIntentMigratedAppIntent` and no App Intent named after a SiriKit intent class: with one, iOS 26 edits the SiriKit widgets through the App Intent and they stop rendering, and `AppIntentConfiguration` cannot be used before iOS 27 (FB23176939). Token Activity reloads all four Token Activity kinds.
+
 ## [2.6.0 (238)] — Quota pace window picker
 
 ### Added

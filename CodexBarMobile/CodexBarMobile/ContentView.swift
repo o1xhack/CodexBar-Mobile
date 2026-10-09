@@ -4970,6 +4970,8 @@ private enum MobileReleaseNotesCatalog {
                         localized: "Local history keeps your saved costs when a Mac briefly can't report an account or can't price a day, instead of erasing them or showing zero."),
                     String(
                         localized: "Choose which quota the Quota pace widget follows, such as Session, Weekly, or a model-only limit. Weekly is the default; widgets added before this update need to be added again to show this option."),
+                    String(
+                        localized: "On iOS 27 or later, the CodexBar widgets in the widget gallery are new versions: add them once more, and options added in later updates will appear in them without adding them again. Widgets you have already placed keep working."),
                 ]),
                 .init(title: String(localized: "Required Mac version"), items: [
                     String(

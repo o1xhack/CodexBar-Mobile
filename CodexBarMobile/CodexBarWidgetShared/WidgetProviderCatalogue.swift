@@ -55,6 +55,13 @@ struct WidgetProviderRecord: Codable, Hashable, Sendable {
 /// A configuration-only empty slot; never persisted in the provider catalogue.
 enum StatusWidgetProviderChoice {
     static let emptyIdentifier = "codexbar-widget-choice:none"
+
+    /// Title of the unused slot, resolved in the calling extension's bundle.
+    static var emptyTitle: String {
+        String(
+            localized: "Not selected",
+            comment: "An unused provider slot; leaving every slot unused selects providers automatically.")
+    }
 }
 
 /// Quota pace widget window choices (Research/071). A choice identifier is
@@ -68,6 +75,23 @@ enum QuotaPaceWindowChoice {
         let identifier: String
         let title: String
         let subtitle: String?
+    }
+
+    /// Title of the default choice, resolved in the calling extension's bundle.
+    static var defaultTitle: String {
+        String(
+            localized: "Default (Weekly)",
+            comment: "Quota pace widget window choice that follows the weekly quota when the provider has one.")
+    }
+
+    /// Window length such as "7 days" or "5 hours", localized by the system.
+    static func durationText(minutes: Int) -> String? {
+        guard minutes > 0 else { return nil }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        formatter.allowedUnits = minutes % 1440 == 0 ? [.day] : minutes % 60 == 0 ? [.hour] : [.minute]
+        return formatter.string(from: TimeInterval(minutes * 60))
     }
 
     static func identifier(providerID: String, windowID: String) -> String {

@@ -2,8 +2,15 @@ import Foundation
 import WidgetKit
 
 enum WidgetActivityKind {
+    /// SiriKit-configured widgets: every system; in the gallery before iOS 27.
     static let single = "CodexBarTokenActivitySingleV2"
     static let comparison = "CodexBarTokenActivityComparisonV2"
+    /// App Intents widgets, iOS 27 and later (Research/072). Stable: a kind
+    /// change drops every placed widget.
+    static let singleAppIntent = "CodexBarTokenActivitySingleAppIntent"
+    static let comparisonAppIntent = "CodexBarTokenActivityComparisonAppIntent"
+
+    static let all = [single, comparison, singleAppIntent, comparisonAppIntent]
 }
 
 struct WidgetActivityEntry: TimelineEntry {
