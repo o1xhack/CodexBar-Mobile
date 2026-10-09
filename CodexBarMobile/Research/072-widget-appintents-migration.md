@@ -167,3 +167,13 @@
 - 再试一个只用于实验的变体（`src-all/`，build 241，不提交）：所有系统都用 `AppIntentConfiguration`。iOS 26.5 上新添加额度小组件，编辑为彩色 / Claude 后，timeline 收到的是 `style=mono, providerIDs=, window=default`，即 FB23176939；而且额度窗口在 iOS 26.5 上只给“默认（每周）”（`@IntentParameterDependency` 没有拿到服务商）。证据 `runs/ios26-allappintents/`。
 - 加 `@available` 的构建上只改颜色也一样：保存后 `No intent in timeline(for:with:completion:)`（`10-239b-*`、`11-239b-*`）。
 - 结论：**只要扩展里有 `CustomIntentMigratedAppIntent` 指向这些 SiriKit 类，iOS 26.5 的编辑就会改走 App Intents**，而 iOS 26 上 App Intents 小组件又受 FB23176939 影响。“iOS 26 保留 SiriKit、行为完全不变”在同一个二进制里做不到（元数据是静态的，iOS 26 不按可用性过滤）。真机 iOS 26 未验证。
+
+## TestFlight（2026-10-09）
+
+- PR #188 两轮 Codex review：第一轮 1 条 P2（本文状态）已修；第二轮 “Didn't find any major issues”。门禁 rounds=2、unresolved=0，`--match-head-commit` 合并为 `f74ecaf0d`。
+- 合并前在最终 head `a53416edb` 上跑完整 iOS 单测：Swift Testing 1,049 项、XCTest 60 项全部通过。合并后源码（detached worktree `ios239-src`）完整 lint 和 i18n 审计通过。
+- iOS 2.6.0 (239) 已上传，ASC build id `b93da15e-3106-4d45-a0c4-1c8f3684488e`，状态 `VALID`，内测 `IN_BETA_TESTING`。
+- 图标验收：
+  - 归档里的 `AppIcon60x60@2x.png` 与 238 逐字节相同；
+  - Apple CDN 图标为 152×152，目视正确。
+- 仍待用户在 iOS 27.2 真机上验证：从小组件库添加新版小组件，在抖动状态下配置后点“完成”，确认配置保留。
