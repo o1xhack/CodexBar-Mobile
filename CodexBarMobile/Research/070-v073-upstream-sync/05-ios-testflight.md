@@ -1,6 +1,6 @@
 # iOS 2.6.0 (237 / 238) TestFlight
 
-Status: `in-progress`（待用户真机验证后再送审）
+Status: `done`（2.6.0 (239) 已送审，WAITING_FOR_REVIEW）
 Date: 2026-10-08
 
 ## 构建
@@ -31,3 +31,10 @@ Date: 2026-10-08
   - 同步时间；
   - 小组件窗口选择。
 - 两台 Mac 都升级到 0.73.0.1 后，用 Air 备份（`diag-236/air`）和新的手机 DB 拷贝核对账本。写回前先把对账表给用户确认。
+
+## 送审（2026-10-10）
+
+- 用户确认后，2.6.0 改绑到 239（`b93da15e-3106-4d45-a0c4-1c8f3684488e`）。239 包含 237 和 238 的全部修复，另含 Research 072 的 iOS 27 App Intents 小组件；构建工具为 Xcode 27.0 正式版（27A266a），SDK 为 iphoneos27.0。
+- 四语言 whatsNew 从 `AppStoreMetadata/2.6.0` 同步，每种语言都已回读核对一致；审核备注从 `review_notes.txt` 同步。
+- 审核提交 `97058a23-b2b2-4bcb-b660-4ab2ce254363`：`WAITING_FOR_REVIEW`，发布方式 `MANUAL`，审核通过后需手动发布。
+- 已知系统问题，不阻塞送审：iOS 27.2 beta 上，在叠放编辑界面里新加的小组件，在同一次编辑中做的配置会丢失。苹果自带小组件同样会丢，在模拟器上可复现；绕开办法是先退出编辑，再重新配置。证据在 `BuildScratch/CodexBar/widget-config-diag/ios272-done/`。
