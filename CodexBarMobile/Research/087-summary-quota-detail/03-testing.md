@@ -1,6 +1,6 @@
 # 3.2.0 (257) 验证与发布记录
 
-状态：in-progress；尚未上传或声明完成。
+状态：done；3.2.0 (257) 已上传且 Internal 可安装。
 
 ## 输入与范围
 
@@ -61,8 +61,18 @@ UIKit 方向感知 pan 修复后，真实 Air 已验证：从图表内纵向拖�
 
 `ios26-accessibility-fields-final.xcresult`：实际执行 1 项，0 失败，耗时 667.942 秒。全部历史读数字段、五张当前账户卡字段、精确账户跳转及返回和底部说明均通过；与已通过的日文 XXXL、隐私测试一起完成大字/本地化验证。
 
-## 待验收
+## 远端审查与合并
 
+PR #216 的 head `237ef4e46a83bcbc154ca25b6f864279d3e1cacf` 已完成手动请求及转 ready 自动触发的两次 Codex 审查，均无发现。零 review threads；PR Fast Checks 通过；合并前运行 gate 通过。2026-10-24 20:15:33 UTC 合并至 `8eb8b2060d362a090ca0259bb6034ba4c3a002fd`，Final CI 40128974413 通过。归档来源为该 merge commit，发布输入与 reviewed head 完全一致。
 
-- 当前 head 远端 CR、所有 threads、CI 和合并 gate。
-- 已审查源码归档、Production entitlement、IPA 与图标证据、ASC VALID、四语 What to Test 与 Internal 访问回读。
+## 最终验证边界
+
+最大 AX 实际检查 16 个历史叶文本、35 个当前字段及完整 footer；坐标轴视觉日期不重叠，完整朗读保留。既有 ProviderDetail 在最大 AX 下 Session/Weekly 标签折行较紧，未据本次 quota detail 验收宣称整 App 最大字号无任何问题。未执行完整物理 2 Mac × 2 iPhone 版本矩阵；此次不改共享 payload、历史持久化或 CloudKit schema，以全量模型/同步回归和真实 Air Production 历史验收为边界。
+
+## TestFlight 发布回读
+
+- Archive / Export 成功，五个 target 均为 3.2.0 (257)。分发包使用 Apple Distribution 签名，get-task-allow=false，三个 CloudKit entitlement 为 Production，主 App 推送为 production。
+- IPA SHA-256：`2ca561daa0f09aa1becf9c087be53543a7a3446bbd6164210cb9eb3ec5ab566f`。
+- 上传已提交；CLI 在等待 build 出现阶段超时，随后回读同一上传，未重复上传。ASC build `320313d6-fd18-46a7-bd59-7adf32239f91` 为 VALID / IN_BETA_TESTING，Internal 组 hasAccessToAllBuilds 已验证。
+- 四语 What to Test 写入后逐字回读一致，包含 3.2 大更新和本轮详情交互。源码、编译 AppIcon 与 Apple 返回的图标单独留存；不发布 Mac 或 App Store 正式版。
+- 完整来源与测试证据在独立目录 provenance.json；此文档收尾不改变已上传代码、资源、构建配置或版本。

@@ -1,6 +1,6 @@
 # Summary 剩余额度详情与真实历史交互
 
-状态：in-progress。2026-10-24 用户批准交互原型，并要求此前修正不能回退。延续本线程本地 CR、远端 PR/CR/合并、TestFlight 授权；只改 iOS。
+状态：done。2026-10-24 用户批准交互原型，并要求此前修正不能回退。延续本线程本地 CR、远端 PR/CR/合并、TestFlight 授权；只改 iOS。
 
 ## 已确认的产品行为
 
@@ -32,7 +32,7 @@
 - [x] 用户确认交互原型；读取代码、上游 prior art 与仓库工作流。
 - [x] 实现与四语文案、同一 3.2 版本说明。
 - [x] 模型及原生交互回归、八种屏幕/配色、Air 真机、独立本地 CR。
-- [ ] 精确当前提交远端 CR、零未解决 threads、Fast Checks、合并 gate。
-- [ ] 归档/签名/Production/图标/IPA 来源核验、TestFlight 可安装与四语说明回读。
+- [x] 精确当前提交远端 CR、零未解决 threads、Fast Checks、合并 gate。
+- [x] 归档/签名/Production/图标/IPA 来源核验、TestFlight 可安装与四语说明回读。
 
 证据将独立保存到 BuildScratch，最终测试与发布状态见 03-testing.md。遇到不确定或反复失败先定位根因并更新设计，不靠放宽测试或反复轮询收尾。
