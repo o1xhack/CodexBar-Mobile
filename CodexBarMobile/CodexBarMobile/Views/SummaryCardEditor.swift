@@ -40,6 +40,16 @@ struct SummaryAddFlow: View {
                     accounts: self.accounts, isNew: true)
             } else {
                 Form {
+                    Section {
+                        Button(String(localized: "Remaining Quota")) {
+                            self.preferences.addQuotaModule()
+                            self.dismiss()
+                        }
+                        .disabled(self.preferences.preferences.quotaModule != nil)
+                        .accessibilityIdentifier("summary-add-quota-module")
+                    } footer: {
+                        Text(String(localized: "Add a four-tile chart to compare your remaining quotas."))
+                    }
                     if self.candidates.isEmpty {
                         Text(String(localized: "No metrics available. Wait for your Mac to sync usage data."))
                     } else {
@@ -266,23 +276,30 @@ struct SummaryOrderEditor: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(self.preferences.resolvedCards(accounts: self.accounts)) { card in
-                    VStack(alignment: .leading) {
-                        Text(SummaryPresentation.redact(
-                            self.hidesPersonalInfo ? card.privateTitle : card.compactTitle,
-                            enabled: self.hidesPersonalInfo))
-                        Text(card.metricTitle).font(.caption).foregroundStyle(.secondary)
+                ForEach(self.preferences.preferences.orderedItemIDs, id: \.self) { id in
+                    if id == self.preferences.preferences.quotaModule?.id {
+                        Label(String(localized: "Remaining Quota"), systemImage: "chart.xyaxis.line")
+                            .accessibilityIdentifier("summary-order-quota-module")
+                    } else if let card = self.preferences.resolvedCards(accounts: self.accounts).first(where: {
+                        $0.id == id
+                    }) {
+                        VStack(alignment: .leading) {
+                            Text(SummaryPresentation.redact(
+                                self.hidesPersonalInfo ? card.privateTitle : card.compactTitle,
+                                enabled: self.hidesPersonalInfo))
+                            Text(card.metricTitle).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .onMove { indices, destination in
-                    var cards = self.preferences.preferences.cards
-                    cards.move(fromOffsets: indices, toOffset: destination)
-                    self.preferences.reorder(ids: cards.map(\.id))
+                    var ids = self.preferences.preferences.orderedItemIDs
+                    ids.move(fromOffsets: indices, toOffset: destination)
+                    self.preferences.reorderItems(ids: ids)
                 }
                 .onDelete { indices in
-                    let cards = self.preferences.preferences.cards
+                    let ids = self.preferences.preferences.orderedItemIDs
                     for index in indices {
-                        self.preferences.remove(id: cards[index].id)
+                        self.preferences.removeItem(id: ids[index])
                     }
                 }
             }
@@ -292,6 +309,7 @@ struct SummaryOrderEditor: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Done")) { self.dismiss() }
+                        .accessibilityIdentifier("summary-order-done")
                 }
             }
         }

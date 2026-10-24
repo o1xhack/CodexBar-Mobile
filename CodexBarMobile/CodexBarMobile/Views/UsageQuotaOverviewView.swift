@@ -10,28 +10,59 @@ struct UsageQuotaOverviewView: View {
     var sourceSnapshots: [SyncedUsageSnapshot]?
     var quotaSources: [String: SyncProviderQuotaSource]?
     let publicationRevision: String
+    var isSummaryModule = false
+    var reconcileOnAppearance = true
+    var providerFilterID: String?
+    /// Summary owns the clock for its entire grid; a module must not create a nested scheduler.
+    var referenceDate: Date?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.mobileAdaptiveLayout) private var layout
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidesPersonalInfo = false
+    @State private var timelineStart = Date.now
     @State private var expanded = false
     @State private var showingEditor = false
     @State private var showingExplanation = false
+    @State private var showingLegend = false
 
     private var usesCompactLayout: Bool {
-        self.layout.usesShortHeight && !self.dynamicTypeSize.isAccessibilitySize
+        (self.isSummaryModule || self.layout.usesShortHeight) && !self.dynamicTypeSize.isAccessibilitySize
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            self.card(overview: self.store.overview(accounts: self.accounts, now: context.date))
+        Group {
+            if let referenceDate = self.referenceDate {
+                self.card(overview: self.filteredOverview(now: referenceDate))
+            } else {
+                TimelineView(.periodic(from: self.timelineStart, by: 30)) { context in
+                    self.card(overview: self.filteredOverview(now: context.date))
+                }
+            }
         }
         .task(id: self.publicationRevision) {
+            guard self.reconcileOnAppearance else { return }
             self.store.reconcile(
                 accounts: self.accounts, sourceSnapshots: self.sourceSnapshots,
                 quotaSources: self.quotaSources, linkages: self.linkages)
         }
         .sheet(isPresented: self.$showingEditor) {
             UsageQuotaEditor(store: self.store, accounts: self.accounts)
+        }
+        .sheet(isPresented: self.$showingLegend) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(self.filteredOverview(now: .now).lines) { line in self.legendRow(line) }
+                    }.padding()
+                }
+                .accessibilityIdentifier("quota-legend-sheet")
+                .navigationTitle(String(localized: "Remaining Quota"))
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(String(localized: "Done")) { self.showingLegend = false }
+                            .accessibilityIdentifier("quota-legend-done")
+                    }
+                }
+            }
         }
         .sheet(isPresented: self.$showingExplanation) {
             NavigationStack {
@@ -57,9 +88,18 @@ struct UsageQuotaOverviewView: View {
         }
     }
 
+    private func filteredOverview(now: Date) -> UsageQuotaOverview {
+        let overview = self.store.overview(accounts: self.accounts, now: now)
+        return UsageQuotaOverview(start: overview.start, end: overview.end, lines: overview.lines.filter {
+            self.providerFilterID == nil || $0.selection.providerID == self.providerFilterID
+        })
+    }
+
     private func card(overview: UsageQuotaOverview) -> some View {
         VStack(alignment: .leading, spacing: self.usesCompactLayout ? 8 : 12) {
-            if self.usesCompactLayout, !self.store.isReadOnly, !overview.lines.isEmpty {
+            if self.isSummaryModule {
+                self.header
+            } else if self.usesCompactLayout, !self.store.isReadOnly, !overview.lines.isEmpty {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         self.title.fixedSize()
@@ -85,7 +125,7 @@ struct UsageQuotaOverviewView: View {
                 Button(String(localized: "Choose quota lines")) { self.showingEditor = true }
                     .buttonStyle(.bordered)
             } else {
-                if !self.usesCompactLayout {
+                if !self.usesCompactLayout || self.isSummaryModule {
                     self.chartControls(overview)
                 }
                 self.chart(overview)
@@ -93,9 +133,13 @@ struct UsageQuotaOverviewView: View {
             }
         }
         .padding(self.usesCompactLayout ? 12 : 16)
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: self.isSummaryModule && !self.dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+            alignment: .topLeading)
         .background(MobileSurfaceStyle.cardMaterial, in: RoundedRectangle(cornerRadius: 20))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("usage-quota-overview")
+        .accessibilityIdentifier(self.isSummaryModule ? "summary-quota-module" : "usage-quota-overview")
     }
 
     private var title: some View {
@@ -191,7 +235,8 @@ struct UsageQuotaOverviewView: View {
             }
         }
         .chartPlotStyle { $0.clipped() }
-        .frame(height: self.dynamicTypeSize.isAccessibilitySize ? 210 : (self.usesCompactLayout ? 140 : 170))
+        .frame(height: self.dynamicTypeSize
+            .isAccessibilitySize ? 210 : (self.isSummaryModule ? 100 : self.usesCompactLayout ? 140 : 170))
         .accessibilityLabel(String(localized: "Observed remaining quota by date"))
         .accessibilityIdentifier("usage-quota-chart")
     }
@@ -200,7 +245,8 @@ struct UsageQuotaOverviewView: View {
         let visibleLines = Array(overview.lines.prefix(2))
         return VStack(alignment: .leading, spacing: 10) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) { self.expanded.toggle() }
+                if self.isSummaryModule { self.showingLegend = true }
+                else { withAnimation(.easeInOut(duration: 0.2)) { self.expanded.toggle() } }
             } label: {
                 HStack(spacing: 8) {
                     ScrollView(.horizontal) {

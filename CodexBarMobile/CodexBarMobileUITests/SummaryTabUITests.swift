@@ -68,26 +68,36 @@ final class SummaryTabUITests: XCTestCase {
         let columns = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "summary-grid-columns-")).firstMatch
         XCTAssertTrue(columns.waitForExistence(timeout: 5))
-        // The native Duo rail contributes a safe area inside the full-window scroll view.
-        // LazyVGrid's frame is the actual card area; its parent adds 16pt padding per side.
-        let contentWidth = columns.frame.width
+        // The column marker is a standalone count label, not the Layout container.
+        // Measure the real first card row, which already excludes Duo's native rail
+        // safe area; Summary adds 16pt of content padding at each horizontal edge.
+        let visibleCards = self.cards(app).allElementsBoundByIndex.filter(\.isHittable)
+        XCTAssertGreaterThanOrEqual(visibleCards.count, 2)
+        guard let firstY = visibleCards.map(\.frame.minY).min() else { return }
+        let firstRow = visibleCards.filter { abs($0.frame.minY - firstY) < 4 }
+            .sorted { $0.frame.minX < $1.frame.minX }
+        guard let first = firstRow.first, let last = firstRow.last else { return }
+        let contentWidth = last.frame.maxX - first.frame.minX
         let expectedColumns = max(2, min(4, Int((contentWidth + 32) / 175)))
         XCTAssertEqual(
             columns.identifier, "summary-grid-columns-\(expectedColumns)",
-            "Columns must follow the actual safe-area content width")
-
-        let visibleCards = self.cards(app).allElementsBoundByIndex.filter(\.isHittable)
-        XCTAssertGreaterThanOrEqual(visibleCards.count, expectedColumns)
-        if let firstY = visibleCards.map(\.frame.minY).min() {
-            let firstRow = visibleCards.filter { abs($0.frame.minY - firstY) < 4 }
-            XCTAssertEqual(firstRow.count, expectedColumns)
-            if let left = firstRow.map(\.frame.minX).min(),
-               let right = firstRow.map(\.frame.maxX).max()
-            {
-                XCTAssertEqual(
-                    right - left, contentWidth, accuracy: 4,
-                    "The first card row must span its full card container, excluding the native rail safe area")
-            }
+            "Columns must follow the actual safe-area card width")
+        XCTAssertEqual(firstRow.count, expectedColumns)
+        XCTAssertGreaterThanOrEqual(
+            contentWidth,
+            grid.frame.width * 0.75,
+            "The card row must use the full grid width after native rail and content insets")
+        for card in firstRow {
+            XCTAssertEqual(card.frame.width, first.frame.width, accuracy: 2)
+            XCTAssertGreaterThanOrEqual(card.frame.minX, grid.frame.minX - 1)
+            XCTAssertLessThanOrEqual(card.frame.maxX, grid.frame.maxX + 1)
+        }
+        for (left, right) in zip(firstRow, firstRow.dropFirst()) {
+            XCTAssertEqual(
+                right.frame.minX - left.frame.maxX,
+                8,
+                accuracy: 2,
+                "Adjacent metric cards must preserve the grid spacing without overlap")
         }
         // Capture the whole screen, including the system-owned Duo tab/navigation chrome.
         self.capture("Summary Duo \(landscape ? "landscape" : "portrait") full-width grid with native chrome")
@@ -238,6 +248,52 @@ final class SummaryTabUITests: XCTestCase {
         self.capture("Summary created metric")
     }
 
+    @MainActor func testQuotaModuleIsOptionalRemovableAndOrderPersists() {
+        let app = self.launch()
+        let module = app.descendants(matching: .any)["summary-quota-module"].firstMatch
+        XCTAssertFalse(module.exists, "Existing Summary cards must not opt users into the chart")
+        let originalCardIDs = Set(self.cards(app).allElementsBoundByIndex.map(\.identifier))
+        SummaryQuotaUITestFlow.addModule(app)
+        SummaryQuotaUITestFlow.moveModuleToFirst(app)
+        XCTAssertTrue(module.waitForExistence(timeout: 5))
+        XCTAssertEqual(Set(self.cards(app).allElementsBoundByIndex.map(\.identifier)), originalCardIDs)
+
+        app.buttons["summary-add"].tap()
+        let addModule = app.buttons["summary-add-quota-module"]
+        XCTAssertTrue(addModule.waitForExistence(timeout: 5))
+        XCTAssertFalse(addModule.isEnabled, "Only one Remaining Quota module can be pinned")
+        app.buttons["Cancel"].tap()
+
+        // UI preview data intentionally uses an in-memory preferences store. Verify
+        // saving across navigation here; store tests cover persistence across processes.
+        app.nativeTab("Usage").tap()
+        XCTAssertTrue(app.scrollViews["usage-provider-list"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["usage-quota-chart"].exists)
+        app.nativeTab("Summary").tap()
+        XCTAssertTrue(module.waitForExistence(timeout: 8))
+        SummaryQuotaUITestFlow.openOrder(app)
+        XCTAssertTrue(
+            SummaryQuotaUITestFlow.moduleIsFirst(app),
+            "Module order must survive tab changes and editor reentry")
+        app.buttons["summary-order-done"].tap()
+        self.capture("Summary optional quota module saved at the front of the grid")
+
+        app.buttons["summary-edit"].tap()
+        let remove = app.buttons["summary-remove-quota-module"]
+        XCTAssertTrue(remove.waitForExistence(timeout: 5) && remove.isHittable)
+        remove.tap()
+        XCTAssertTrue(module.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(
+            Set(self.cards(app).allElementsBoundByIndex.map(\.identifier)),
+            originalCardIDs,
+            "Unpinning the module must leave individual metric cards unchanged")
+        app.buttons["summary-edit"].tap()
+        SummaryQuotaUITestFlow.addModule(app)
+        SummaryQuotaUITestFlow.moveModuleToFirst(app)
+        XCTAssertTrue(module.waitForExistence(timeout: 5))
+        self.capture("Summary quota module re-added without duplicating metric cards")
+    }
+
     @MainActor func testSummaryAcrossFourLanguages() {
         for language in ["en", "zh-Hans", "zh-Hant", "ja"] {
             let app = self.launch(language: language)
@@ -245,5 +301,146 @@ final class SummaryTabUITests: XCTestCase {
             self.capture("Summary \(language)")
             app.terminate()
         }
+    }
+}
+
+/// Shared production navigation for the Summary lifecycle and quota-editor suites.
+/// No launch fixture pre-pins the module: every caller uses the same Add and native
+/// Edit Order controls available to the user.
+@MainActor enum SummaryQuotaUITestFlow {
+    static func tab(_ app: XCUIApplication, name: String) -> XCUIElement {
+        let names: [String: String] = app.launchArguments.contains("(ja)")
+            ? ["Summary": "概要", "Setting": "設定"] : [:]
+        let label = names[name] ?? name
+        let bottomButton = app.tabBars.buttons[label]
+        if bottomButton.exists { return bottomButton }
+        let symbol = [
+            "Usage": "chart.bar.fill", "Summary": "square.grid.2x2.fill",
+            "Cost": "dollarsign.circle.fill", "Setting": "gearshape",
+        ][name] ?? name
+        let predicate = NSPredicate(format: "identifier == %@ OR label == %@", symbol, label)
+        // Duo's native tabs can live outside TabBar, including in SpringBoard.
+        // Restrict the lookup to controls: a matching page-title StaticText is not
+        // a tab and would turn the union of its frame and the rail into a false obstruction.
+        let local = app.buttons.matching(predicate).firstMatch
+        if local.exists { return local }
+        return XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons.matching(predicate).firstMatch
+    }
+
+    static func addModule(_ app: XCUIApplication) {
+        let add = app.buttons["summary-add"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5) && add.isHittable)
+        add.tap()
+        let module = app.buttons["summary-add-quota-module"]
+        XCTAssertTrue(module.waitForExistence(timeout: 5) && module.isEnabled && module.isHittable)
+        module.tap()
+        XCTAssertTrue(module.waitForNonExistence(timeout: 5), "Adding the module must close the catalog")
+        XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 5))
+    }
+
+    static func openOrder(_ app: XCUIApplication) {
+        let more = app.buttons["summary-more"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5) && more.isHittable)
+        more.tap()
+        let order = app.buttons.matching(NSPredicate(
+            format: "label IN %@", ["Edit Order", "编辑排序", "編輯排序", "並び順を編集"])).firstMatch
+        XCTAssertTrue(order.waitForExistence(timeout: 5))
+        order.tap()
+        XCTAssertTrue(app.buttons["summary-order-done"].waitForExistence(timeout: 5))
+    }
+
+    static func moduleIsFirst(_ app: XCUIApplication) -> Bool {
+        let first = app.cells.firstMatch
+        return first.exists && first.descendants(matching: .any)["summary-order-quota-module"].exists
+    }
+
+    static func moveModuleToFirst(_ app: XCUIApplication) {
+        self.openOrder(app)
+        let row = app.cells.containing(.any, identifier: "summary-order-quota-module").firstMatch
+        let list = app.collectionViews.firstMatch
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        // A short phone may expose only a few order rows. Move through the visible
+        // rows, then reveal earlier rows; never drag toward an offscreen destination.
+        for _ in 0..<12 {
+            if self.moduleIsFirst(app) { break }
+            let viewport = self.orderViewport(app, list: list)
+            if !row.exists || !row.isHittable || row.frame.minY < viewport.minY || row.frame.maxY > viewport.maxY {
+                self.scroll(list, viewport: viewport, upward: !row.exists || row.frame.midY > viewport.midY)
+                continue
+            }
+            let preceding = list.cells.allElementsBoundByIndex.filter {
+                $0.isHittable && $0.frame.minY >= viewport.minY && $0.frame.maxY <= viewport.maxY
+                    && $0.frame.minY < row.frame.minY - 1
+            }
+            if let target = preceding.min(by: { $0.frame.minY < $1.frame.minY }) {
+                row.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+                    .press(forDuration: 0.7, thenDragTo: target.coordinate(
+                        withNormalizedOffset: CGVector(dx: 0.95, dy: 0.1)))
+            } else {
+                self.scroll(list, viewport: viewport, upward: false)
+            }
+        }
+        if !self.moduleIsFirst(app) {
+            self.captureOrderFailure(app, name: "Summary native order drag failure")
+        }
+        XCTAssertTrue(self.moduleIsFirst(app), "The native order editor must move the module before all metric cards")
+        let done = app.buttons["summary-order-done"]
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 5))
+
+        // A virtualized list can report its first visible cell as firstMatch after
+        // scrolling. Recreate the editor at its initial scroll position and verify
+        // the saved first item before accepting the drag as a successful reorder.
+        self.openOrder(app)
+        if !self.moduleIsFirst(app) {
+            self.captureOrderFailure(app, name: "Summary saved order reentry failure")
+        }
+        XCTAssertTrue(
+            self.moduleIsFirst(app),
+            "The saved module must be first when the order editor reopens at the top")
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 5))
+    }
+
+    private static func captureOrderFailure(_ app: XCUIApplication, name: String) {
+        XCTContext.runActivity(named: name) { activity in
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.lifetime = .keepAlways
+            activity.add(hierarchy)
+            for (index, screen) in XCUIScreen.screens.enumerated() {
+                let screenshot = XCTAttachment(screenshot: screen.screenshot())
+                screenshot.name = "\(name) screen \(index)"
+                screenshot.lifetime = .keepAlways
+                activity.add(screenshot)
+            }
+        }
+    }
+
+    private static func orderViewport(_ app: XCUIApplication, list: XCUIElement) -> CGRect {
+        var viewport = list.frame.intersection(app.windows.firstMatch.frame)
+        let navigation = app.navigationBars.containing(.button, identifier: "summary-order-done").firstMatch
+        if navigation.exists, navigation.frame.intersects(viewport) {
+            // CollectionView extends beneath the translucent sheet navigation bar.
+            // A partially visible row there is not a valid native reorder destination.
+            let bottom = viewport.maxY
+            viewport.origin.y = max(viewport.minY, navigation.frame.maxY)
+            viewport.size.height = max(0, bottom - viewport.minY)
+        }
+        return viewport.insetBy(dx: 4, dy: 8)
+    }
+
+    private static func scroll(_ list: XCUIElement, viewport: CGRect, upward: Bool) {
+        let origin = list.coordinate(withNormalizedOffset: .zero)
+        let upper = origin.withOffset(CGVector(
+            dx: viewport.midX - list.frame.minX,
+            dy: viewport.minY + viewport.height * 0.3 - list.frame.minY))
+        let lower = origin.withOffset(CGVector(
+            dx: viewport.midX - list.frame.minX,
+            dy: viewport.minY + viewport.height * 0.7 - list.frame.minY))
+        (upward ? lower : upper).press(
+            forDuration: 0.05, thenDragTo: upward ? upper : lower,
+            withVelocity: .slow, thenHoldForDuration: 0.2)
     }
 }

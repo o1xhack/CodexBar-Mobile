@@ -6,8 +6,11 @@ struct SummaryTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @ObservedObject var preferences: SummaryPreferencesStore
+    @ObservedObject var quotaStore: UsageQuotaOverviewStore
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.mobileAdaptiveLayout) private var layout
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidesPersonalInfo = false
+    @State private var timelineStart = Date.now
     @State private var selectedProviderID: String?
     @State private var detailPath: [UUID] = []
     @State private var editing = false
@@ -15,6 +18,10 @@ struct SummaryTab: View {
     @State private var showingOrder = false
     @State private var showingInfo = false
     @State private var editingCard: SummaryCardConfiguration?
+
+    private var usesDemoData: Bool {
+        self.isDemoMode || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
+    }
 
     private var accounts: [ProviderUsageSnapshot] {
         let snapshot = self.isDemoMode ? PreviewData.sampleSnapshot : self.usageData.snapshot
@@ -30,14 +37,16 @@ struct SummaryTab: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
+        TimelineView(.periodic(from: self.timelineStart, by: 30)) { context in
             self.workspace(now: context.date)
         }
         .task(id: self.revision) {
             self.preferences.reconcile(
-                accounts: self.accounts, linkages: self.isDemoMode ? [] : self.usageData.providerLinkages)
+                accounts: self.accounts, linkages: self.usesDemoData ? [] : self.usageData.providerLinkages)
             self.reconcileSelection()
         }
+        .onChange(of: self.quotaStore.preferences.selections) { _, _ in self.reconcileSelection() }
+        .onChange(of: self.preferences.preferences.quotaModule) { _, _ in self.reconcileSelection() }
         .onChange(of: self.preferences.preferences.cards) { _, _ in self.reconcileSelection() }
         .onChange(of: self.selectedProviderID) { _, _ in self.reconcileSelection() }
         .sheet(isPresented: self.$showingAdd) {
@@ -60,27 +69,27 @@ struct SummaryTab: View {
         let cards = self.preferences.resolvedCards(accounts: self.accounts, now: now)
         let filtered = cards
             .filter { self.selectedProviderID == nil || $0.configuration.providerID == self.selectedProviderID }
+        let hasModule = self.preferences.preferences.quotaModule != nil
         return NavigationStack(path: self.$detailPath) {
             VStack(spacing: 0) {
-                if self.isDemoMode || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA") {
-                    Label(String(localized: "Showing demo data"), systemImage: "sparkles")
-                        .font(.caption).foregroundStyle(.secondary).padding(.vertical, 4)
-                } else {
-                    MockProviderBanner(snapshot: self.usageData.snapshot)
+                // In a short landscape window, chrome scrolls away so a complete four-tile
+                // chart can fit between native navigation and the tab bar without shrinking it.
+                if !self.layout.usesShortHeight || (cards.isEmpty && !hasModule) {
+                    self.dataBanner
+                    if !cards.isEmpty || hasModule { self.providerFilters(cards: cards) }
                 }
-                if !cards.isEmpty { self.providerFilters(cards: cards) }
                 if self.preferences.isReadOnly {
                     ContentUnavailableView(
                         String(localized: "Summary settings unavailable"), systemImage: "exclamationmark.triangle",
                         description: Text(
                             String(
                                 localized: "Saved Summary settings could not be read. They have been kept unchanged.")))
-                } else if self.accounts.isEmpty, cards.isEmpty {
+                } else if self.accounts.isEmpty, cards.isEmpty, !hasModule {
                     EmptyStateView(
                         title: "Waiting for Mac Sync",
                         message: "Open CodexBar on your Mac and enable iCloud Sync to bring usage data to this iPhone.",
                         onDemo: { self.isDemoMode = true })
-                } else if cards.isEmpty {
+                } else if cards.isEmpty, !hasModule {
                     ContentUnavailableView {
                         Label(String(localized: "Your Summary"), systemImage: "square.grid.2x2")
                     } description: {
@@ -90,7 +99,7 @@ struct SummaryTab: View {
                             .buttonStyle(.borderedProminent)
                     }
                 } else {
-                    self.grid(cards: filtered, total: cards.count, now: now)
+                    self.grid(cards: filtered, filterCards: cards, total: cards.count, now: now)
                 }
             }
             .navigationTitle(String(localized: "Summary"))
@@ -102,7 +111,7 @@ struct SummaryTab: View {
                     }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    if !cards.isEmpty {
+                    if !cards.isEmpty || hasModule {
                         Button(self.editing ? String(localized: "Done") : String(localized: "Edit")) {
                             self.editing.toggle()
                         }
@@ -118,6 +127,7 @@ struct SummaryTab: View {
                             Image(systemName: "ellipsis.circle")
                         }
                         .accessibilityLabel(String(localized: "Summary options"))
+                        .accessibilityIdentifier("summary-more")
                     }
                     Button {
                         self.showingAdd = true
@@ -142,40 +152,51 @@ struct SummaryTab: View {
         }
     }
 
-    private func grid(cards: [SummaryResolvedCard], total: Int, now: Date) -> some View {
+    private func grid(
+        cards: [SummaryResolvedCard],
+        filterCards: [SummaryResolvedCard],
+        total: Int,
+        now: Date) -> some View
+    {
         GeometryReader { geometry in
-            let count = self.dynamicTypeSize.isAccessibilitySize ? 1 : max(2, min(4, Int(geometry.size.width / 175)))
+            let count = SummaryModulePacking.columnCount(
+                width: geometry.size.width, shortHeight: self.layout.usesShortHeight,
+                accessibility: self.dynamicTypeSize.isAccessibilitySize)
+            let moduleCount = self.preferences.preferences.quotaModule == nil ? 0 : 1
+            let visibleModuleCount = moduleCount == 1 &&
+                (self.selectedProviderID == nil || self.quotaStore.preferences.selections.contains {
+                    $0.providerID == self.selectedProviderID
+                }) ? 1 : 0
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(String(format: String(localized: "%lld of %lld pinned"), Int64(cards.count), Int64(total)))
+                    if self.layout.usesShortHeight {
+                        self.dataBanner.frame(maxWidth: .infinity)
+                        self.providerFilters(cards: filterCards, horizontalPadding: 0)
+                    }
+                    Text(String(
+                        format: String(localized: "%lld of %lld pinned"),
+                        Int64(cards.count + visibleModuleCount),
+                        Int64(total + moduleCount)))
                         .font(.caption2).foregroundStyle(.secondary)
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: count), spacing: 8) {
-                        ForEach(cards) { card in
-                            Button {
-                                if self.editing {
-                                    self.editingCard = card.configuration
-                                } else if card.provider != nil {
-                                    self.detailPath = [card.id]
-                                } else {
-                                    self.editingCard = card.configuration
+                        // A Layout is not an accessibility container: its identifier would
+                        // propagate onto every metric and module. Mark this standalone label.
+                        .accessibilityIdentifier("summary-grid-columns-\(count)")
+                    SummaryModuleGrid(columns: count) {
+                        ForEach(self.preferences.preferences.orderedItemIDs, id: \.self) { id in
+                            if id == self.preferences.preferences.quotaModule?.id {
+                                if self.selectedProviderID == nil || self.quotaStore.preferences.selections
+                                    .contains(where: {
+                                        $0.providerID == self.selectedProviderID
+                                    })
+                                {
+                                    self.quotaModule(now: now)
+                                        .layoutValue(key: SummaryModuleSpan.self, value: true)
                                 }
-                            } label: {
-                                SummaryMetricTile(card: card, now: now, editing: self.editing)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier(
-                                "summary-card-\(card.configuration.providerID)-\(card.id.uuidString)")
-                            .contextMenu {
-                                Button(String(localized: "Customize card"), systemImage: "pencil") {
-                                    self.editingCard = card.configuration
-                                }
-                                Button(String(localized: "Unpin"), systemImage: "pin.slash", role: .destructive) {
-                                    self.preferences.remove(id: card.id)
-                                }
+                            } else if let card = cards.first(where: { $0.id == id }) {
+                                self.metricButton(card: card, now: now)
                             }
                         }
                     }
-                    .accessibilityIdentifier("summary-grid-columns-\(count)")
                 }
                 .padding(.horizontal, 16).padding(.vertical, 10)
             }
@@ -188,8 +209,67 @@ struct SummaryTab: View {
         }
     }
 
-    private func providerFilters(cards: [SummaryResolvedCard]) -> some View {
-        let ids = Array(Set(cards.map(\.configuration.providerID))).sorted()
+    private func quotaModule(now: Date) -> some View {
+        UsageQuotaOverviewView(
+            store: self.quotaStore, accounts: self.accounts,
+            linkages: self.usesDemoData ? [] : self.usageData.providerLinkages,
+            sourceSnapshots: self.usesDemoData ? nil : self.usageData.deviceSnapshots,
+            quotaSources: self.usesDemoData ? nil : self.usageData.snapshot?.providerQuotaSources,
+            publicationRevision: self.revision, isSummaryModule: true, reconcileOnAppearance: false,
+            providerFilterID: self.selectedProviderID, referenceDate: now)
+            .overlay(alignment: .topLeading) {
+                if self.editing {
+                    Button(role: .destructive) {
+                        if let id = self.preferences.preferences.quotaModule?.id { self.preferences.removeItem(id: id) }
+                    } label: {
+                        Image(systemName: "minus.circle.fill").font(.title3)
+                            .symbolRenderingMode(.palette).foregroundStyle(.white, .red)
+                    }
+                    .accessibilityLabel(String(localized: "Unpin"))
+                    .accessibilityIdentifier("summary-remove-quota-module")
+                    .offset(x: -6, y: -6)
+                }
+            }
+            .contextMenu {
+                Button(String(localized: "Unpin"), systemImage: "pin.slash", role: .destructive) {
+                    if let id = self.preferences.preferences.quotaModule?.id { self.preferences.removeItem(id: id) }
+                }.accessibilityIdentifier("summary-remove-quota-module")
+            }
+    }
+
+    private func metricButton(card: SummaryResolvedCard, now: Date) -> some View {
+        Button {
+            if self.editing { self.editingCard = card.configuration }
+            else if card.provider != nil { self.detailPath = [card.id] }
+            else { self.editingCard = card.configuration }
+        } label: {
+            SummaryMetricTile(card: card, now: now, editing: self.editing)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("summary-card-\(card.configuration.providerID)-\(card.id.uuidString)")
+        .contextMenu {
+            Button(String(localized: "Customize card"), systemImage: "pencil") {
+                self.editingCard = card.configuration
+            }
+            Button(String(localized: "Unpin"), systemImage: "pin.slash", role: .destructive) {
+                self.preferences.remove(id: card.id)
+            }
+        }
+    }
+
+    @ViewBuilder private var dataBanner: some View {
+        if self.usesDemoData {
+            Label(String(localized: "Showing demo data"), systemImage: "sparkles")
+                .font(.caption).foregroundStyle(.secondary).padding(.vertical, 4)
+        } else {
+            MockProviderBanner(snapshot: self.usageData.snapshot)
+        }
+    }
+
+    private func providerFilters(cards: [SummaryResolvedCard], horizontalPadding: CGFloat = 16) -> some View {
+        let moduleProviders = self.preferences.preferences.quotaModule == nil ? [] : self.quotaStore.preferences
+            .selections.map(\.providerID)
+        let ids = Array(Set(cards.map(\.configuration.providerID) + moduleProviders)).sorted()
         return ScrollView(.horizontal) {
             HStack(spacing: 7) {
                 self.providerButton(nil, title: String(localized: "All providers"))
@@ -197,7 +277,7 @@ struct SummaryTab: View {
                     self.providerButton(id, title: SummaryPresentation.providerName(id: id, accounts: self.accounts))
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 6)
+            .padding(.horizontal, horizontalPadding).padding(.vertical, 6)
         }
         .scrollIndicators(.hidden)
         .accessibilityIdentifier("summary-provider-filters")
@@ -221,7 +301,11 @@ struct SummaryTab: View {
     private func reconcileSelection() {
         let cards = self.preferences.preferences.cards
         let resolved = self.preferences.resolvedCards(accounts: self.accounts)
-        if let id = self.selectedProviderID, !cards.contains(where: { $0.providerID == id }) {
+        if let id = self.selectedProviderID, !cards.contains(where: { $0.providerID == id }),
+           !(self.preferences.preferences.quotaModule != nil && self.quotaStore.preferences.selections.contains(where: {
+               $0.providerID == id
+           }))
+        {
             self.selectedProviderID = nil
         }
         if let id = self.detailPath.last,

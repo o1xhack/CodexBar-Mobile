@@ -420,6 +420,117 @@ struct SummaryCardTests {
         }
     }
 
+    @Test
+    func `legacy Summary preferences keep metrics aliases and order without automatically adding a chart`() throws {
+        let original = SummaryPreferencesStore.inMemory()
+        original.reconcile(accounts: [Self.account()], now: Self.now)
+        let anchor = try #require(original.preferences.cards.first?.accountAnchorID)
+        original.setAccountAlias("Personal", accountAnchorID: anchor)
+        let data = try JSONEncoder().encode(original.preferences)
+        var legacy = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        legacy.removeValue(forKey: "quotaModule")
+        let persistence = try MemoryPersistence(data: JSONSerialization.data(withJSONObject: legacy))
+        let restored = SummaryPreferencesStore(persistence: persistence)
+        #expect(!restored.isReadOnly)
+        #expect(restored.preferences.quotaModule == nil)
+        #expect(restored.preferences.cards == original.preferences.cards)
+        #expect(restored.preferences.accountAliases == original.preferences.accountAliases)
+        #expect(restored.preferences.orderedItemIDs == original.preferences.cards.map(\.id))
+    }
+
+    @Test
+    func `quota module is opt in persistent removable and sortable alongside metrics`() throws {
+        let persistence = MemoryPersistence()
+        let store = SummaryPreferencesStore(persistence: persistence)
+        store.reconcile(accounts: [Self.account(), Self.account(provider: "codex")], now: Self.now)
+        let cards = store.preferences.cards
+        store.addQuotaModule()
+        let module = try #require(store.preferences.quotaModule)
+        store.addQuotaModule()
+        #expect(store.preferences.quotaModule == module)
+        #expect(store.preferences.orderedItemIDs.last == module.id)
+        let order = [cards[0].id, module.id] + cards.dropFirst().map(\.id)
+        store.reorderItems(ids: order)
+        #expect(store.preferences.orderedItemIDs == order)
+        let restored = SummaryPreferencesStore(persistence: persistence)
+        #expect(restored.preferences == store.preferences)
+        restored.removeItem(id: cards[0].id)
+        #expect(restored.preferences.orderedItemIDs.first == module.id)
+        restored.removeItem(id: module.id)
+        #expect(restored.preferences.quotaModule == nil)
+        #expect(restored.preferences.cards == Array(cards.dropFirst()))
+        let reopened = SummaryPreferencesStore(persistence: persistence)
+        reopened.reconcile(accounts: [Self.account()], now: Self.now)
+        #expect(reopened.preferences.quotaModule == nil)
+    }
+
+    @Test
+    func `filtered module reordering preserves unlisted cards and rejects unknown duplicate ids`() throws {
+        let store = SummaryPreferencesStore.inMemory()
+        store.reconcile(accounts: [Self.account(), Self.account(provider: "codex")], now: Self.now)
+        store.addQuotaModule()
+        let module = try #require(store.preferences.quotaModule)
+        let ids = store.preferences.cards.map(\.id)
+        store.reorderItems(ids: [module.id, ids[0], module.id, UUID()])
+        #expect(store.preferences.orderedItemIDs == [module.id, ids[1], ids[2], ids[3], ids[0]])
+    }
+
+    @Test
+    func `four tile chart packs alongside two rows of Duo cards and spans compact phone width`() {
+        let duo = SummaryModulePacking.placements(modules: [true, false, false, false, false], columns: 4)
+        #expect(duo[0] == .init(row: 0, column: 0, columns: 2, rows: 2))
+        #expect(duo[1] == .init(row: 0, column: 2, columns: 1, rows: 1))
+        #expect(duo[4] == .init(row: 1, column: 3, columns: 1, rows: 1))
+        let phone = SummaryModulePacking.placements(modules: [true, false], columns: 2)
+        #expect(phone[1].row == 2)
+        let accessible = SummaryModulePacking.placements(modules: [true, false], columns: 1)
+        #expect(accessible == [
+            .init(row: 0, column: 0, columns: 1, rows: 1),
+            .init(row: 1, column: 0, columns: 1, rows: 1),
+        ])
+    }
+
+    @Test
+    func `a chart between two phone cards preserves the requested visual order without backfilling`() {
+        let positions = SummaryModulePacking.placements(modules: [false, true, false], columns: 2)
+        #expect(positions == [
+            .init(row: 0, column: 0, columns: 1, rows: 1),
+            .init(row: 1, column: 0, columns: 2, rows: 2),
+            .init(row: 3, column: 0, columns: 1, rows: 1),
+        ])
+    }
+
+    @Test(arguments: [2, 3, 4])
+    func `mixed module layouts preserve monotonic reading order and never overlap`(columns: Int) {
+        for modules in [
+            [false, true, false, false, false],
+            [false, false, false, true, false, true, false],
+            [true, false, false, false, false, true],
+        ] {
+            let positions = SummaryModulePacking.placements(modules: modules, columns: columns)
+            let starts = positions.map { $0.row * columns + $0.column }
+            #expect(zip(starts, starts.dropFirst()).allSatisfy { $0.0 < $0.1 })
+            var cells = Set<Int>()
+            for position in positions {
+                #expect(position.column + position.columns <= columns)
+                for dy in 0..<position.rows {
+                    for dx in 0..<position.columns {
+                        #expect(cells.insert((position.row + dy) * columns + position.column + dx).inserted)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    func `Summary columns use available width independently of split view and respect short height`() {
+        #expect(SummaryModulePacking.columnCount(width: 390, shortHeight: false, accessibility: false) == 2)
+        #expect(SummaryModulePacking.columnCount(width: 668, shortHeight: false, accessibility: false) == 3)
+        #expect(SummaryModulePacking.columnCount(width: 952, shortHeight: false, accessibility: false) == 4)
+        #expect(SummaryModulePacking.columnCount(width: 844, shortHeight: true, accessibility: false) == 2)
+        #expect(SummaryModulePacking.columnCount(width: 952, shortHeight: false, accessibility: true) == 1)
+    }
+
     private static func futurePreferences() -> SummaryPreferences {
         var preferences = SummaryPreferences()
         preferences.schemaVersion = 999

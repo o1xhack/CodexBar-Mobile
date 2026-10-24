@@ -43,11 +43,28 @@ struct SummaryCardConfiguration: Codable, Equatable, Identifiable, Sendable {
     var metricTitle: String = ""
 }
 
+/// A module is independent of provider metrics and reuses the existing quota preferences store.
+struct SummaryQuotaModule: Codable, Equatable, Sendable {
+    var id: UUID = .init()
+    var position: Int
+}
+
 struct SummaryPreferences: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
     var schemaVersion = Self.currentSchemaVersion
     var hasInitialized = false
     var cards: [SummaryCardConfiguration] = []
+    /// Optional keeps existing v1 archives compatible and never pins a module automatically.
+    var quotaModule: SummaryQuotaModule?
+
+    var orderedItemIDs: [UUID] {
+        var ids = self.cards.map(\.id)
+        if let module = self.quotaModule {
+            ids.insert(module.id, at: min(ids.count, max(0, module.position)))
+        }
+        return ids
+    }
+
     var accountAliases: [String: String] = [:]
     var accountAnchors: [UsageAccountAnchor] = []
 }

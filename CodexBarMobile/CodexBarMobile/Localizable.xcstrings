@@ -1,6 +1,90 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Add a four-tile chart to compare your remaining quotas.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a four-tile chart to compare your remaining quotas."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加占四格的图表，对比各项剩余额度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入佔四格的圖表，比較各項剩餘額度。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4マス分のチャートを追加して、残り利用枠を比較します。"
+          }
+        }
+      }
+    },
+    "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中将占四格的剩余额度图表与紧凑指标自由排列。对比真实历史，不做预测；保留已选曲线，并可排序或移除图表。用量、摘要和费用在浅色与深色模式下使用统一背景。费用分组可排序，常规来源说明移至底部。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中將佔四格的剩餘額度圖表與精簡指標自由排列。比較真實歷史，不做預測；保留已選曲線，並可排序或移除圖表。用量、摘要和費用在淺色與深色模式下使用一致背景。費用群組可排序，一般來源說明移至底部。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サマリーで4マス分の残り利用枠チャートとコンパクトな指標を自由に配置できます。予測を含まない実際の履歴を比較し、選択した線を保持したままチャートを並べ替えたり削除したりできます。使用量、サマリー、コストの背景をライト・ダーク両モードで統一。コストのグループを並べ替えられ、通常の取得元の説明は下部に表示されます。"
+          }
+        }
+      }
+    },
+    "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中添加占四格的剩余额度图表。用自定义颜色对比最多五条真实额度历史，周时间轴自动更新，并可查看详细图例。图表可与其他卡片一起排序或移除。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中加入佔四格的剩餘額度圖表。以自訂顏色比較最多五條真實額度歷史，週時間軸自動更新，並可查看詳細圖例。圖表可與其他卡片一起排序或移除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サマリーに4マス分の残り利用枠チャートを追加できます。最大5本の実際の履歴を色分けして比較し、自動更新される週の時間軸と詳しい凡例を確認できます。他のカードと一緒に並べ替えたり削除したりできます。"
+          }
+        }
+      }
+    },
   "Includes synced provider history": {
     "localizations": {
       "en": {

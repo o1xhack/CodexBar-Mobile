@@ -63,7 +63,8 @@ struct ContentView: View {
     @StateObject private var demoCardPreferences = UsageCardPreferencesStore.inMemory()
     @StateObject private var liveSummaryPreferences = SummaryPreferencesStore.live()
     @StateObject private var demoSummaryPreferences = SummaryPreferencesStore.inMemory()
-    @StateObject private var liveQuotaPreferences = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    @StateObject private var liveQuotaPreferences = ProcessInfo.processInfo
+        .environment["XCTestConfigurationFilePath"] != nil
         || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
         ? UsageQuotaOverviewStore.inMemory() : UsageQuotaOverviewStore.live()
     @StateObject private var demoQuotaPreferences: UsageQuotaOverviewStore
@@ -88,6 +89,40 @@ struct ContentView: View {
         _isDemoMode = State(initialValue: previewTab != nil && usageData.snapshot != nil)
         _selectedTab = State(initialValue: previewTab ?? (UserDefaults.standard
                 .bool(forKey: MobileSettingsKeys.openCostByDefault) ? .cost : .usage))
+    }
+
+    private var usesDemoQuotaData: Bool {
+        self.isDemoMode || self.isLayoutPreview
+            || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
+    }
+
+    private var activeQuotaPreferences: UsageQuotaOverviewStore {
+        self.usesDemoQuotaData ? self.demoQuotaPreferences : self.liveQuotaPreferences
+    }
+
+    private var quotaAccounts: [ProviderUsageSnapshot] {
+        let snapshot = self.isDemoMode ? PreviewData.sampleSnapshot : self.usageData.snapshot
+        return snapshot.map { MockProviderDetector.filteredProviders(from: $0) }
+            .map { $0.filter { !$0.isProviderLevelCostEnvelope } } ?? []
+    }
+
+    private var quotaObservationRevision: String {
+        "\(self.usesDemoQuotaData)|\(self.usageData.publicationRevision)|"
+            + self.quotaAccounts.map { "\($0.cardIdentityKey)|\($0.lastUpdated)" }.joined(separator: ";")
+            + self.usageData.providerLinkages.map { "\($0.recordID)|\($0.unmerge)" }.sorted().joined(separator: ";")
+    }
+
+    /// Recording is independent of tab selection and whether the Summary module is pinned.
+    private func reconcileQuotaObservations() {
+        let activeIDs = Set(self.usageData.deviceManagementItems.filter { !$0.isArchived }.flatMap(\.sourceDeviceIDs))
+        let sources = self.usageData.rawDeviceSnapshots.filter {
+            activeIDs.contains(DeviceSnapshotResolver.deviceKey(for: $0))
+        }
+        self.activeQuotaPreferences.reconcile(
+            accounts: self.quotaAccounts,
+            sourceSnapshots: self.usesDemoQuotaData ? nil : sources,
+            quotaSources: self.usesDemoQuotaData ? nil : self.usageData.snapshot?.providerQuotaSources,
+            linkages: self.usesDemoQuotaData ? [] : self.usageData.providerLinkages)
     }
 
     private var currentVersion: String {
@@ -150,6 +185,9 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.regularMaterial)
             }
+        }
+        .task(id: self.quotaObservationRevision) {
+            self.reconcileQuotaObservations()
         }
         .task(id: self.costClockRestartKey) {
             await self.keepCostReferenceDateCurrent()
@@ -220,10 +258,7 @@ struct ContentView: View {
                 usageData: self.usageData,
                 isDemoMode: self.$isDemoMode,
                 costReferenceDate: self.costReferenceDate,
-                cardPreferences: self.isDemoMode ? self.demoCardPreferences : self.liveCardPreferences,
-                quotaPreferences: self.isDemoMode || self.isLayoutPreview
-                    || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
-                    ? self.demoQuotaPreferences : self.liveQuotaPreferences)
+                cardPreferences: self.isDemoMode ? self.demoCardPreferences : self.liveCardPreferences)
                 .tag(MobileRootTab.usage)
                 .tabItem {
                     Label("Usage", systemImage: "chart.bar.fill")
@@ -234,7 +269,8 @@ struct ContentView: View {
                 isDemoMode: self.$isDemoMode,
                 preferences: self.isDemoMode || self.isLayoutPreview
                     || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
-                    ? self.demoSummaryPreferences : self.liveSummaryPreferences)
+                    ? self.demoSummaryPreferences : self.liveSummaryPreferences,
+                quotaStore: self.activeQuotaPreferences)
                 .tag(MobileRootTab.summary)
                 .tabItem {
                     Label(String(localized: "Summary"), systemImage: "square.grid.2x2.fill")
@@ -330,7 +366,6 @@ private struct UsageTab: View {
     @Binding var isDemoMode: Bool
     let costReferenceDate: Date
     @ObservedObject var cardPreferences: UsageCardPreferencesStore
-    @ObservedObject var quotaPreferences: UsageQuotaOverviewStore
     @Environment(\.mobileAdaptiveLayout) private var layout
     /// Selected card key (`UsageCardKey`): a provider card or, for expanded
     /// providers, one account card.
@@ -435,7 +470,6 @@ private struct UsageTab: View {
                             costReferenceDate: self.costReferenceDate,
                             sortReferenceDate: self.sortReferenceDate,
                             cardPreferences: self.cardPreferences,
-                            quotaPreferences: self.quotaPreferences,
                             cards: self.cards,
                             selectedCardKey: self.selectedCardKey,
                             onSelect: { key in
@@ -450,6 +484,8 @@ private struct UsageTab: View {
                         onDemo: { self.isDemoMode = true })
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(MobileSurfaceStyle.pageBackground.ignoresSafeArea())
             .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 400)
             .navigationTitle(self.isDemoMode ? String(localized: "CodexBar (Demo)") : String(localized: "CodexBar"))
             .toolbar {
@@ -556,18 +592,12 @@ private struct UsageTab: View {
 // MARK: - Provider List
 
 private struct ProviderListView: View {
-    private var activeRawQuotaSources: [SyncedUsageSnapshot] {
-        let activeIDs = Set(self.usageData.deviceManagementItems.filter { !$0.isArchived }.flatMap(\.sourceDeviceIDs))
-        return self.usageData.rawDeviceSnapshots.filter { activeIDs.contains(DeviceSnapshotResolver.deviceKey(for: $0)) }
-    }
-
     let snapshot: SyncedUsageSnapshot
     let usageData: SyncedUsageData
     let isDemoMode: Bool
     let costReferenceDate: Date
     let sortReferenceDate: Date
     @ObservedObject var cardPreferences: UsageCardPreferencesStore
-    @ObservedObject var quotaPreferences: UsageQuotaOverviewStore
     /// Source-ordered cards from `UsageCardBuilder`.
     let cards: [UsageCard]
     var selectedCardKey: String?
@@ -637,16 +667,6 @@ private struct ProviderListView: View {
         let otherCards = arranged.others.filter(matches)
         return ScrollView {
             LazyVStack(spacing: 16) {
-                UsageQuotaOverviewView(
-                    store: self.quotaPreferences, accounts: liveProviders,
-                    linkages: self.isDemoMode ? [] : self.usageData.providerLinkages,
-                    sourceSnapshots: self.isDemoMode || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
-                        ? nil : self.activeRawQuotaSources,
-                    quotaSources: self.isDemoMode || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
-                        ? nil : self.snapshot.providerQuotaSources,
-                    publicationRevision: "\(self.isDemoMode)|\(self.usageData.publicationRevision)|"
-                        + liveProviders.map { "\($0.cardIdentityKey)|\($0.lastUpdated)" }.joined(separator: ";")
-                        + self.usageData.providerLinkages.map { "\($0.recordID)|\($0.unmerge)" }.sorted().joined(separator: ";"))
                 MockProviderBanner(snapshot: self.snapshot)
                 if !pinnedCards.isEmpty {
                     self.sectionHeader(String(localized: "Pinned"), identifier: "usage-section-pinned")
@@ -695,6 +715,7 @@ private struct ProviderListView: View {
             await self.usageData.refresh()
         }
         .modifier(SoftScrollEdgeModifier())
+        .background(MobileSurfaceStyle.pageBackground)
         .accessibilityIdentifier("usage-provider-list")
         .searchable(
             text: self.$searchText,
@@ -1133,7 +1154,8 @@ private struct CostTab: View {
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
     @State private var showGroupOrder = false
-    @StateObject private var liveGroupPreferences = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    @StateObject private var liveGroupPreferences = ProcessInfo.processInfo
+        .environment["XCTestConfigurationFilePath"] != nil
         || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
         ? CostDashboardPreferencesStore.inMemory() : CostDashboardPreferencesStore.live()
     @StateObject private var demoGroupPreferences = CostDashboardPreferencesStore.inMemory()
@@ -1415,7 +1437,6 @@ private struct CostDashboardView: View {
         .modifier(SoftScrollEdgeModifier())
     }
 
-    @ViewBuilder
     private func dashboardGroup(_ group: CostDashboardGroup) -> some View {
         Group {
             switch group {
@@ -1468,11 +1489,17 @@ private struct CostDashboardView: View {
     private var scopeFooter: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(self.insights.cwlWindowDays == nil
-                ? String(localized: "Showing the latest Mac reports. Local estimates are separate from account-wide dashboard usage.")
-                : String(localized: "Showing saved daily history on this iPhone. Mac summaries do not replace saved totals."))
+                ?
+                String(
+                    localized: "Showing the latest Mac reports. Local estimates are separate from account-wide dashboard usage.")
+                :
+                String(
+                    localized: "Showing saved daily history on this iPhone. Mac summaries do not replace saved totals."))
                 .accessibilityIdentifier("cost-data-scope")
             if self.usageData.deviceSnapshots.count > 1 {
-                Text(String(localized: "Local estimates from multiple Macs are added by device. Copied sessions may be counted more than once; this is not an account-wide total."))
+                Text(
+                    String(
+                        localized: "Local estimates from multiple Macs are added by device. Copied sessions may be counted more than once; this is not an account-wide total."))
             }
         }
         .font(.caption)
@@ -5080,18 +5107,20 @@ enum MobileReleaseNotesCatalog {
                 .init(
                     id: "quota-overview", symbol: "chart.xyaxis.line",
                     title: String(localized: "Compare your remaining quotas"),
-                    detail: String(localized: "Choose up to five account quotas and customize their colors. Include available synced provider history and compare actual remaining quota over the six days leading to your nearest weekly reset, with seven evenly spaced date marks and an automatically updating timeline. Expand the compact legend for account details. The chart stays clear of the search and tab bars in iPhone landscape.")),
+                    detail: String(
+                        localized: "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards.")),
                 .init(
                     id: "cost-order", symbol: "arrow.up.arrow.down",
                     title: String(localized: "Put Cost groups in your order"),
-                    detail: String(localized: "Reorder entire Cost groups. Routine history and device-source notes now appear at the bottom, keeping your numbers in view.")),
+                    detail: String(
+                        localized: "Reorder entire Cost groups. Routine history and device-source notes now appear at the bottom, keeping your numbers in view.")),
             ],
             sections: [
                 .init(title: String(localized: "What's New"), items: [
                     String(
                         localized: "Pin the metrics that matter, with simple text labels, reset countdowns and estimated depletion dates. Cards show the provider name or your own label. Names stay visible while editing. Summary and Settings match the rest of the app."),
                     String(
-                        localized: "Compare up to five actual quota histories in Usage on one weekly timeline, with custom colors and a compact legend. Lines stop at the latest reading without predicting future usage. Landscape on iPhone keeps the chart and legend clear of the search and tab bars. Reorder Cost groups and find routine source notes at the bottom."),
+                        localized: "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom."),
                     String(localized: "This update uses data already synced from your Mac. No Mac update is required."),
                 ]),
             ]),

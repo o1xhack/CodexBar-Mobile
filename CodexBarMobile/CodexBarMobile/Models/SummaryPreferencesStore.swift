@@ -32,6 +32,7 @@ final class SummaryPreferencesStore: ObservableObject {
             if let decoded = try? JSONDecoder().decode(SummaryPreferences.self, from: data),
                decoded.schemaVersion == SummaryPreferences.currentSchemaVersion,
                Set(decoded.cards.map(\.id)).count == decoded.cards.count,
+               Set(decoded.orderedItemIDs).count == decoded.orderedItemIDs.count,
                Set(decoded.accountAnchors.map(\.id)).count == decoded.accountAnchors.count
             {
                 self.preferences = decoded
@@ -140,6 +141,11 @@ final class SummaryPreferencesStore: ObservableObject {
     func remove(id: UUID) {
         self.update {
             $0.hasInitialized = true
+            if let index = $0.cards.firstIndex(where: { $0.id == id }),
+               let position = $0.quotaModule?.position, index < position
+            {
+                $0.quotaModule?.position = max(0, position - 1)
+            }
             $0.cards.removeAll { $0.id == id }
         }
     }
@@ -167,6 +173,40 @@ final class SummaryPreferencesStore: ObservableObject {
             preferences.cards = preferences.cards.map { card in
                 guard selected.contains(card.id), let id = next.next(), let reordered = cards[id] else { return card }
                 return reordered
+            }
+        }
+    }
+
+    func addQuotaModule() {
+        self.update {
+            guard $0.quotaModule == nil else { return }
+            $0.hasInitialized = true
+            $0.quotaModule = SummaryQuotaModule(position: $0.cards.count)
+        }
+    }
+
+    func removeItem(id: UUID) {
+        if self.preferences.quotaModule?.id == id {
+            self.update { $0.quotaModule = nil }
+        } else {
+            self.remove(id: id)
+        }
+    }
+
+    /// Reorder modules and metrics together, preserving any filtered-out items in place.
+    func reorderItems(ids: [UUID]) {
+        self.update { preferences in
+            let current = preferences.orderedItemIDs
+            let known = Set(current)
+            var seen = Set<UUID>()
+            let ordered = ids.filter { known.contains($0) && seen.insert($0).inserted }
+            let selected = Set(ordered)
+            var iterator = ordered.makeIterator()
+            let next = current.map { selected.contains($0) ? iterator.next()! : $0 }
+            let cards = Dictionary(uniqueKeysWithValues: preferences.cards.map { ($0.id, $0) })
+            preferences.cards = next.compactMap { cards[$0] }
+            if let id = preferences.quotaModule?.id {
+                preferences.quotaModule?.position = next.firstIndex(of: id) ?? preferences.cards.count
             }
         }
     }

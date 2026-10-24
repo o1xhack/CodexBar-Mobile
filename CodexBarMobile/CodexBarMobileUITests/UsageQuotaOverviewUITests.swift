@@ -6,22 +6,41 @@ import XCTest
 final class UsageQuotaOverviewUITests: XCTestCase {
     override func setUpWithError() throws { self.continueAfterFailure = false }
 
-    @MainActor private func launch(hidden: Bool = false, largeText: Bool = false) -> XCUIApplication {
+    @MainActor private func launch(
+        hidden: Bool = false,
+        largeText: Bool = false,
+        addModule: Bool = true,
+        language: String = "en",
+        contentSize: String? = nil) -> XCUIApplication
+    {
         let app = XCUIApplication()
         app.launchArguments = [
             "UI_TEST_PREVIEW_DATA", "UI_TEST_MULTI_ACCOUNT_DATA", "UI_TEST_SKIP_ONBOARDING", "UI_TEST_RESET_DEFAULTS",
             "-cwlEnabled", "NO", "-openCostByDefault", "NO",
-            "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+            "-AppleLanguages", "(\(language))", "-AppleLocale", language == "ja" ? "ja_JP" : "en_US",
             "-hidePersonalInfo", hidden ? "YES" : "NO",
         ]
-        if largeText {
+        if let contentSize {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName", contentSize]
+        } else if largeText {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         }
         app.launch()
-        let usage = app.nativeTab("Usage")
+        let usage = SummaryQuotaUITestFlow.tab(app, name: "Usage")
         XCTAssertTrue(usage.waitForExistence(timeout: 10))
         usage.tap()
-        XCTAssertTrue(app.buttons["usage-quota-edit"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.scrollViews["usage-provider-list"].waitForExistence(timeout: 10))
+        XCTAssertFalse(
+            app.descendants(matching: .any)["usage-quota-chart"].exists,
+            "Usage must show provider usage without the optional Summary module")
+        if addModule {
+            SummaryQuotaUITestFlow.tab(app, name: "Summary").tap()
+            XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 5))
+            XCTAssertFalse(app.descendants(matching: .any)["summary-quota-module"].exists)
+            SummaryQuotaUITestFlow.addModule(app)
+            SummaryQuotaUITestFlow.moveModuleToFirst(app)
+            self.reveal(app.buttons["usage-quota-edit"], in: app)
+        }
         return app
     }
 
@@ -36,13 +55,16 @@ final class UsageQuotaOverviewUITests: XCTestCase {
 
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         var visible = false
-        if app.buttons["quota-editor-done"].exists {
+        // The catalog/account pages are pushed inside the editor and do not keep
+        // its root Done button. Detect their actual Form instead of falling back
+        // to the Summary grid underneath the presented navigation stack.
+        if app.collectionViews.containing(self.quotaEditorRowControl).firstMatch.exists {
             for _ in 0..<10 where !(element.exists && element.isHittable) {
                 self.scrollEditorForm(app, upward: true)
             }
             visible = element.exists && element.isHittable
         } else {
-            visible = self.revealUsageElement(element, in: app)
+            visible = self.revealSummaryElement(element, in: app)
         }
         if !visible {
             self.attachHierarchy(app, name: "Element still obscured after bounded scrolling")
@@ -53,68 +75,107 @@ final class UsageQuotaOverviewUITests: XCTestCase {
         XCTAssertTrue(visible, "The requested content must be reachable inside the unobscured scroll viewport")
     }
 
-    @MainActor private func revealUsageElement(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
-        let scroller = self.usageScroller(app)
-        let window = app.windows.containing(.scrollView, identifier: "usage-provider-list").firstMatch
+    @MainActor private func revealSummaryElement(
+        _ element: XCUIElement, in app: XCUIApplication, hittableControl: XCUIElement? = nil) -> Bool
+    {
+        let legendOpen = app.buttons["quota-legend-done"].exists
+        let id = legendOpen ? "quota-legend-sheet" : "summary-grid"
+        let scroller = app.scrollViews[id]
+        XCTAssertTrue(scroller.waitForExistence(timeout: 5))
+        let window = app.windows.containing(.scrollView, identifier: id).firstMatch
         XCTAssertTrue(window.exists)
-        let quotaElement = element.exists && element.identifier.hasPrefix("usage-quota-")
-        var lastFrame = element.exists ? element.frame : CGRect.null
         for _ in 0..<12 {
-            let bounds = window.frame.intersection(scroller.frame)
-            var visible = bounds
-            let chrome = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
-                + app.searchFields.allElementsBoundByIndex.filter(\.isHittable)
-            let tabBounds = ["Usage", "Summary", "Cost", "Setting"].map { app.nativeTab($0) }
-                .filter(\.exists).reduce(CGRect.null) { $0.union($1.frame) }
-            let obstructions = chrome.filter(\.exists).map(\.frame) + [tabBounds]
-            for frame in obstructions where !frame.isNull && frame.intersects(visible) {
-                if frame.width > frame.height {
-                    if frame.midY < bounds.midY {
-                        let bottom = visible.maxY
-                        visible.origin.y = max(visible.minY, frame.maxY)
-                        visible.size.height = max(0, bottom - visible.minY)
-                    } else {
-                        visible.size.height = max(0, min(visible.maxY, frame.minY) - visible.minY)
-                    }
-                } else if frame.midX < bounds.midX {
-                    let right = visible.maxX
-                    visible.origin.x = max(visible.minX, frame.maxX)
-                    visible.size.width = max(0, right - visible.minX)
-                } else {
-                    visible.size.width = max(0, min(visible.maxX, frame.minX) - visible.minX)
-                }
+            let visible = self.unobscuredViewport(app, scroller: scroller, window: window).insetBy(dx: 4, dy: 4)
+            if visible.isNull || visible.width <= 100 || visible.height <= 80 {
+                self.attachHierarchy(app, name: "Summary scroll viewport geometry failure")
+                self.capture("Summary scroll viewport geometry failure with complete native app")
+                self.attachViewportGeometry(app, scroller: scroller, window: window, visible: visible)
             }
-            visible = visible.insetBy(dx: 8, dy: 8)
             XCTAssertGreaterThan(visible.width, 100)
             XCTAssertGreaterThan(visible.height, 80)
-            if element.exists {
-                lastFrame = element.frame
-                // Quota rows must clear the bars in full; a restored provider card
-                // only needs to be reachable, since it may be taller than this viewport.
-                let verticallyVisible = (!quotaElement && lastFrame.intersects(visible)) ||
-                    (quotaElement && (lastFrame.height <= visible.height
-                            ? lastFrame.minY >= visible.minY && lastFrame.maxY <= visible.maxY
-                            : visible.contains(CGPoint(x: lastFrame.midX, y: lastFrame.midY))))
-                if verticallyVisible, element.isHittable { return true }
-            } else if quotaElement {
-                lastFrame = .null
+            let frame = element.exists ? element.frame : CGRect.null
+            if !frame.isNull, frame.minY >= visible.minY - 0.5, frame.maxY <= visible.maxY + 0.5,
+               (hittableControl ?? element).isHittable
+            {
+                return true
             }
-            // A short, slow drag with a held end avoids flinging past the row.
-            // If the quota card was lazily unloaded, it is above the provider list.
-            let upward = lastFrame.isNull ? !quotaElement : lastFrame.midY > visible.midY
-            let distance = min(72, visible.height * 0.28)
+            // Summary's production Layout eagerly lays out its module, while the
+            // sheet keeps its own scrolling. Drag only within the visible surface.
+            let upward = frame.isNull || frame.midY > visible.midY
+            // The complete module nearly fills a short landscape viewport. Center
+            // its measured frame instead of repeatedly overshooting with a fixed drag.
+            // Native pans consume about 10pt before content moves: the observed 9.6pt
+            // residual never scrolled. Include that recognition distance in the gesture,
+            // then measure the resulting frame again; the visibility check stays exact.
+            let remainingDistance = frame.isNull ? visible.height * 0.28 : abs(frame.midY - visible.midY)
+            let distance = min(72, max(16, remainingDistance + 12))
             let startY = visible.midY + (upward ? distance / 2 : -distance / 2)
-            let endY = startY + (upward ? -distance : distance)
             let origin = scroller.coordinate(withNormalizedOffset: .zero)
             let start = origin.withOffset(CGVector(
-                dx: visible.midX - scroller.frame.minX,
-                dy: startY - scroller.frame.minY))
+                dx: visible.midX - scroller.frame.minX, dy: startY - scroller.frame.minY))
             let end = origin.withOffset(CGVector(
                 dx: visible.midX - scroller.frame.minX,
-                dy: endY - scroller.frame.minY))
+                dy: startY + (upward ? -distance : distance) - scroller.frame.minY))
             start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.2)
         }
         return false
+    }
+
+    @MainActor private func unobscuredViewport(
+        _ app: XCUIApplication, scroller: XCUIElement, window: XCUIElement) -> CGRect
+    {
+        let bounds = window.frame.intersection(scroller.frame)
+        var visible = bounds
+        let obstructions: [CGRect]
+        if scroller.identifier == "quota-legend-sheet" {
+            // The native sheet covers Summary's TabBar, which remains in the AX
+            // tree. Only the sheet's own navigation controls can obscure its rows.
+            let bars = app.navigationBars.containing(.button, identifier: "quota-legend-done")
+                .allElementsBoundByIndex
+            let chrome = bars.isEmpty ? [app.buttons["quota-legend-done"]] : bars
+            obstructions = chrome.filter(\.exists).map(\.frame)
+        } else {
+            let chrome = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
+                + app.searchFields.allElementsBoundByIndex.filter(\.isHittable)
+            let tabBounds = ["Usage", "Summary", "Cost", "Setting"].map { SummaryQuotaUITestFlow.tab(app, name: $0) }
+                .filter { $0.exists && $0.isHittable }.reduce(CGRect.null) { $0.union($1.frame) }
+            obstructions = chrome.filter(\.exists).map(\.frame) + [tabBounds]
+        }
+        for frame in obstructions where !frame.isNull && frame.intersects(visible) {
+            if frame.width > frame.height {
+                if frame.midY < bounds.midY {
+                    let bottom = visible.maxY
+                    visible.origin.y = max(visible.minY, frame.maxY)
+                    visible.size.height = max(0, bottom - visible.minY)
+                } else {
+                    visible.size.height = max(0, min(visible.maxY, frame.minY) - visible.minY)
+                }
+            } else if frame.midX < bounds.midX {
+                let right = visible.maxX
+                visible.origin.x = max(visible.minX, frame.maxX)
+                visible.size.width = max(0, right - visible.minX)
+            } else {
+                visible.size.width = max(0, min(visible.maxX, frame.minX) - visible.minX)
+            }
+        }
+        return visible
+    }
+
+    @MainActor private func attachViewportGeometry(
+        _ app: XCUIApplication, scroller: XCUIElement, window: XCUIElement, visible: CGRect)
+    {
+        let tabs = ["Usage", "Summary", "Cost", "Setting"].map { SummaryQuotaUITestFlow.tab(app, name: $0) }
+        let elements = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
+            + app.searchFields.allElementsBoundByIndex + tabs
+        let descriptions = elements.filter(\.exists).map {
+            "\($0.elementType) id=\($0.identifier) label=\($0.label) frame=\($0.frame) hittable=\($0.isHittable)"
+        }
+        let attachment = XCTAttachment(string:
+            "Window: \(window.frame)\nScroll \(scroller.identifier): \(scroller.frame)\n"
+                + "Computed viewport: \(visible)\n" + descriptions.joined(separator: "\n"))
+        attachment.name = "Summary viewport and actual native control frames"
+        attachment.lifetime = .keepAlways
+        self.add(attachment)
     }
 
     @MainActor private func top(_ app: XCUIApplication) {
@@ -132,13 +193,18 @@ final class UsageQuotaOverviewUITests: XCTestCase {
         }
     }
 
-    @MainActor private func scrollEditorForm(_ app: XCUIApplication, upward: Bool) {
-        let rowControl = NSPredicate(
+    private var quotaEditorRowControl: NSPredicate {
+        NSPredicate(
             format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
-            "quota-line-actions-",
-            "quota-catalog-",
-            "quota-candidate-")
-        let form = app.collectionViews.containing(rowControl).firstMatch
+            "quota-line-actions-", "quota-catalog-", "quota-candidate-")
+    }
+
+    @MainActor private func scrollEditorForm(_ app: XCUIApplication, upward: Bool) {
+        let rowControl = self.quotaEditorRowControl
+        let forms = app.collectionViews.containing(rowControl)
+        let form = forms.allElementsBoundByIndex.first { candidate in
+            candidate.buttons.matching(rowControl).allElementsBoundByIndex.contains { $0.isHittable }
+        } ?? forms.firstMatch
         let visible = form.frame.intersection(app.windows.firstMatch.frame)
         let reachableRow = form.buttons.matching(rowControl).allElementsBoundByIndex.contains {
             $0.isHittable && $0.frame.intersects(visible)
@@ -171,16 +237,6 @@ final class UsageQuotaOverviewUITests: XCTestCase {
         (upward ? lower : upper).press(forDuration: 0.05, thenDragTo: upward ? upper : lower)
     }
 
-    @MainActor private func usageScroller(_ app: XCUIApplication) -> XCUIElement {
-        // The chart is lazy and can leave the accessibility tree while scrolling.
-        // Identify the persistent provider-list pane rather than an offscreen child.
-        let scroller = app.scrollViews["usage-provider-list"]
-        XCTAssertTrue(scroller.exists && scroller.isHittable, "The quota card's vertical list must be reachable")
-        XCTAssertGreaterThan(scroller.frame.width, 100)
-        XCTAssertGreaterThan(scroller.frame.height, 100)
-        return scroller
-    }
-
     @MainActor private func actions(_ app: XCUIApplication) -> XCUIElementQuery {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "quota-line-actions-"))
     }
@@ -195,15 +251,16 @@ final class UsageQuotaOverviewUITests: XCTestCase {
     }
 
     @MainActor private func assertQuotaClearsNativeChrome(_ app: XCUIApplication) {
+        let module = app.descendants(matching: .any)["summary-quota-module"].firstMatch
         let chart = app.descendants(matching: .any)["usage-quota-chart"].firstMatch
         let legend = app.buttons["usage-quota-legend-toggle"]
         let window = app.windows.containing(.any, identifier: "usage-quota-chart").firstMatch
-        let scroller = app.scrollViews.containing(.button, identifier: "usage-quota-edit").firstMatch
-        XCTAssertTrue(chart.exists && legend.exists && window.exists && scroller.exists)
-        // A hittable element may still be partly hidden. Check every edge of both
-        // production elements against their actual window, viewport and native bars.
+        let scroller = app.scrollViews["summary-grid"]
+        XCTAssertTrue(module.exists && chart.exists && legend.exists && window.exists && scroller.exists)
+        // A hittable chart can still leave its title clipped. Check the complete
+        // module as well as its plot and legend against the real viewport and bars.
         let viewport = window.frame.intersection(scroller.frame)
-        let tabs = ["Usage", "Summary", "Cost", "Setting"].map { app.nativeTab($0) }
+        let tabs = ["Usage", "Summary", "Cost", "Setting"].map { SummaryQuotaUITestFlow.tab(app, name: $0) }
         let chrome = app.navigationBars.allElementsBoundByIndex + app.tabBars.allElementsBoundByIndex
             + app.searchFields.allElementsBoundByIndex.filter(\.isHittable) + tabs
         var problems: [String] = []
@@ -213,7 +270,7 @@ final class UsageQuotaOverviewUITests: XCTestCase {
         for tab in tabs where !tab.exists || !tab.isHittable {
             problems.append("Native tab must remain reachable: \(tab)")
         }
-        for element in [chart, legend] {
+        for element in [module, chart, legend] {
             let frame = element.frame
             if !viewport.insetBy(dx: -1, dy: -1).contains(frame) {
                 problems.append("\(element.identifier) \(frame) escapes visible viewport \(viewport)")
@@ -242,186 +299,178 @@ final class UsageQuotaOverviewUITests: XCTestCase {
             .completed)
     }
 
-    @MainActor private func openProviderSearch(_ app: XCUIApplication) -> XCUIElement {
-        let field = app.searchFields.firstMatch
-        if !field.exists || !field.isHittable {
-            let search = app.buttons.matching(NSPredicate(
-                format: "label == %@ OR label == %@ OR identifier == %@",
-                "Search",
-                "Search providers",
-                "magnifyingglass")).firstMatch
-            if !search.waitForExistence(timeout: 5) {
-                self.attachHierarchy(app, name: "Missing native minimized search control")
-            }
-            XCTAssertTrue(search.exists && search.isHittable)
-            search.tap()
+    @MainActor private func showQuotaBody(_ app: XCUIApplication) {
+        let module = app.descendants(matching: .any)["summary-quota-module"].firstMatch
+        let visible = self.revealSummaryElement(
+            module, in: app, hittableControl: app.buttons["usage-quota-legend-toggle"])
+        if !visible {
+            self.attachHierarchy(app, name: "Complete Summary module is not reachable")
+            self.capture("Complete Summary module visibility failure")
         }
-        XCTAssertTrue(field.waitForExistence(timeout: 5) && field.isHittable)
-        field.tap()
-        self.dismissKeyboardIntroductionIfVisible(app)
-        return field
+        XCTAssertTrue(visible, "The entire module, including its title, must be reachable between native bars")
+        self.assertQuotaClearsNativeChrome(app)
     }
 
-    @MainActor private func dismissKeyboardIntroductionIfVisible(_ app: XCUIApplication) {
-        // Fresh Simulators can show the system's one-time Slide to Type tutorial.
-        // Dismiss only that observed onboarding view, never an arbitrary Continue action.
-        let introduction = app.otherElements["UIContinuousPathIntroductionView"]
-        guard introduction.waitForExistence(timeout: 2) else { return }
-        let explanation = introduction.staticTexts[
-            "Speed up your typing by sliding your finger across the letters to compose a word.",
-        ]
-        let continueButton = introduction.buttons["Continue"]
-        guard explanation.exists, explanation.frame.intersects(app.frame), continueButton.isHittable else { return }
-        continueButton.tap()
-        XCTAssertTrue(introduction.waitForNonExistence(timeout: 5), "System keyboard onboarding must close")
+    @MainActor private func openLegend(_ app: XCUIApplication) {
+        let toggle = app.buttons["usage-quota-legend-toggle"]
+        self.reveal(toggle, in: app)
+        toggle.tap()
+        XCTAssertTrue(app.scrollViews["quota-legend-sheet"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["quota-legend-done"].isHittable)
     }
 
-    @MainActor func testPhoneQuotaChartAndLegendClearBarsThroughLandscapeSearchAndRotation() {
+    @MainActor private func closeLegend(_ app: XCUIApplication) {
+        app.buttons["quota-legend-done"].tap()
+        XCTAssertTrue(app.scrollViews["quota-legend-sheet"].waitForNonExistence(timeout: 5))
+    }
+
+    @MainActor func testPhoneSummaryModuleSurvivesRotationAndTabChanges() {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
         let app = self.launch()
         self.waitForOrientation(app, landscape: false)
         XCTAssertLessThan(app.frame.width, 600, "Run this regression on an ordinary compact iPhone")
-        self.assertQuotaClearsNativeChrome(app)
-        self.capture("Phone quota portrait first viewport with complete native app")
+        self.showQuotaBody(app)
+        self.capture("Phone Summary quota module portrait with complete native app")
         let toggle = app.buttons["usage-quota-legend-toggle"]
         let selectedLines = toggle.value as? String
 
         XCUIDevice.shared.orientation = .landscapeLeft
         self.waitForOrientation(app, landscape: true)
-        // No scrolling before this assertion: revealing a clipped chart would hide the regression.
-        self.assertQuotaClearsNativeChrome(app)
-        self.capture("Phone quota landscape first viewport with complete native app")
-        let search = self.openProviderSearch(app)
-        search.typeText("Codex")
-        XCTAssertEqual(search.value as? String, "Codex")
-        XCTAssertTrue(app.buttons["provider-group-codex"].exists)
-        XCTAssertFalse(app.buttons["provider-group-claude"].exists, "Search must filter the provider list")
-        let clear = search.buttons["Clear text"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 5) && clear.isHittable)
-        clear.tap()
-        let clearedValue = search.value as? String
-        let queryCleared = clearedValue?.isEmpty == true || clearedValue == search.placeholderValue
-        if !queryCleared {
-            self.attachHierarchy(app, name: "Native search clear-text state")
-            self.capture("Native search clear-text state")
-        }
-        XCTAssertTrue(queryCleared, "Clear text must leave an empty query or its native placeholder")
-        // The unfiltered LazyVGrid need not instantiate the offscreen Claude row.
-        // Search for it explicitly to verify the query can change providers.
-        search.typeText("Claude")
-        XCTAssertTrue(app.buttons["provider-group-claude"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["provider-group-codex"].exists)
-        clear.tap()
-        search.typeText("Codex")
-        XCTAssertEqual(search.value as? String, "Codex")
-        XCTAssertFalse(app.buttons["provider-group-claude"].exists)
-        self.attachHierarchy(app, name: "Active native landscape search")
-        self.capture("Phone quota active native landscape search")
-        let cancel = app.navigationBars.buttons.matching(NSPredicate(
-            format: "label IN %@", ["Cancel", "Cancel Search", "Close", "close"])).firstMatch
-        XCTAssertTrue(cancel.waitForExistence(timeout: 5) && cancel.isHittable)
-        cancel.tap()
-        // iOS 26 keeps a Close button on its idle toolbar search field; iOS 27
-        // collapses it. Verify the completed interaction, not that OS-specific shell.
-        let keyboardDismissed = app.keyboards.firstMatch.waitForNonExistence(timeout: 5)
-        let editOrder = app.buttons["usage-edit-order"]
-        let searchEnded = NSPredicate { _, _ in
-            let field = app.searchFields.firstMatch
-            let value = field.exists ? field.value as? String : nil
-            let emptyQuery = !field.exists || value?.isEmpty == true || value == field.placeholderValue
-            guard emptyQuery, editOrder.exists else { return false }
-            let frame = editOrder.frame
-            return frame.width > 0 && frame.height > 0 && app.windows.firstMatch.frame.intersects(frame)
-        }
-        let searchDismissed = XCTWaiter.wait(
-            for: [XCTNSPredicateExpectation(predicate: searchEnded, object: app)], timeout: 5) == .completed
-        if !searchDismissed || !keyboardDismissed {
-            self.attachHierarchy(app, name: "Native search dismissal state")
-            self.capture("Native search dismissal state")
-        }
-        XCTAssertTrue(searchDismissed, "Closing search must clear the query and restore normal navigation")
-        XCTAssertTrue(keyboardDismissed, "Closing native search must dismiss the keyboard")
-        self.assertQuotaClearsNativeChrome(app)
-        XCTAssertEqual(toggle.value as? String, selectedLines, "Search must not change selected quota lines")
-        // The first unfiltered provider proves clearing restored the list without
-        // scrolling past multiple full provider cards; Claude was verified by search above.
-        self.reveal(app.buttons["provider-group-antigravity"], in: app)
-        self.top(app)
-
-        toggle.tap()
+        self.showQuotaBody(app)
+        self.capture("Phone Summary quota module landscape with complete native app")
+        self.openLegend(app)
         let rows = self.legendRows(app)
         XCTAssertEqual(rows.count, 5)
         for row in rows {
             self.reveal(row, in: app)
         }
-        self.capture("Phone quota landscape expanded legend last row reachable")
-        self.top(app)
-        self.reveal(toggle, in: app)
-        toggle.tap()
-        self.top(app)
-        app.nativeTab("Summary").tap()
-        app.nativeTab("Usage").tap()
-        XCTAssertEqual(toggle.label, "Expand quota legend")
+        self.capture("Phone Summary landscape legend sheet last row reachable")
+        self.closeLegend(app)
+
+        SummaryQuotaUITestFlow.tab(app, name: "Usage").tap()
+        XCTAssertTrue(app.scrollViews["usage-provider-list"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["usage-quota-chart"].exists)
+        self.capture("Phone Usage landscape provider cards without quota module")
+        SummaryQuotaUITestFlow.tab(app, name: "Summary").tap()
+        self.showQuotaBody(app)
         XCTAssertEqual(toggle.value as? String, selectedLines)
+        XCTAssertTrue(self.legendRows(app).isEmpty, "The legend sheet must close without expanding the module")
 
         XCUIDevice.shared.orientation = .portrait
         self.waitForOrientation(app, landscape: false)
-        self.top(app)
-        self.assertQuotaClearsNativeChrome(app)
-        self.capture("Phone quota portrait restored after search legend and rotation")
+        self.showQuotaBody(app)
+        self.capture("Phone Summary quota module portrait restored after rotation and tab changes")
     }
 
-    @MainActor func testNativeUsageChartInCurrentDisplayPose() {
-        let app = self.launch()
-        let card = app.descendants(matching: .any)["usage-quota-overview"].firstMatch
+    /// Run independently in each actual phone/Duo pose and light/dark system appearance.
+    /// The test never changes those traits; each attachment is a complete actual app screen.
+    @MainActor func testNativeSummaryQuotaModuleInCurrentDisplayPose() {
+        let app = self.launch(addModule: false)
+        self.capture("Native Usage provider cards without quota module in current display pose")
+        SummaryQuotaUITestFlow.tab(app, name: "Summary").tap()
+        XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["summary-quota-module"].exists)
+        self.capture("Native Summary before optional quota module in current display pose")
+        SummaryQuotaUITestFlow.addModule(app)
+        SummaryQuotaUITestFlow.moveModuleToFirst(app)
+        self.showQuotaBody(app)
+        let module = app.descendants(matching: .any)["summary-quota-module"].firstMatch
         let chart = app.descendants(matching: .any)["usage-quota-chart"].firstMatch
-        XCTAssertTrue(card.waitForExistence(timeout: 5))
-        XCTAssertTrue(chart.waitForExistence(timeout: 5))
+        let metric = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "summary-card-"))
+            .firstMatch
+        self.capture("Native Summary four-tile quota module with tabs in current display pose")
+        XCTAssertTrue(module.exists && chart.exists && metric.exists)
         XCTAssertGreaterThan(chart.frame.width, 140)
-        XCTAssertGreaterThanOrEqual(chart.frame.height, 139)
-        XCTAssertGreaterThanOrEqual(chart.frame.minX, card.frame.minX - 2)
-        XCTAssertLessThanOrEqual(chart.frame.maxX, card.frame.maxX + 2)
-        XCTAssertTrue(self.legendRows(app).isEmpty, "Detailed legend rows must start collapsed")
-        let toggle = app.buttons["usage-quota-legend-toggle"]
-        XCTAssertEqual(toggle.label, "Expand quota legend")
-        XCTAssertTrue(app.staticTexts["+3"].exists, "Only two default labels and the remaining count should be shown")
-        XCTAssertTrue(app.nativeTab("Usage").exists, "Capture must include the real native navigation surface")
-        self.assertQuotaClearsNativeChrome(app)
-        self.capture("Usage quota collapsed with native tabs in current display pose")
+        XCTAssertGreaterThanOrEqual(chart.frame.height, 99.5, "Allow half a point for CGFloat frame rounding")
+        XCTAssertEqual(
+            module.frame.width,
+            metric.frame.width * 2 + 8,
+            accuracy: 3,
+            "The module must occupy two metric columns")
+        XCTAssertGreaterThanOrEqual(
+            module.frame.height,
+            metric.frame.height * 2 - 0.5,
+            "The module must reserve two metric rows, allowing subpixel frame rounding")
+        XCTAssertLessThan(
+            module.frame.height,
+            metric.frame.height * 2 + 40,
+            "The module must retain its compact four-tile footprint")
+        XCTAssertGreaterThanOrEqual(chart.frame.minX, module.frame.minX - 1)
+        XCTAssertLessThanOrEqual(chart.frame.maxX, module.frame.maxX + 1)
+        XCTAssertTrue(self.legendRows(app).isEmpty, "Detailed rows belong in the separate legend sheet")
+        XCTAssertTrue(app.staticTexts["+3"].exists, "The module summarizes two labels and the remaining count")
 
-        toggle.tap()
-        XCTAssertEqual(toggle.label, "Collapse quota legend")
+        self.openLegend(app)
         let rows = self.legendRows(app)
         XCTAssertEqual(rows.count, 5)
         for row in rows {
+            self.reveal(row, in: app)
             XCTAssertGreaterThan(row.frame.height, 20)
             XCTAssertGreaterThan(row.frame.width, 120)
-            XCTAssertGreaterThanOrEqual(row.frame.minX, card.frame.minX - 2)
-            XCTAssertLessThanOrEqual(row.frame.maxX, card.frame.maxX + 2)
         }
-        self.capture("Usage quota expanded five lines with native tabs")
-        toggle.tap()
-        XCTAssertEqual(toggle.label, "Expand quota legend")
-        for title in ["Summary", "Cost", "Setting"] {
-            let tab = app.nativeTab(title)
+        self.capture("Native Summary quota legend sheet in current display pose")
+        self.closeLegend(app)
+        self.top(app)
+        app.buttons["usage-quota-edit"].tap()
+        XCTAssertTrue(app.buttons["quota-editor-done"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["5 / 5"].exists)
+        self.capture("Native Summary quota selection sheet in current display pose")
+        app.buttons["quota-editor-done"].tap()
+        for title in ["Cost", "Setting", "Usage"] {
+            let tab = SummaryQuotaUITestFlow.tab(app, name: title)
             XCTAssertTrue(tab.waitForExistence(timeout: 5), "Every tab must remain a native reachable control")
             tab.tap()
-            if title == "Summary" {
-                XCTAssertTrue(app.scrollViews["summary-grid"].waitForExistence(timeout: 8))
-            } else if title == "Cost" {
+            if title == "Cost" {
                 XCTAssertTrue(app.buttons["cost-group-order-button"].waitForExistence(timeout: 15))
-            } else {
+            } else if title == "Setting" {
                 XCTAssertTrue(app.staticTexts["Setup Guide"].firstMatch.waitForExistence(timeout: 5))
+            } else {
+                XCTAssertTrue(app.scrollViews["usage-provider-list"].waitForExistence(timeout: 5))
+                XCTAssertFalse(app.descendants(matching: .any)["usage-quota-chart"].exists)
             }
             self.capture("Native \(title) complete app in current display pose")
         }
-        let usage = app.nativeTab("Usage")
-        XCTAssertTrue(usage.exists)
-        usage.tap()
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-        XCTAssertEqual(toggle.label, "Expand quota legend", "Tab changes must retain the explicitly collapsed state")
-        self.capture("Native Usage restored with compact quota legend")
+        SummaryQuotaUITestFlow.tab(app, name: "Summary").tap()
+        self.showQuotaBody(app)
+        XCTAssertTrue(self.legendRows(app).isEmpty)
+        self.capture("Native Summary restored with compact quota module")
+    }
+
+    @MainActor func testJapaneseSummaryModuleAtLargestStandardTextSizeKeepsLabelsSeparate() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = self.launch(language: "ja", contentSize: "UICTContentSizeCategoryXXXL")
+        self.waitForOrientation(app, landscape: false)
+        XCTAssertLessThan(app.frame.width, 600, "Run the largest standard text regression on a compact iPhone")
+        self.showQuotaBody(app)
+        XCTAssertTrue(app.descendants(matching: .any)["summary-grid-columns-2"].exists)
+        let module = app.descendants(matching: .any)["summary-quota-module"].firstMatch
+        let title = app.staticTexts["残りの利用枠"].firstMatch
+        let period = app.staticTexts["usage-quota-period"]
+        let chart = app.descendants(matching: .any)["usage-quota-chart"].firstMatch
+        let legend = app.buttons["usage-quota-legend-toggle"]
+        let edit = app.buttons["usage-quota-edit"]
+        for element in [title, period, chart, legend] {
+            XCTAssertTrue(element.exists)
+            XCTAssertTrue(
+                module.frame.insetBy(dx: -1, dy: -1).contains(element.frame),
+                "Every title, date, plot and legend must stay inside its four-tile module")
+        }
+        XCTAssertLessThanOrEqual(title.frame.maxY, period.frame.minY + 1)
+        XCTAssertLessThanOrEqual(period.frame.maxY, chart.frame.minY + 1)
+        XCTAssertLessThanOrEqual(chart.frame.maxY, legend.frame.minY + 1)
+        XCTAssertLessThanOrEqual(
+            title.frame.maxX,
+            edit.frame.minX + 1,
+            "The Japanese title must not overlap the line selection control")
+        self.capture("Phone Japanese Summary module largest standard text complete app")
+        self.openLegend(app)
+        XCTAssertEqual(self.legendRows(app).count, 5)
+        for row in self.legendRows(app) {
+            self.reveal(row, in: app)
+        }
+        self.capture("Phone Japanese largest standard text quota legend sheet")
+        self.closeLegend(app)
     }
 
     @MainActor func testEditorLimitRemoveAddColorAndOrderSurviveReentry() {
@@ -493,9 +542,10 @@ final class UsageQuotaOverviewUITests: XCTestCase {
 
     @MainActor func testQuotaEditorAndExpandedLegendHideAccountEmails() {
         let app = self.launch(hidden: true)
-        app.buttons["usage-quota-legend-toggle"].tap()
+        self.openLegend(app)
         XCTAssertEqual(self.legendRows(app).count, 5)
         XCTAssertTrue(self.legendRows(app).allSatisfy { !$0.label.contains("@") })
+        self.closeLegend(app)
         self.top(app)
         app.buttons["usage-quota-edit"].tap()
         XCTAssertTrue(app.buttons["quota-editor-done"].waitForExistence(timeout: 5))
@@ -523,27 +573,28 @@ final class UsageQuotaOverviewUITests: XCTestCase {
             chart.frame.height,
             200,
             "The real app must have applied an accessibility content size before claiming AX evidence")
-        app.buttons["usage-quota-legend-toggle"].tap()
+        self.openLegend(app)
         let rows = self.legendRows(app)
         XCTAssertEqual(rows.count, 5)
-        let card = app.descendants(matching: .any)["usage-quota-overview"].firstMatch
-        self.capture("Usage quota accessibility legend expanded top")
+        let sheet = app.scrollViews["quota-legend-sheet"]
+        self.capture("Summary quota accessibility legend sheet top")
         for row in rows {
             self.reveal(row, in: app)
             XCTAssertGreaterThan(row.frame.height, 40)
-            XCTAssertGreaterThanOrEqual(row.frame.minX, card.frame.minX - 2)
+            XCTAssertGreaterThanOrEqual(row.frame.minX, sheet.frame.minX - 2)
             XCTAssertLessThanOrEqual(
                 row.frame.maxX,
-                card.frame.maxX + 2,
-                "Large text must wrap inside the quota card rather than escape horizontally")
+                sheet.frame.maxX + 2,
+                "Large text must wrap inside the legend sheet rather than escape horizontally")
             XCTAssertFalse(row.label.isEmpty)
         }
-        self.capture("Usage quota accessibility fifth legend row reached by scrolling")
+        self.capture("Summary quota accessibility fifth legend row reached by scrolling")
+        self.closeLegend(app)
     }
 
     @MainActor func testCostWholeGroupOrderMovesNumbersAcrossTheOldPaneBoundary() {
-        let app = self.launch()
-        app.nativeTab("Cost").tap()
+        let app = self.launch(addModule: false)
+        SummaryQuotaUITestFlow.tab(app, name: "Cost").tap()
         let edit = app.buttons["cost-group-order-button"]
         XCTAssertTrue(edit.waitForExistence(timeout: 15))
         edit.tap()

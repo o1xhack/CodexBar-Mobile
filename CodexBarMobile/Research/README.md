@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 086 | Summary四格额度模块与统一底色 | `done` | 可选2×2模块、根视图采样、Duo深色及四姿态验证 | [086-summary-quota-module/00-goal.md](086-summary-quota-module/00-goal.md) | 2026-10-23 |
 | 085 | 总览复用真实同步历史与等距日期轴 | `done` | Air真实多日曲线、1319单测/1条件跳过、四姿态及本地CR通过；远端CR/TF255以本轮发布回执为准 | [085-quota-synced-history-axis/00-goal.md](085-quota-synced-history-axis/00-goal.md) | 2026-10-23 |
 | 084 | 最近 Weekly 重置驱动的144小时额度历史 | `done` | 本地/远端CR与TF254待完成 | [084-quota-nearest-weekly-reset/00-goal.md](084-quota-nearest-weekly-reset/00-goal.md) | 2026-10-23 |
 | 083 | Usage 真实额度消耗历史，删除预测线 | `done` | 真实历史与固定周轴已实现；1311 unit通过/1 skip，最终40专项/52状态渲染、Air实机及普通iPhone/Duo完整横竖屏通过；远端CR/TF253以发布回执为准 | [083-quota-observed-history/00-goal.md](083-quota-observed-history/00-goal.md) | 2026-10-23 |
