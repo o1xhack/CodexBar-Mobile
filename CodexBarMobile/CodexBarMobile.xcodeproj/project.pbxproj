@@ -89,6 +89,7 @@
 		3E591C7DE7ED51CB3883D431 /* ProviderUsageEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */; };
 		3E5AFF6C6E5FEDFEEC7856DD /* QuotaPaceWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29398405BA75DD7486CCA9D /* QuotaPaceWidgetTests.swift */; };
 		3ED0E7E35244C717F48AF138 /* ResetCreditCalendarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648239F1ECDA321B0DC8B629 /* ResetCreditCalendarSettingsView.swift */; };
+		3F2C5A629205434B2F61BE01 /* LiveQuotaPerformanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEBDCDCC18AD0CEFBB53CA8D /* LiveQuotaPerformanceUITests.swift */; };
 		3FF73F5DB65C0589C032253A /* CloudConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFC39F091B19A1DE9F2E7C7 /* CloudConstants.swift */; };
 		4012D7EC2F2083F196B70B84 /* MoonshotBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */; };
 		412874292922CEE47C2CDDC2 /* WidgetConfigurationAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7D93C3084621BE903FDADAB /* WidgetConfigurationAppIntents.swift */; };
@@ -234,6 +235,7 @@
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
 		B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */; };
 		B1D59C84629F7317657710F5 /* WidgetProviderSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */; };
+		B2AEFA9938CA121454ACA426 /* UsageQuotaDetailPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0652B88041F065FA5601893 /* UsageQuotaDetailPerformanceTests.swift */; };
 		B4A74E58A58B3CBCE5D3900E /* WidgetActivityProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484A69D6665BE9EADD5FA571 /* WidgetActivityProjection.swift */; };
 		B51DF1D4DEDA3E174C81B79D /* MobileAdaptiveLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C14FB019008FD0CC5CE92C /* MobileAdaptiveLayoutTests.swift */; };
 		B5283E8AA416C223E2086226 /* CostGroupOrderEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7925ED82B2D964CC98F5C1 /* CostGroupOrderEditor.swift */; };
@@ -596,6 +598,7 @@
 		9E1CDB98EFAB759A483CBC51 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.intentdefinition; name = Base; path = Base.lproj/WidgetActivity.intentdefinition; sourceTree = "<group>"; };
 		9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedrockCostCard.swift; sourceTree = "<group>"; };
 		9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelContainerFactory.swift; sourceTree = "<group>"; };
+		A0652B88041F065FA5601893 /* UsageQuotaDetailPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageQuotaDetailPerformanceTests.swift; sourceTree = "<group>"; };
 		A182CE5CF24C94F04E19832D /* StatusWidgetConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWidgetConfigurationTests.swift; sourceTree = "<group>"; };
 		A3C41E927ED590011816A780 /* UsageSidebarSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSidebarSummary.swift; sourceTree = "<group>"; };
 		A40C52452E873B1A89E7AD21 /* CodexBarMobileUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CodexBarMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -638,6 +641,7 @@
 		BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitMergeTests.swift; sourceTree = "<group>"; };
 		BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V029Snapshots.swift; sourceTree = "<group>"; };
 		BE097409AB03C48BF5C1524C /* CostDiagnosticsReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostDiagnosticsReport.swift; sourceTree = "<group>"; };
+		BEBDCDCC18AD0CEFBB53CA8D /* LiveQuotaPerformanceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveQuotaPerformanceUITests.swift; sourceTree = "<group>"; };
 		BF09032F88FD63EA4A593B9F /* ResetCreditCalendarPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetCreditCalendarPlanner.swift; sourceTree = "<group>"; };
 		C0369FFFEB823BDDD0EF77D4 /* ProviderSourceNoticePlacementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSourceNoticePlacementTests.swift; sourceTree = "<group>"; };
 		C18A6DA611774BDB96E4AB70 /* V045ProviderCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V045ProviderCards.swift; sourceTree = "<group>"; };
@@ -827,6 +831,7 @@
 				8827639F28EE314E00F843FA /* TokenActivityTests.swift */,
 				C7C70E025AA188A90E5D6D41 /* UsageCardOrderingTests.swift */,
 				FF27BDA86EA01A9BD2362579 /* UsageQuotaCompatibilityTests.swift */,
+				A0652B88041F065FA5601893 /* UsageQuotaDetailPerformanceTests.swift */,
 				F471BA8BF41D618D14F335D4 /* UsageQuotaDetailPresentationTests.swift */,
 				6FA3777C57410F3854EE5B3C /* UsageQuotaOverviewTests.swift */,
 				3B4709116C6E66A4B110D0DC /* UsageQuotaPresentationTests.swift */,
@@ -1090,6 +1095,7 @@
 			children = (
 				E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */,
 				218B73280580E4A94C140E2D /* DuoWorkspaceUITests.swift */,
+				BEBDCDCC18AD0CEFBB53CA8D /* LiveQuotaPerformanceUITests.swift */,
 				86B5B39707BED58D8AAA36E3 /* SummaryTabUITests.swift */,
 				B9DF1F07200AC53DA52483E4 /* UsageCardOrganizationUITests.swift */,
 				E3A41EB3644F4BCAC4539EA3 /* UsageQuotaOverviewUITests.swift */,
@@ -1525,6 +1531,7 @@
 				F5F10B3D3A3F6BF0FB2E4101 /* TokenHistoryMigrationTests.swift in Sources */,
 				0A6C5492EC2D8ADBF8AEF17D /* UsageCardOrderingTests.swift in Sources */,
 				08A9EE66C4053BB814A64F88 /* UsageQuotaCompatibilityTests.swift in Sources */,
+				B2AEFA9938CA121454ACA426 /* UsageQuotaDetailPerformanceTests.swift in Sources */,
 				0DB97648AEC3DF89867DCBD7 /* UsageQuotaDetailPresentationTests.swift in Sources */,
 				1710B6ABFE872739FA1FBB51 /* UsageQuotaOverviewTests.swift in Sources */,
 				F684E6F284DA0BF1FC11DCDD /* UsageQuotaPresentationTests.swift in Sources */,
@@ -1716,6 +1723,7 @@
 			files = (
 				B7EC6DFB5C971047AC6D544C /* CodexBarMobileUITests.swift in Sources */,
 				67B06FA7C5A2AD0605CC1C4B /* DuoWorkspaceUITests.swift in Sources */,
+				3F2C5A629205434B2F61BE01 /* LiveQuotaPerformanceUITests.swift in Sources */,
 				84B1F2BD35F27B1BB8748062 /* SummaryTabUITests.swift in Sources */,
 				5DFAECF3632BC6007531C423 /* UsageCardOrganizationUITests.swift in Sources */,
 				9A577F0DEE6DD2B8325393F0 /* UsageQuotaOverviewUITests.swift in Sources */,
@@ -1892,7 +1900,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1912,7 +1920,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1937,7 +1945,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/WidgetExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2112,7 +2120,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2133,7 +2141,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2155,7 +2163,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2192,7 +2200,7 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgetOptions/WidgetOptions.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobileWidgetOptions/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2214,7 +2222,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2250,7 +2258,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -2274,7 +2282,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 257;
+				CURRENT_PROJECT_VERSION = 258;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

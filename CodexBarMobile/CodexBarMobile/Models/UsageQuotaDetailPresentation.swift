@@ -58,3 +58,37 @@ enum UsageQuotaDetailPresentation: UsageQuotaHistoryInspecting {
         }.map(\.element)
     }
 }
+
+/// A source-revision snapshot, shared by all interactions until the parent receives
+/// fresh inputs. In particular, a slider getter never parses or merges source history.
+struct UsageQuotaDetailSnapshot {
+    let overview: UsageQuotaOverview
+    private let latestDates: [UUID: Date]
+
+    init(overview: UsageQuotaOverview, providerFilterID: String? = nil) {
+        let lines = overview.lines.filter {
+            providerFilterID == nil || $0.selection.providerID == providerFilterID
+        }
+        self.overview = UsageQuotaOverview(start: overview.start, end: overview.end, lines: lines)
+        let domain = overview.start...overview.end
+        self.latestDates = Dictionary(uniqueKeysWithValues: lines.compactMap { line in
+            UsageQuotaDetailPresentation.reading(
+                selectedDate: nil, samples: line.observedSamples, domain: domain)
+                .map { (line.id, $0.date) }
+        })
+    }
+
+    func displayed(focusedID: UUID?) -> UsageQuotaOverview {
+        guard let focusedID, let line = self.overview.lines.first(where: { $0.id == focusedID }) else {
+            return self.overview
+        }
+        return UsageQuotaOverview(start: self.overview.start, end: self.overview.end, lines: [line])
+    }
+
+    func latestDate(focusedID: UUID?) -> Date? {
+        if let focusedID, self.overview.lines.contains(where: { $0.id == focusedID }) {
+            return self.latestDates[focusedID]
+        }
+        return self.latestDates.values.max()
+    }
+}

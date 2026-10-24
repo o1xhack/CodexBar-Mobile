@@ -310,30 +310,30 @@
         }
       }
     },
-    "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards.": {
+    "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards."
+            "value": "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将剩余额度作为四格图表添加到摘要。点击查看真实历史、单独查看曲线并打开账户详情。最多对比五项额度，支持自定义颜色和自动更新的每周时间轴。图表可与其他卡片一起排序或移除。"
+            "value": "将剩余额度作为四格图表添加到摘要。点击查看真实历史、单独查看曲线并打开账户详情。最多对比五项额度，支持自定义颜色和自动更新的每周时间轴。图表可与其他卡片一起排序或移除。历史记录较多时，打开和查看详情更快。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將剩餘額度作為四格圖表加入摘要。點一下即可查看真實歷史、單獨查看曲線並開啟帳戶詳情。最多比較五項額度，支援自訂顏色和自動更新的每週時間軸。圖表可與其他卡片一起排序或移除。"
+            "value": "將剩餘額度作為四格圖表加入摘要。點一下即可查看真實歷史、單獨查看曲線並開啟帳戶詳情。最多比較五項額度，支援自訂顏色和自動更新的每週時間軸。圖表可與其他卡片一起排序或移除。歷史記錄較多時，開啟和查看詳情更快。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "残り利用枠を4マスのグラフとしてサマリーに追加できます。タップして実際の履歴を確認し、1本の線に絞ったり、アカウント詳細を開いたりできます。最大5つの利用枠を、色のカスタマイズと自動更新される週間の時間軸で比較できます。他のカードと一緒に並べ替えや削除もできます。"
+            "value": "残り利用枠を4マスのグラフとしてサマリーに追加できます。タップして実際の履歴を確認し、1本の線に絞ったり、アカウント詳細を開いたりできます。最大5つの利用枠を、色のカスタマイズと自動更新される週間の時間軸で比較できます。他のカードと一緒に並べ替えや削除もできます。履歴が多い場合の表示と操作が速くなりました。"
           }
         }
       }

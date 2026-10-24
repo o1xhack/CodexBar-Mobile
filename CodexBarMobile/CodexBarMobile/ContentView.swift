@@ -5108,7 +5108,7 @@ enum MobileReleaseNotesCatalog {
                     id: "quota-overview", symbol: "chart.xyaxis.line",
                     title: String(localized: "Compare your remaining quotas"),
                     detail: String(
-                        localized: "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards.")),
+                        localized: "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster.")),
                 .init(
                     id: "cost-order", symbol: "arrow.up.arrow.down",
                     title: String(localized: "Put Cost groups in your order"),

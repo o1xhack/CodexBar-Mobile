@@ -71,7 +71,8 @@ struct UsageQuotaDetailPresentationTests {
         state: SummaryCardState = .available,
         reset: Date?,
         remaining: Double = 40,
-        stale: Bool = false) -> UsageQuotaResolvedLine
+        stale: Bool = false,
+        samples: [UsageQuotaPoint] = []) -> UsageQuotaResolvedLine
     {
         UsageQuotaResolvedLine(
             selection: UsageQuotaSelection(
@@ -82,7 +83,7 @@ struct UsageQuotaDetailPresentationTests {
                 colorHex: "000000"),
             provider: nil, accountTitle: "Fictional account", compactAccountTitle: nil, privateAccountTitle: nil,
             metricTitle: "Weekly", state: state, isStale: stale, currentRemainingPercent: remaining,
-            observedAt: self.start, resetDate: reset, observedSamples: [], localObservationCount: 0)
+            observedAt: self.start, resetDate: reset, observedSamples: samples, localObservationCount: samples.count)
     }
 
     @Test
@@ -118,5 +119,76 @@ struct UsageQuotaDetailPresentationTests {
         #expect(try UsageQuotaDetailPresentation.currentLines([later, earlier], now: #require(earlier.resetDate)).first?
             .id == later.id)
         #expect(UsageQuotaDetailPresentation.currentLines([later], now: self.start).map(\.id) == [later.id])
+    }
+
+    @Test
+    func `dense history snapshot retains every real point and keeps focus lookup independent of source history`() {
+        let samples = (0..<20000).map { index in
+            UsageQuotaPoint(
+                date: self.start.addingTimeInterval(Double(index)),
+                remainingPercent: 100 - Double(index) / 200,
+                segment: index < 10000 ? 0 : 1)
+        }
+        let earlier = self.line(anchor: "dense", reset: self.start.addingTimeInterval(86400), samples: samples)
+        let laterPoint = UsageQuotaPoint(date: self.start.addingTimeInterval(22000), remainingPercent: 64)
+        let later = self.line(anchor: "sparse", reset: self.start.addingTimeInterval(172_800), samples: [laterPoint])
+        let end = self.start.addingTimeInterval(6 * 86400)
+        let snapshot = UsageQuotaDetailSnapshot(
+            overview: UsageQuotaOverview(start: self.start, end: end, lines: [earlier, later]))
+        #expect(snapshot.overview.lines[0].observedSamples == samples)
+        #expect(snapshot.displayed(focusedID: earlier.id).lines[0].observedSamples == samples)
+        #expect(snapshot.displayed(focusedID: earlier.id).start == self.start)
+        #expect(snapshot.displayed(focusedID: earlier.id).end == end)
+        // Repeated Binding reads touch the prepared dates, not the source resolver or point arrays.
+        for _ in 0..<1000 {
+            #expect(snapshot.latestDate(focusedID: earlier.id) == samples.last?.date)
+            #expect(snapshot.latestDate(focusedID: later.id) == laterPoint.date)
+            #expect(snapshot.latestDate(focusedID: nil) == laterPoint.date)
+        }
+        #expect(snapshot.displayed(focusedID: UUID()).lines.map(\.id) == [earlier.id, later.id])
+        #expect(snapshot.latestDate(focusedID: UUID()) == laterPoint.date)
+    }
+
+    @Test
+    func `snapshot latest dates exclude gaps invalid values and dates outside the fixed domain`() {
+        let end = self.start.addingTimeInterval(600)
+        let valid = UsageQuotaPoint(date: self.start.addingTimeInterval(300), remainingPercent: 73)
+        let mixed = self.line(reset: end, samples: [
+            UsageQuotaPoint(date: self.start.addingTimeInterval(-1), remainingPercent: 80),
+            valid,
+            UsageQuotaPoint(date: end, remainingPercent: .nan),
+            UsageQuotaPoint(date: end.addingTimeInterval(1), remainingPercent: 65),
+        ])
+        let missing = self.line(anchor: "missing", reset: end)
+        let snapshot = UsageQuotaDetailSnapshot(
+            overview: UsageQuotaOverview(start: self.start, end: end, lines: [mixed, missing]))
+        #expect(snapshot.latestDate(focusedID: mixed.id) == valid.date)
+        #expect(snapshot.latestDate(focusedID: missing.id) == nil)
+        #expect(snapshot.latestDate(focusedID: nil) == valid.date)
+        let filtered = UsageQuotaDetailSnapshot(overview: snapshot.overview, providerFilterID: "claude")
+        #expect(filtered.overview.lines.isEmpty)
+        #expect(filtered.overview.start == snapshot.overview.start)
+        #expect(filtered.overview.end == snapshot.overview.end)
+        #expect(filtered.latestDate(focusedID: nil) == nil)
+        // Explicit inspection still does not carry the latest value into missing history.
+        #expect(UsageQuotaDetailPresentation.reading(
+            selectedDate: end, samples: mixed.observedSamples, domain: self.start...end) == nil)
+    }
+
+    @Test
+    func `fresh source snapshot replaces prepared dates while preserving original timestamps`() {
+        let first = UsageQuotaPoint(date: self.start, remainingPercent: 90)
+        let reset = self.start.addingTimeInterval(6 * 86400)
+        let id = UUID()
+        let before = UsageQuotaDetailSnapshot(overview: UsageQuotaOverview(
+            start: self.start, end: reset,
+            lines: [self.line(id: id, reset: reset, samples: [first])]))
+        let next = UsageQuotaPoint(date: self.start.addingTimeInterval(300), remainingPercent: 80)
+        let after = UsageQuotaDetailSnapshot(overview: UsageQuotaOverview(
+            start: self.start, end: reset,
+            lines: [self.line(id: id, reset: reset, samples: [first, next])]))
+        #expect(before.latestDate(focusedID: id) == first.date)
+        #expect(after.latestDate(focusedID: id) == next.date)
+        #expect(after.overview.lines[0].observedSamples == [first, next])
     }
 }

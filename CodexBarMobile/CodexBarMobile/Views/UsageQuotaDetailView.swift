@@ -10,6 +10,32 @@ struct UsageQuotaDetailView: View {
     let isDemoMode: Bool
     let now: Date
     var providerFilterID: String?
+    var body: some View {
+        // Resolve source identity and merge history only when source/clock inputs change.
+        // Interaction state belongs to the child, so scrubbing and sheet/navigation taps
+        // cannot re-enter the projection through a computed property or Binding getter.
+        let snapshot = UsageQuotaDetailSnapshot(
+            overview: self.store.overview(accounts: self.accounts, now: self.now),
+            providerFilterID: self.providerFilterID)
+        UsageQuotaDetailContent(
+            snapshot: snapshot, quotaPreferences: self.store.preferences, isReadOnly: self.store.isReadOnly,
+            summaryPreferences: self.summaryPreferences.preferences, store: self.store,
+            accounts: self.accounts, sourceSnapshots: self.sourceSnapshots,
+            isDemoMode: self.isDemoMode, now: self.now)
+    }
+}
+
+private struct UsageQuotaDetailContent: View {
+    let snapshot: UsageQuotaDetailSnapshot
+    let quotaPreferences: UsageQuotaPreferences
+    let isReadOnly: Bool
+    let summaryPreferences: SummaryPreferences
+    // A command target for the editor, not an observation source for interaction state.
+    let store: UsageQuotaOverviewStore
+    let accounts: [ProviderUsageSnapshot]
+    let sourceSnapshots: [SyncedUsageSnapshot]
+    let isDemoMode: Bool
+    let now: Date
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidesPersonalInfo = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.mobileAdaptiveLayout) private var layout
@@ -20,23 +46,15 @@ struct UsageQuotaDetailView: View {
     @State private var showingAccount = false
 
     private var overview: UsageQuotaOverview {
-        let full = self.store.overview(accounts: self.accounts, now: self.now)
-        return UsageQuotaOverview(start: full.start, end: full.end, lines: full.lines.filter {
-            self.providerFilterID == nil || $0.selection.providerID == self.providerFilterID
-        })
+        self.snapshot.overview
     }
 
     private var displayed: UsageQuotaOverview {
-        let overview = self.overview
-        let focus = self.focusedID.flatMap { id in overview.lines.contains(where: { $0.id == id }) ? id : nil }
-        return UsageQuotaOverview(start: overview.start, end: overview.end, lines: overview.lines.filter {
-            focus == nil || $0.id == focus
-        })
+        self.snapshot.displayed(focusedID: self.focusedID)
     }
 
     private var sliderDate: Date? {
-        self.selectedDate ?? self.displayed.lines.flatMap(\.observedSamples).map(\.date)
-            .filter { self.overview.start <= $0 && $0 <= self.overview.end }.max()
+        self.selectedDate ?? self.snapshot.latestDate(focusedID: self.focusedID)
     }
 
     var body: some View {
@@ -44,7 +62,7 @@ struct UsageQuotaDetailView: View {
             let contentWidth = max(0, geometry.size.width - 32)
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    if self.store.isReadOnly {
+                    if self.isReadOnly {
                         ContentUnavailableView(
                             String(localized: "Unavailable"), systemImage: "exclamationmark.triangle",
                             description: Text(
@@ -103,7 +121,7 @@ struct UsageQuotaDetailView: View {
                 Button { self.showingEditor = true } label: {
                     Image(systemName: "slider.horizontal.3")
                 }
-                .disabled(self.store.isReadOnly)
+                .disabled(self.isReadOnly)
                 .accessibilityLabel(String(localized: "Choose quota lines"))
                 .accessibilityIdentifier("quota-detail-edit")
             }
@@ -311,23 +329,23 @@ struct UsageQuotaDetailView: View {
             line, providerName: SummaryPresentation.providerName(
                 id: line.selection.providerID,
                 accounts: self.accounts),
-            preferences: self.store.preferences, hidesPersonalInfo: self.hidesPersonalInfo)
+            preferences: self.quotaPreferences, hidesPersonalInfo: self.hidesPersonalInfo)
     }
 
     private func accountTitle(_ line: UsageQuotaResolvedLine) -> String {
         if !self.hidesPersonalInfo, let provider = line.provider {
             let stable = UsageAccountIdentity.tokens(for: provider).filter(UsageAccountIdentity.isStable)
-            let matches = self.summaryPreferences.preferences.accountAnchors.filter {
+            let matches = self.summaryPreferences.accountAnchors.filter {
                 $0.providerID == line.selection.providerID && !stable
                     .isDisjoint(with: $0.tokens.filter(UsageAccountIdentity.isStable))
             }
             if matches.count == 1, let anchor = matches.first,
-               let alias = self.summaryPreferences.preferences.accountAliases[anchor.id] { return alias }
+               let alias = self.summaryPreferences.accountAliases[anchor.id] { return alias }
         }
         return UsageQuotaPresentation.accountLabel(
             self.hidesPersonalInfo ? (line.privateAccountTitle ?? line.selection.providerID) : line.accountTitle,
             providerID: line.selection.providerID, anchorID: line.selection.accountAnchorID,
-            preferences: self.store.preferences, hidesPersonalInfo: self.hidesPersonalInfo)
+            preferences: self.quotaPreferences, hidesPersonalInfo: self.hidesPersonalInfo)
     }
 
     private func color(_ line: UsageQuotaResolvedLine) -> Color {
