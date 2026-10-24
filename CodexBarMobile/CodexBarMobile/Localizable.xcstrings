@@ -1,6 +1,371 @@
 {
   "sourceLanguage": "en",
   "strings": {
+  "Latest observations": {
+    "extractionState": "manual",
+    "localizations": {
+      "en": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "Latest observations"
+        }
+      },
+      "zh-Hans": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "最近记录"
+        }
+      },
+      "zh-Hant": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "最近記錄"
+        }
+      },
+      "ja": {
+        "stringUnit": {
+          "state": "translated",
+          "value": "最新の記録"
+        }
+      }
+    }
+  },
+    "Blank intervals have no observations. Displayed values retain their original observation times.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blank intervals have no observations. Displayed values retain their original observation times."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空白区间没有观测记录。显示的读数保留其原始观测时间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空白區間沒有觀測記錄。顯示的讀數保留其原始觀測時間。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空白の期間には観測記録がありません。表示値には元の記録時刻が保持されます。"
+          }
+        }
+      }
+    },
+    "Current quotas": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current quotas"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の利用枠"
+          }
+        }
+      }
+    },
+    "Drag to inspect real observations. Tap a legend to focus one line.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to inspect real observations. Tap a legend to focus one line."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动查看真实记录，点图例单独查看一条曲线。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖移查看真實記錄，點選圖例單獨查看一條曲線。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ドラッグして実際の記録を確認し、凡例をタップして1本の線に絞れます。"
+          }
+        }
+      }
+    },
+    "Inspect quota history": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspect quota history"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看额度历史"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看額度歷史"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用枠の履歴を確認"
+          }
+        }
+      }
+    },
+    "No observation at this time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No observation at this time"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此时没有观测记录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此時沒有觀測記錄"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この時点の記録はありません"
+          }
+        }
+      }
+    },
+    "Observed %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observed %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "观测于 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觀測於 %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録時刻 %@"
+          }
+        }
+      }
+    },
+    "Open quota history details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open quota history details"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开额度历史详情"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟額度歷史詳情"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用枠の履歴詳細を開く"
+          }
+        }
+      }
+    },
+    "Ordered by next reset": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordered by next reset"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按最近重置排序"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按最近重置排序"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次のリセット順"
+          }
+        }
+      }
+    },
+    "Show all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示全部"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示全部"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべて表示"
+          }
+        }
+      }
+    },
+    "remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "remaining"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩餘"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り"
+          }
+        }
+      }
+    },
+    "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将剩余额度作为四格图表添加到摘要。点击查看真实历史、单独查看曲线并打开账户详情。最多对比五项额度，支持自定义颜色和自动更新的每周时间轴。图表可与其他卡片一起排序或移除。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將剩餘額度作為四格圖表加入摘要。點一下即可查看真實歷史、單獨查看曲線並開啟帳戶詳情。最多比較五項額度，支援自訂顏色和自動更新的每週時間軸。圖表可與其他卡片一起排序或移除。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り利用枠を4マスのグラフとしてサマリーに追加できます。タップして実際の履歴を確認し、1本の線に絞ったり、アカウント詳細を開いたりできます。最大5つの利用枠を、色のカスタマイズと自動更新される週間の時間軸で比較できます。他のカードと一緒に並べ替えや削除もできます。"
+          }
+        }
+      }
+    },
+    "Customize Summary with a four-cell Remaining Quota chart. Open it to explore recorded history and see current quotas ordered by the next reset, then open the matching account. History never predicts or fills missing readings. Keep your colors and line choices, and reorder or remove the chart. All tabs share consistent light and dark backgrounds. Reorder Cost groups and find routine source notes at the bottom.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Customize Summary with a four-cell Remaining Quota chart. Open it to explore recorded history and see current quotas ordered by the next reset, then open the matching account. History never predicts or fills missing readings. Keep your colors and line choices, and reorder or remove the chart. All tabs share consistent light and dark backgrounds. Reorder Cost groups and find routine source notes at the bottom."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中添加四格剩余额度图表。打开后可查看真实历史，按最近重置时间浏览当前额度，并进入对应账户。历史不会预测或填补缺失读数。保留自选颜色和曲线，支持排序或移除图表。所有页面统一深浅色背景。费用分组可排序，常规来源说明位于底部。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在摘要中加入四格剩餘額度圖表。開啟後可查看真實歷史，按最近重置時間瀏覽目前額度，並進入對應帳戶。歷史不會預測或填補缺失讀數。保留自選顏色和曲線，支援排序或移除圖表。所有頁面統一深淺色背景。費用分組可排序，例行來源說明位於底部。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サマリーに4マスの残り利用枠グラフを追加できます。開くと記録済みの履歴を確認でき、次のリセット順に現在の利用枠を表示して、対応するアカウントへ進めます。履歴の予測や欠損値の補完は行いません。色と線の選択を保持し、並べ替えや削除もできます。各タブのライト・ダーク背景を統一しました。費用グループは並べ替え可能で、通常のデータ元の説明は最下部に表示されます。"
+          }
+        }
+      }
+    },
     "Add a four-tile chart to compare your remaining quotas.": {
       "localizations": {
         "en": {
@@ -29,62 +394,8 @@
         }
       }
     },
-    "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在摘要中将占四格的剩余额度图表与紧凑指标自由排列。对比真实历史，不做预测；保留已选曲线，并可排序或移除图表。用量、摘要和费用在浅色与深色模式下使用统一背景。费用分组可排序，常规来源说明移至底部。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在摘要中將佔四格的剩餘額度圖表與精簡指標自由排列。比較真實歷史，不做預測；保留已選曲線，並可排序或移除圖表。用量、摘要和費用在淺色與深色模式下使用一致背景。費用群組可排序，一般來源說明移至底部。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サマリーで4マス分の残り利用枠チャートとコンパクトな指標を自由に配置できます。予測を含まない実際の履歴を比較し、選択した線を保持したままチャートを並べ替えたり削除したりできます。使用量、サマリー、コストの背景をライト・ダーク両モードで統一。コストのグループを並べ替えられ、通常の取得元の説明は下部に表示されます。"
-          }
-        }
-      }
-    },
-    "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在摘要中添加占四格的剩余额度图表。用自定义颜色对比最多五条真实额度历史，周时间轴自动更新，并可查看详细图例。图表可与其他卡片一起排序或移除。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在摘要中加入佔四格的剩餘額度圖表。以自訂顏色比較最多五條真實額度歷史，週時間軸自動更新，並可查看詳細圖例。圖表可與其他卡片一起排序或移除。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サマリーに4マス分の残り利用枠チャートを追加できます。最大5本の実際の履歴を色分けして比較し、自動更新される週の時間軸と詳しい凡例を確認できます。他のカードと一緒に並べ替えたり削除したりできます。"
-          }
-        }
-      }
-    },
+
+
   "Includes synced provider history": {
     "localizations": {
       "en": {

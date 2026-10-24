@@ -5108,7 +5108,7 @@ enum MobileReleaseNotesCatalog {
                     id: "quota-overview", symbol: "chart.xyaxis.line",
                     title: String(localized: "Compare your remaining quotas"),
                     detail: String(
-                        localized: "Add Remaining Quota to Summary as a four-cell chart. Compare up to five real quota histories with custom colors, an automatically updating weekly timeline and detailed legends. Move or remove the chart alongside your other cards.")),
+                        localized: "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards.")),
                 .init(
                     id: "cost-order", symbol: "arrow.up.arrow.down",
                     title: String(localized: "Put Cost groups in your order"),
@@ -5120,7 +5120,7 @@ enum MobileReleaseNotesCatalog {
                     String(
                         localized: "Pin the metrics that matter, with simple text labels, reset countdowns and estimated depletion dates. Cards show the provider name or your own label. Names stay visible while editing. Summary and Settings match the rest of the app."),
                     String(
-                        localized: "Customize Summary with a four-cell Remaining Quota chart alongside your compact metrics. Compare real history without predictions, keep your line choices, and reorder or remove the chart. Usage, Summary and Cost share consistent backgrounds in light and dark modes. Reorder Cost groups and find routine source notes at the bottom."),
+                        localized: "Customize Summary with a four-cell Remaining Quota chart. Open it to explore recorded history and see current quotas ordered by the next reset, then open the matching account. History never predicts or fills missing readings. Keep your colors and line choices, and reorder or remove the chart. All tabs share consistent light and dark backgrounds. Reorder Cost groups and find routine source notes at the bottom."),
                     String(localized: "This update uses data already synced from your Mac. No Mac update is required."),
                 ]),
             ]),

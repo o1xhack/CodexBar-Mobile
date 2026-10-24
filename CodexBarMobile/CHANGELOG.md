@@ -2,9 +2,10 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [3.2.0 (256)] — Unreleased
+## [3.2.0 (257)] — Unreleased
 
 ### Added
+- Tap the Summary remaining-quota module to open its history detail. Inspect recorded samples and their timestamps, isolate selected lines, and open the matching account from current quotas sorted by upcoming reset; historical selection stays separate from current quota state.
 - Optional four-cell (2×2) Summary remaining-quota module compares up to five independently selected account/window lines on one shared 144-hour calendar ending at the nearest upcoming Weekly reset across all user providers, with seven date marks and automatic rollover, with custom colors and a collapsed legend. Device-local account observations and read-only, unambiguous provider-synced history show actual consumption and stop at the latest source reading, without predictions. Provider history retains its provider-level provenance and is never persisted as verified account observations. History requires verified stable ownership; linking a known account to old anonymous publications preserves sampling from its known source, while multiple stable owners remain isolated.
 - Cost dashboard groups can be reordered together, retaining saved positions when data is temporarily unavailable.
 - Independent Summary tab with compact, individually selected account/window metrics, horizontal provider filters, neutral material cards by default, per-card usage/reset emphasis, available balance/extra-usage metrics and observation-based depletion forecasts. The grid fills expanded windows instead of automatically opening a detail pane; tapping a card pushes full account details. Local names, account aliases, colors and manual ordering persist independently of Usage and Cost; demo layouts remain isolated.

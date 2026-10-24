@@ -139,7 +139,12 @@ struct SummaryTab: View {
             }
             .disabled(self.preferences.isReadOnly)
             .navigationDestination(for: UUID.self) { id in
-                if let card = cards.first(where: { $0.id == id }), let provider = card.provider {
+                if id == self.preferences.preferences.quotaModule?.id {
+                    UsageQuotaDetailView(
+                        store: self.quotaStore, summaryPreferences: self.preferences,
+                        accounts: self.accounts, sourceSnapshots: self.usageData.deviceSnapshots,
+                        isDemoMode: self.usesDemoData, now: now, providerFilterID: self.selectedProviderID)
+                } else if let card = cards.first(where: { $0.id == id }), let provider = card.provider {
                     ProviderDetailView(
                         group: ProviderAccountGroup(
                             providerID: provider.providerID, providerName: provider.providerName, accounts: [provider]),
@@ -216,7 +221,10 @@ struct SummaryTab: View {
             sourceSnapshots: self.usesDemoData ? nil : self.usageData.deviceSnapshots,
             quotaSources: self.usesDemoData ? nil : self.usageData.snapshot?.providerQuotaSources,
             publicationRevision: self.revision, isSummaryModule: true, reconcileOnAppearance: false,
-            providerFilterID: self.selectedProviderID, referenceDate: now)
+            providerFilterID: self.selectedProviderID, referenceDate: now,
+            openDetail: {
+                if !self.editing, let id = self.preferences.preferences.quotaModule?.id { self.detailPath = [id] }
+            })
             .overlay(alignment: .topLeading) {
                 if self.editing {
                     Button(role: .destructive) {
@@ -308,7 +316,7 @@ struct SummaryTab: View {
         {
             self.selectedProviderID = nil
         }
-        if let id = self.detailPath.last,
+        if let id = self.detailPath.last, id != self.preferences.preferences.quotaModule?.id,
            !resolved.contains(where: { $0.id == id && $0.provider != nil
                    && (self.selectedProviderID == nil || $0.configuration.providerID == self.selectedProviderID)
            })

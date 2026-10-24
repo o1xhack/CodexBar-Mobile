@@ -318,13 +318,17 @@ final class SummaryTabUITests: XCTestCase {
             "Usage": "chart.bar.fill", "Summary": "square.grid.2x2.fill",
             "Cost": "dollarsign.circle.fill", "Setting": "gearshape",
         ][name] ?? name
-        let predicate = NSPredicate(format: "identifier == %@ OR label == %@", symbol, label)
-        // Duo's native tabs can live outside TabBar, including in SpringBoard.
-        // Restrict the lookup to controls: a matching page-title StaticText is not
-        // a tab and would turn the union of its frame and the rail into a false obstruction.
-        let local = app.buttons.matching(predicate).firstMatch
+        // Prefer the native tab's symbol identifier on either hosting surface.
+        // A pushed quota detail can also have a navigation Back button labelled
+        // "Summary"; treating it as a tab invents an obstruction across the viewport.
+        let local = app.buttons.matching(identifier: symbol).firstMatch
         if local.exists { return local }
-        return XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons.matching(predicate).firstMatch
+        let system = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let external = system.buttons.matching(identifier: symbol).firstMatch
+        if external.exists { return external }
+        let localLabel = app.buttons.matching(identifier: label).firstMatch
+        if localLabel.exists { return localLabel }
+        return system.buttons.matching(identifier: label).firstMatch
     }
 
     static func addModule(_ app: XCUIApplication) {
@@ -359,13 +363,20 @@ final class SummaryTabUITests: XCTestCase {
         let row = app.cells.containing(.any, identifier: "summary-order-quota-module").firstMatch
         let list = app.collectionViews.firstMatch
         XCTAssertTrue(list.waitForExistence(timeout: 5))
+        var hasMovedModuleUp = false
         // A short phone may expose only a few order rows. Move through the visible
         // rows, then reveal earlier rows; never drag toward an offscreen destination.
         for _ in 0..<12 {
             if self.moduleIsFirst(app) { break }
             let viewport = self.orderViewport(app, list: list)
-            if !row.exists || !row.isHittable || row.frame.minY < viewport.minY || row.frame.maxY > viewport.maxY {
-                self.scroll(list, viewport: viewport, upward: !row.exists || row.frame.midY > viewport.midY)
+            if !row.exists {
+                // Reordering can move a large row above the virtualized viewport.
+                // Initially it is appended below; after dragging up, search earlier rows.
+                self.scroll(list, viewport: viewport, upward: !hasMovedModuleUp)
+                continue
+            }
+            if !row.isHittable || row.frame.minY < viewport.minY || row.frame.maxY > viewport.maxY {
+                self.scroll(list, viewport: viewport, upward: row.frame.midY > viewport.midY)
                 continue
             }
             let preceding = list.cells.allElementsBoundByIndex.filter {
@@ -376,6 +387,7 @@ final class SummaryTabUITests: XCTestCase {
                 row.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
                     .press(forDuration: 0.7, thenDragTo: target.coordinate(
                         withNormalizedOffset: CGVector(dx: 0.95, dy: 0.1)))
+                hasMovedModuleUp = true
             } else {
                 self.scroll(list, viewport: viewport, upward: false)
             }

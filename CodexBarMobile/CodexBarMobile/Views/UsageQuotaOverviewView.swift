@@ -15,6 +15,7 @@ struct UsageQuotaOverviewView: View {
     var providerFilterID: String?
     /// Summary owns the clock for its entire grid; a module must not create a nested scheduler.
     var referenceDate: Date?
+    var openDetail: (() -> Void)?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.mobileAdaptiveLayout) private var layout
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidesPersonalInfo = false
@@ -95,7 +96,77 @@ struct UsageQuotaOverviewView: View {
         })
     }
 
-    private func card(overview: UsageQuotaOverview) -> some View {
+    @ViewBuilder private func card(overview: UsageQuotaOverview) -> some View {
+        if self.isSummaryModule, let openDetail {
+            self.summaryCard(overview: overview, openDetail: openDetail)
+        } else {
+            self.standardCard(overview: overview)
+        }
+    }
+
+    private func summaryCard(overview: UsageQuotaOverview, openDetail: @escaping () -> Void) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Button(action: openDetail) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        self.title
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                        Spacer(minLength: 44)
+                    }.frame(minHeight: 32)
+                    HStack {
+                        Text(String(localized: "Observed history")).font(.caption).foregroundStyle(.secondary)
+                        Spacer(minLength: 6)
+                        self.rangeLabel(overview)
+                    }
+                    if self.store.isReadOnly {
+                        Text(
+                            String(localized: "Saved quota settings could not be read. They have been kept unchanged."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else if overview.lines.isEmpty {
+                        Text(
+                            String(
+                                localized: "Choose up to 5 account quotas to compare their remaining quota history."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        self.chart(overview).allowsHitTesting(false)
+                        HStack(spacing: 8) {
+                            ForEach(Array(overview.lines.prefix(2))) { line in
+                                HStack(spacing: 4) {
+                                    Circle().fill(self.color(line)).frame(width: 6, height: 6)
+                                    Text(UsageQuotaPresentation.collapsedTitle(
+                                        line, visibleLines: Array(overview.lines.prefix(2)),
+                                        providerName: self.providerName(line),
+                                        preferences: self.store.preferences, hidesPersonalInfo: self.hidesPersonalInfo))
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            if overview.lines.count > 2 { Text("+\(overview.lines.count - 2)").fixedSize() }
+                        }
+                        .font(.caption).frame(minHeight: 32)
+                        .accessibilityValue(overview.lines.prefix(2).map(self.shortTitle).joined(separator: ", "))
+                        .accessibilityIdentifier("usage-quota-legend-toggle")
+                    }
+                }
+                .padding(12)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: self.dynamicTypeSize.isAccessibilitySize ? nil : .infinity,
+                    alignment: .topLeading)
+                .contentShape(RoundedRectangle(cornerRadius: 20))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Open quota history details"))
+            .accessibilityValue(overview.lines.prefix(2).map(self.shortTitle).joined(separator: ", "))
+            .accessibilityIdentifier("summary-quota-open-detail")
+            self.editButton.padding(12)
+        }
+        .background(MobileSurfaceStyle.cardMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("summary-quota-module")
+    }
+
+    private func standardCard(overview: UsageQuotaOverview) -> some View {
         VStack(alignment: .leading, spacing: self.usesCompactLayout ? 8 : 12) {
             if self.isSummaryModule {
                 self.header
@@ -187,58 +258,10 @@ struct UsageQuotaOverviewView: View {
     }
 
     private func chart(_ overview: UsageQuotaOverview) -> some View {
-        let start = overview.start
-        let end = overview.end
-        return Chart {
-            ForEach(overview.lines) { line in
-                ForEach(Array(line.observedSamples.enumerated()), id: \.offset) { _, point in
-                    LineMark(
-                        x: .value(String(localized: "Date"), point.date),
-                        y: .value(String(localized: "Remaining Quota"), point.remainingPercent),
-                        series: .value(String(localized: "Quota"), line.id.uuidString + "-" + String(point.segment)))
-                        .interpolationMethod(.linear)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                        .foregroundStyle(self.color(line))
-                }
-                ForEach(Array(line.observedSamples.enumerated()), id: \.offset) { _, point in
-                    PointMark(
-                        x: .value(String(localized: "Date"), point.date),
-                        y: .value(String(localized: "Remaining Quota"), point.remainingPercent))
-                        .foregroundStyle(self.color(line))
-                        .symbolSize(point.date == line.observedSamples.last?.date ? 16 : 4)
-                }
-            }
-        }
-        .chartXScale(domain: start...end, range: .plotDimension(padding: 12))
-        .chartYScale(domain: 0...100, range: .plotDimension(padding: 4))
-        .chartLegend(.hidden)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: [0, 50, 100]) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(.quaternary)
-                AxisValueLabel {
-                    if let percent = value.as(Double.self) {
-                        Text((percent / 100).formatted(.percent.precision(.fractionLength(0))))
-                            .font(.caption2)
-                    }
-                }
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: overview.dateTicks()) { value in
-                AxisValueLabel(anchor: .top, collisionResolution: .disabled) {
-                    if let date = value.as(Date.self) {
-                        Text(Calendar.autoupdatingCurrent.component(.day, from: date).formatted())
-                            .font(.caption2).monospacedDigit()
-                            .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
-                    }
-                }
-            }
-        }
-        .chartPlotStyle { $0.clipped() }
-        .frame(height: self.dynamicTypeSize
-            .isAccessibilitySize ? 210 : (self.isSummaryModule ? 100 : self.usesCompactLayout ? 140 : 170))
-        .accessibilityLabel(String(localized: "Observed remaining quota by date"))
-        .accessibilityIdentifier("usage-quota-chart")
+        UsageQuotaHistoryChart(
+            overview: overview,
+            height: self.dynamicTypeSize
+                .isAccessibilitySize ? 210 : (self.isSummaryModule ? 100 : self.usesCompactLayout ? 140 : 170))
     }
 
     private func legend(_ overview: UsageQuotaOverview) -> some View {
