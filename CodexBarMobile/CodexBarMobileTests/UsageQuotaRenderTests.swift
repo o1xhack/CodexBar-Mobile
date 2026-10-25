@@ -148,6 +148,94 @@ final class UsageQuotaRenderTests: XCTestCase {
         }
     }
 
+    func testProductionChartConnectsSameCycleObservationsAcrossSamplingGapsWithoutExtrapolation() async throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let duration: TimeInterval = 6 * 86400
+        let samples = [
+            UsageQuotaPoint(date: start.addingTimeInterval(duration / 4), remainingPercent: 80, segment: 0),
+            UsageQuotaPoint(date: start.addingTimeInterval(duration * 3 / 4), remainingPercent: 40, segment: 1),
+        ]
+        let line = UsageQuotaResolvedLine(
+            selection: UsageQuotaSelection(
+                providerID: "codex", accountAnchorID: "fictional-gap-account",
+                windowID: "secondary", colorHex: "FF0000"),
+            provider: nil, accountTitle: "Fictional account", compactAccountTitle: nil, privateAccountTitle: nil,
+            metricTitle: "Weekly", state: .available, isStale: false, currentRemainingPercent: 40,
+            observedAt: samples[1].date, resetDate: start.addingTimeInterval(duration),
+            observedSamples: samples, localObservationCount: samples.count)
+        let overview = UsageQuotaOverview(start: start, end: start.addingTimeInterval(duration), lines: [line])
+        for width in [CGFloat(390), 768] {
+            for scheme in [ColorScheme.light, .dark] {
+                let size = CGSize(width: width, height: 280)
+                let chart = UsageQuotaHistoryChart(overview: overview, height: size.height)
+                    .background(scheme == .dark ? Color.black : Color.white)
+                    .environment(\.colorScheme, scheme)
+                    .environment(\.dynamicTypeSize, .large)
+                    .frame(width: size.width, height: size.height)
+                let hosted = self.host(chart, size: size, scheme: scheme)
+                defer { self.close(hosted.window) }
+                try await Task.sleep(for: .milliseconds(250))
+                hosted.controller.view.layoutIfNeeded()
+                let format = UIGraphicsImageRendererFormat()
+                format.scale = 1
+                format.opaque = true
+                let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                    hosted.controller.view.drawHierarchy(
+                        in: CGRect(origin: .zero, size: size),
+                        afterScreenUpdates: true)
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "Actual production gap connector-\(Int(width))-\(scheme)"
+                attachment.lifetime = .keepAlways
+                self.add(attachment)
+                let columns = try self.redPixelColumns(image)
+                let first = try XCTUnwrap(columns.firstIndex(where: { $0 > 0 }))
+                let last = try XCTUnwrap(columns.lastIndex(where: { $0 > 0 }))
+                // Bounds allow the production Y-axis label gutter and endpoint symbols.
+                // A fabricated line to either domain edge would violate these bounds.
+                XCTAssertGreaterThan(first, columns.count / 5)
+                XCTAssertLessThan(first, columns.count * 2 / 5)
+                XCTAssertGreaterThan(last, columns.count * 3 / 5)
+                XCTAssertLessThan(last, columns.count * 9 / 10)
+                XCTAssertTrue(columns.prefix(columns.count / 10).allSatisfy { $0 == 0 })
+                XCTAssertTrue(columns.suffix(columns.count / 10).allSatisfy { $0 == 0 })
+                // Ignore endpoint dots. Every interior band must contain the actual red
+                // stroke; the old segment-split rendering leaves all these bands empty.
+                let inset = (last - first) / 5
+                for x in stride(from: first + inset, to: last - inset, by: 4) {
+                    XCTAssertGreaterThan(
+                        columns[x..<min(x + 4, last)].reduce(0, +), 0,
+                        "Missing same-cycle connector at x=\(x), width=\(width), appearance=\(scheme)")
+                }
+            }
+        }
+    }
+
+    private func redPixelColumns(_ image: UIImage) throws -> [Int] {
+        let cgImage = try XCTUnwrap(image.cgImage)
+        let width = cgImage.width
+        let height = cgImage.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        try pixels.withUnsafeMutableBytes { bytes in
+            let context = try XCTUnwrap(CGContext(
+                data: bytes.baseAddress, width: width, height: height,
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        }
+        var columns = [Int](repeating: 0, count: width)
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * width + x) * 4
+                if pixels[offset] > 180, pixels[offset + 1] < 80, pixels[offset + 2] < 80 {
+                    columns[x] += 1
+                }
+            }
+        }
+        return columns
+    }
+
     private static func accounts(now: Date) -> [ProviderUsageSnapshot] {
         ["claude", "codex", "grok"].enumerated().map { index, providerID in
             let session = SyncRateWindow(

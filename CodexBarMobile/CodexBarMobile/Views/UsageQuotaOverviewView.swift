@@ -73,7 +73,7 @@ struct UsageQuotaOverviewView: View {
                             localized: "The chart ends at your nearest upcoming weekly reset across providers and starts 144 hours earlier, with seven date marks. It updates as resets pass or new data arrives. Lines show only actual readings."))
                     Text(
                         String(
-                            localized: "No future usage is predicted or missing readings invented. Synced provider history follows the detail chart; long gaps between local readings break the line."))
+                            localized: "Lines connect recorded readings within the same account and quota cycle, including across sampling gaps. They do not predict future usage or create readings between recorded points."))
                     Text(
                         String(
                             localized: "The chart combines readings saved on this iPhone with available provider history shown in the details. Provider history is not account-verified and is omitted when multiple accounts or conflicting sources make it ambiguous. Missing or outdated readings are not new activity."))

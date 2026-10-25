@@ -93,7 +93,7 @@ private struct UsageQuotaDetailContent: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(
                                 String(
-                                    localized: "Blank intervals have no observations. Displayed values retain their original observation times."))
+                                    localized: "Lines connect recorded points. Intervals without observations have no measured values; displayed readings retain their original observation times."))
                             if self.overview.lines.contains(where: \.usesSyncedProviderHistory) {
                                 Text(
                                     String(

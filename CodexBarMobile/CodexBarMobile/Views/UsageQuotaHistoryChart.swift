@@ -41,7 +41,9 @@ struct UsageQuotaHistoryChart: View {
                     LineMark(
                         x: .value(String(localized: "Date"), point.date),
                         y: .value(String(localized: "Remaining Quota"), point.remainingPercent),
-                        series: .value(String(localized: "Quota"), line.id.uuidString + "-" + String(point.segment)))
+                        // Projection already isolates account ownership and the current cycle.
+                        // Sampling gaps affect inspection, not the connector between real endpoints.
+                        series: .value(String(localized: "Quota"), line.id.uuidString))
                         .interpolationMethod(.linear)
                         .lineStyle(StrokeStyle(
                             lineWidth: line.id == self.focusedLineID ? 2.3 : 1.9,

@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 089 | 同周期额度观测点连线 | `done` | 连真实端点，保留周期与账号边界 | [089-quota-observation-connections/00-goal.md](089-quota-observation-connections/00-goal.md) | 2026-10-25 |
 | 088 | Remaining Quota 详情交互性能修复 | `done` | 消除滑块逐点全量历史重算，补真实操作性能验收 | [088-quota-detail-performance/00-goal.md](088-quota-detail-performance/00-goal.md) | 2026-10-24 |
 | 087 | Summary 额度图表详情与真实历史交互 | `in-progress` | 已确认原型；真实历史查询、当前额度、账号跳转与八姿态回归 | [087-summary-quota-detail/00-goal.md](087-summary-quota-detail/00-goal.md) | 2026-10-24 |
 | 086 | Summary四格额度模块与统一底色 | `done` | 可选2×2模块、根视图采样、Duo深色及四姿态验证 | [086-summary-quota-module/00-goal.md](086-summary-quota-module/00-goal.md) | 2026-10-23 |

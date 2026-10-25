@@ -30,30 +30,30 @@
       }
     }
   },
-    "Blank intervals have no observations. Displayed values retain their original observation times.": {
+    "Lines connect recorded points. Intervals without observations have no measured values; displayed readings retain their original observation times.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Blank intervals have no observations. Displayed values retain their original observation times."
+            "value": "Lines connect recorded points. Intervals without observations have no measured values; displayed readings retain their original observation times."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "空白区间没有观测记录。显示的读数保留其原始观测时间。"
+            "value": "曲线连接真实记录点。没有记录的时段没有实测值；显示的读数保留原始记录时间。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "空白區間沒有觀測記錄。顯示的讀數保留其原始觀測時間。"
+            "value": "曲線連接真實記錄點。沒有記錄的時段沒有實測值；顯示的讀數保留原始記錄時間。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "空白の期間には観測記録がありません。表示値には元の記録時刻が保持されます。"
+            "value": "線は実際の記録点を結びます。記録のない区間には実測値がなく、表示される値には元の記録時刻が保持されます。"
           }
         }
       }
@@ -310,30 +310,30 @@
         }
       }
     },
-    "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster, with clearer chart lines.": {
+    "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster, with clearer lines connecting recorded points within each quota cycle.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster, with clearer chart lines."
+            "value": "Add Remaining Quota to Summary as a four-cell chart. Tap it to inspect real history, focus on a line and open account details. Compare up to five quotas with custom colors and an updating weekly timeline. Move or remove the chart alongside your other cards. Opening and exploring longer histories is faster, with clearer lines connecting recorded points within each quota cycle."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将剩余额度作为四格图表添加到摘要。点击查看真实历史、单独查看曲线并打开账户详情。最多对比五项额度，支持自定义颜色和自动更新的每周时间轴。图表可与其他卡片一起排序或移除。历史记录较多时，打开和查看详情更快，图表曲线也更清晰。"
+            "value": "将剩余额度作为四格图表添加到摘要。点击查看真实历史、单独查看曲线并打开账户详情。最多对比五项额度，支持自定义颜色和自动更新的每周时间轴。图表可与其他卡片一起排序或移除。历史记录较多时，打开和查看详情更快，图表曲线更清晰，同周期内的真实记录点会连成线。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將剩餘額度作為四格圖表加入摘要。點一下即可查看真實歷史、單獨查看曲線並開啟帳戶詳情。最多比較五項額度，支援自訂顏色和自動更新的每週時間軸。圖表可與其他卡片一起排序或移除。歷史記錄較多時，開啟和查看詳情更快，圖表曲線也更清晰。"
+            "value": "將剩餘額度作為四格圖表加入摘要。點一下即可查看真實歷史、單獨查看曲線並開啟帳戶詳情。最多比較五項額度，支援自訂顏色和自動更新的每週時間軸。圖表可與其他卡片一起排序或移除。歷史記錄較多時，開啟和查看詳情更快，圖表曲線更清晰，同週期內的真實記錄點會連成線。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "残り利用枠を4マスのグラフとしてサマリーに追加できます。タップして実際の履歴を確認し、1本の線に絞ったり、アカウント詳細を開いたりできます。最大5つの利用枠を、色のカスタマイズと自動更新される週間の時間軸で比較できます。他のカードと一緒に並べ替えや削除もできます。履歴が多い場合の表示と操作が速くなり、グラフの線も見やすくなりました。"
+            "value": "残り利用枠を4マスのグラフとしてサマリーに追加できます。タップして実際の履歴を確認し、1本の線に絞ったり、アカウント詳細を開いたりできます。最大5つの利用枠を、色のカスタマイズと自動更新される週間の時間軸で比較できます。他のカードと一緒に並べ替えや削除もできます。履歴が多い場合の表示と操作が速くなり、グラフの線も見やすくなり、同じ利用枠の期間内の記録点が線で結ばれます。"
           }
         }
       }
@@ -620,30 +620,30 @@
       }
     }
   },
-  "No future usage is predicted or missing readings invented. Synced provider history follows the detail chart; long gaps between local readings break the line.": {
+  "Lines connect recorded readings within the same account and quota cycle, including across sampling gaps. They do not predict future usage or create readings between recorded points.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No future usage is predicted or missing readings invented. Synced provider history follows the detail chart; long gaps between local readings break the line."
+            "value": "Lines connect recorded readings within the same account and quota cycle, including across sampling gaps. They do not predict future usage or create readings between recorded points."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "不预测未来用量，也不补造缺失读数。服务商同步历史与详情图表一致；本机读数之间的长时间缺口会断开连线。"
+            "value": "曲线连接同一账户、同一额度周期内的真实记录，包括采样间隔较长的记录。连线不会预测未来用量，也不会生成记录点之间的读数。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "不預測未來用量，也不補造缺失讀數。服務商同步歷史與詳情圖表一致；本機讀數之間的長時間缺口會斷開連線。"
+            "value": "曲線連接同一帳戶、同一額度週期內的真實記錄，包括採樣間隔較長的記錄。連線不會預測未來用量，也不會產生記錄點之間的讀數。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "将来の利用を予測せず、欠落した記録を作りません。プロバイダ同期履歴は詳細グラフと同じように表示し、本機の記録に長い空白がある場合は線を区切ります。"
+            "value": "線は、同じアカウントと利用枠の期間内に記録された値を、記録の間隔が空いていても結びます。将来の使用量を予測したり、記録点の間に値を生成したりするものではありません。"
           }
         }
       }
