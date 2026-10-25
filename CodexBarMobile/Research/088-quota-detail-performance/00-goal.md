@@ -11,3 +11,7 @@ sliderDate 在每个历史点的过滤闭包内访问 self.overview.start/end，
 同配置旧新版本对比首次详情布局及按钮/横拖/纵滚；使用真实历史量和大型虚构数据。已有 baseline 原生 UIHostingController 在768pt Duo宽度下初始布局3.784963209秒（总197个实际显示点）；原fixture对所有provider均支持同步历史的假设失败，不伪装为完整通过。修复fixture计数断言，同时保留该旧版延迟证据。性能通过不能由截图和自动点击通过替代。
 
 证据：/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/QuotaDetailPerformance-3.2.0-258。原始 baseline 位于相邻 QuotaDetailPerformance-2026-10-24。
+
+## 线宽微调（用户确认后）
+
+用户已确认 258 的速度与交互正常，要求稍微加粗真实额度曲线。共享图表默认从 1.5 pt 增至 1.9 pt（约27%），详情聚焦单条线时为 2.3 pt。保持原有数据点大小、颜色、真实历史、时间域及快照性能结构；摘要和详情使用同一组件。以现有生产组件渲染矩阵与性能回归验证，不新增镜像常量的测试。

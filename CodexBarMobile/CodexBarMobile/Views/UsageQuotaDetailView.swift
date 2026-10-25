@@ -164,7 +164,8 @@ private struct UsageQuotaDetailContent: View {
                 UsageQuotaHistoryChart(
                     overview: self.displayed, height: self.layout.usesShortHeight ? 180 : 240,
                     identifier: "quota-detail-chart", selection: Binding(
-                        get: { self.selectedDate }, set: { if let date = $0 { self.selectedDate = date } }))
+                        get: { self.selectedDate }, set: { if let date = $0 { self.selectedDate = date } }),
+                    focusedLineID: self.focusedID)
             }
             .frame(width: max(0, width - 32))
             // Charts' synthetic AX nodes extend beyond the plot. Keep an actual layout

@@ -2,7 +2,7 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [3.2.0 (258)] — Unreleased
+## [3.2.0 (259)] — Unreleased
 
 ### Added
 - Tap the Summary remaining-quota module to open its history detail. Inspect recorded samples and their timestamps, isolate selected lines, and open the matching account from current quotas sorted by upcoming reset; historical selection stays separate from current quota state.
@@ -12,6 +12,7 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 - Summary account bindings retain stable identity across Macs and reversible account linkages. Unknown, stale, reset-passed, blocked and unavailable observations stay distinct; credit units and balance observation ages retain their source semantics. Provider filters and card headings are text-only; headings default to the provider name or use a custom card name/account alias.
 
 ### Fixed
+- Remaining Quota uses slightly heavier 1.9 pt history lines in Summary and detail, with 2.3 pt emphasis for a focused line.
 - Remaining Quota detail prepares history once per source update instead of remerging all history for each slider read and local interaction, eliminating repeated main-thread work while retaining every observed point.
 - Remaining Quota now includes available synchronized history already shown in provider details, rather than starting only when this iPhone collected its first point. Seven date labels remain centered and evenly spaced, with symmetric edge padding to prevent clipping.
 - Remaining Quota now plots actual observations rather than extrapolating future exhaustion. A single reading stays a point at its source timestamp; gaps and reset cycles stay separate, and bounded retention preserves the earliest and newest observed values.

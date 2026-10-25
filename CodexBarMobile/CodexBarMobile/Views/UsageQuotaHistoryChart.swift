@@ -8,6 +8,7 @@ struct UsageQuotaHistoryChart: View {
     let height: CGFloat
     var identifier = "usage-quota-chart"
     var selection: Binding<Date?>?
+    var focusedLineID: UUID?
 
     var body: some View {
         if let selection {
@@ -42,7 +43,9 @@ struct UsageQuotaHistoryChart: View {
                         y: .value(String(localized: "Remaining Quota"), point.remainingPercent),
                         series: .value(String(localized: "Quota"), line.id.uuidString + "-" + String(point.segment)))
                         .interpolationMethod(.linear)
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                        .lineStyle(StrokeStyle(
+                            lineWidth: line.id == self.focusedLineID ? 2.3 : 1.9,
+                            lineCap: .round, lineJoin: .round))
                         .foregroundStyle(ProviderColorPalette.color(
                             for: line.selection.providerID,
                             tintHex: line.selection.colorHex))
