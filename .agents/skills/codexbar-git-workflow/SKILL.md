@@ -108,7 +108,28 @@ For Mac/versioning decisions, read `docs/versioning.md` before editing `version.
 
 ## Push And PR
 
-Push only when the user asked to push, open a PR, run remote CI, or the active Goal explicitly authorizes pushed branch handoff.
+Follow `AGENTS.md` and `docs/development-quality.md`: ordinary development has
+standing authorization for a task-branch push and PR **after** local validation
+and independent local review are clean. Read-only/research-only, local-only and
+explicit user limits override that default. This authorization does not include
+merge, auto-merge, tags or release/upload actions.
+
+### Local review before every push
+
+Self-review the complete base-to-candidate diff, then use an independent local
+Codex review agent to inspect it with the relevant callers, tests, configuration
+and release inputs. Save the actual report and reviewed commit (plus dirty-diff
+fingerprint if needed). Fix all findings, rerun affected checks and repeat the
+independent review until clean. Review commits after the last clean local result
+before pushing again, including fixes prompted by the remote review. A local
+clean result must cover the complete current candidate, not only one fix hunk.
+
+The user's standing local-review authorization is not authorization to replace
+GitHub Codex review with an owner-authored substitute; that remains governed by
+`docs/independent-subthread-review.md`. If a required review capability is
+unavailable, preserve evidence and report the blocker rather than skip it.
+
+### Publish the reviewed branch
 
 ```bash
 git push -u origin <branch-name>
@@ -126,7 +147,10 @@ gh pr create \
   --body "<body>"
 ```
 
-Use draft PRs for long-running feature branches until local verification and the review loop are complete.
+Use draft PRs while the review loop is incomplete. Always attach a created PR to
+the current chat with the app's attach-artifact tool. After clean local and remote
+review and required PR checks, mark the PR ready, verify the gate below, then stop
+for the user's merge/release decision unless those actions are already authorized.
 
 ## Review And CI Loop
 
@@ -199,6 +223,19 @@ Revised approach: <what will be redesigned or rewritten>
 For release/upstream-sync work, **merge, tag creation, Mac live release,
 and appcast publication are blocked until this PR review gate passes**.
 Review-fix and closeout PR merges are not exceptions.
+
+### Decision handoff after a clean PR
+
+Run `Scripts/check_pr_review_gate.sh <pr>` on the current open, non-draft PR and
+confirm required PR checks pass before asking the user to decide. Include the PR
+URL/head, local validation/review evidence, unresolved-thread count, material
+risks, and applicable delivery choices. Do not claim post-merge Final CI ran.
+
+Ask separately about merge, Mac live release, and the intended iOS stage
+(TestFlight, App Review, or public release); omit inapplicable actions. Do not
+enable auto-merge or publish merely because the gate passed. Reuse existing
+explicit action authorization without asking again; otherwise wait for it.
+Immediately before an authorized merge, reconfirm the head, checks and gate.
 
 ### Stalled Review Diagnosis And Recovery
 

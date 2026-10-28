@@ -19,7 +19,8 @@ CodexBar Mobile (iOS). Detailed operational workflows live in skills.
 
 ## Development Lifecycle
 
-Every feature or fix follows these 7 steps in order:
+Every feature or fix follows this lifecycle. Review handoff is the default
+endpoint; release steps run only within the user's authorization.
 
 ```
 ┌───────────────────┬─────────────────────────────────────────────────┬─────────────────────┐
@@ -38,9 +39,9 @@ Every feature or fix follows these 7 steps in order:
 │ 5. Documentation  │ Update CHANGELOG, in-app release notes,         │ Traceable record    │
 │                   │ research doc status → done                      │                     │
 ├───────────────────┼─────────────────────────────────────────────────┼─────────────────────┤
-│ 6. Commit         │ Branch/commit/GitHub handoff via skill         │ git commit / PR     │
+│ 6. Review handoff │ Local review → push/PR → PR review loop         │ Clean reviewed PR   │
 ├───────────────────┼─────────────────────────────────────────────────┼─────────────────────┤
-│ 7. Push & Release │ Push to remote, archive, upload to TestFlight   │ User-installable    │
+│ 7. Release        │ Ask for merge/release approval; execute if given │ Authorized delivery │
 └───────────────────┴─────────────────────────────────────────────────┴─────────────────────┘
 ```
 
@@ -58,10 +59,32 @@ implementation unless the request is read-only. Do not require Goal prompts to
 spell out branch names; choose the right branch shape from
 `$codexbar-git-workflow`.
 
+### Default development handoff
+
+For implementation, fixes, refactoring, upstream sync, and workflow/documentation
+changes, follow **[Development Quality and Handoff](docs/development-quality.md)**:
+local validation and independent local Code Review → fix/retest until clean →
+push a task branch and create/update a PR → GitHub Codex Code Review until clean
+on the exact current head → stop and ask for merge and applicable Mac/iOS release
+decisions. This is the user's standing authorization for local review agents,
+task-branch pushes to `origin`, PR creation, and review requests/replies/resolution.
+It does not authorize merge, auto-merge, tags, draft/live release creation,
+appcast publication, TestFlight/App Review, or CloudKit schema deployment.
+
+Read-only research, an expressly local-only task, and narrower user instructions
+override this default. Existing explicit merge/release authorization remains valid;
+do not ask again for an action already authorized. A local review does not replace
+the GitHub PR review gate. The same quality document defines affected-flow Duo
+regression, data integrity, evidence, and artifact-provenance requirements; Goal
+prompts should specify the task outcome rather than repeat these rules.
+
 ### Definition of Done for release / upstream-sync work
 
-For release and upstream-sync tasks, **done** means user-installable artifacts
-exist, not just "code committed" or "pushed":
+Distinguish review-ready candidate delivery from authorized release completion.
+A development/upstream-sync task may stop at a clean reviewed PR while awaiting
+the user's merge/release decision; do not call that published or user-installable.
+When release/upload is in scope, **done** requires the requested artifacts and
+delivery, not just "code committed" or "pushed":
 
 - Mac: signed + notarized Sparkle draft/release flow completed as requested
 - iOS: archive/export/upload flow completed when upload/TestFlight is in scope
@@ -83,7 +106,7 @@ release or upstream-sync completion check.
 | User intent | Agent role | Action |
 |-------------|------------|--------|
 | 调研 / research | Architect | Run Steps 1-2 and write/update `Research/` |
-| 开发 / implement | Developer | Run Steps 3-4 with focused implementation + tests |
+| 开发 / implement | Developer | Implement, validate, local review, then clean PR handoff |
 | 开分支 / branch | Developer | Use `$codexbar-git-workflow` |
 | 提交 | Release Engineer | Use `$codexbar-git-workflow` commit flow |
 | 提交推送 / PR | Release Engineer | Use `$codexbar-git-workflow` push/PR/Todoist flow |
@@ -104,7 +127,9 @@ Before writing any code, understand the problem space.
 
 - Write or update the research doc with chosen approach, data models, key files
 - Set status appropriately (see research status flow below)
-- Get user confirmation before proceeding to implementation
+- Get user confirmation before implementation unless the request/Goal already
+  confirms the approach. Ask about unresolved material product choices, not
+  routine decisions covered by that authorization.
 
 ### Research document status flow
 
@@ -124,6 +149,11 @@ Full status definitions and index are in `CodexBarMobile/Research/README.md`.
 - Follow all coding rules below (localization, file conventions, etc.)
 
 ## Step 4 — Testing
+
+Apply [Development Quality and Handoff](docs/development-quality.md) to select
+the required validation and protect existing product behavior, including Duo.
+Documentation-only changes need document/contract checks and review, not an app
+rebuild, product release notes, or a version bump.
 
 - Build with `xcodebuild` to verify compilation
 - Run unit tests if applicable
@@ -161,7 +191,7 @@ policy is repository state, not agent memory.
 
 ## Step 5 — Documentation
 
-After code is complete:
+After user-facing iOS code is complete (documentation-only work is exempt):
 
 1. Update `CodexBarMobile/CHANGELOG.md` — Keep a Changelog format (Added / Changed / Fixed)
 2. Update in-app release notes in `MobileReleaseNotesCatalog` (in `ContentView.swift`) — plain language, 4-language localized
@@ -184,21 +214,12 @@ After code is complete:
 When work needs a branch, commit, push, PR, review loop, branch cleanup, or
 Todoist status update, load and follow `$codexbar-git-workflow`.
 
-Before merging any PR, wait for Codex Code Review on the exact current head,
-fix and retest every finding, reply and explicitly resolve every review thread,
-then request another review. `PR Fast Checks` being green is not sufficient.
-Run `Scripts/check_pr_review_gate.sh <pr>` immediately before merge. If review
-exceeds five rounds, pause before round six to audit the shared root/design
-problem and revise the approach; do not keep stacking symptom-level patches.
-The PR comment must use the exact non-empty `Head`, `Repeated finding pattern`,
-`Root design/requirements problem`, and `Revised approach` fields documented in
-`$codexbar-git-workflow`.
-If review stops making progress, proactively follow the skill's
-"Stalled Review Diagnosis And Recovery" procedure: diagnose the stall, preserve
-evidence, and when justified retry once on the unchanged head. Do not wait for
-the user to chase it or continue unchanged polling indefinitely; recovery never
-waives the current-head review gate.
-Merge, tag creation, and public release/appcast work remain blocked until this gate passes.
+Follow the skill's local-before-push and PR review loops, including the exact-head
+review gate, explicit thread resolution, architecture audit after five rounds,
+and bounded stalled-review recovery. `PR Fast Checks` alone is insufficient.
+Run `Scripts/check_pr_review_gate.sh <pr>` at approval handoff and again
+immediately before an authorized merge. Gate success does not authorize merging,
+auto-merge, tags, or public release/appcast work.
 TestFlight is an independent beta workflow: an authorized upload does not require
 a PR, a clean CR gate, a merge, or remote CI completion. Keep local build/test,
 versioning, four-language notes, signing, and CloudKit Production checks; record
@@ -209,10 +230,9 @@ artifact provenance. If review fixes changed shipped inputs or provenance is
 missing, archive/upload a new build; a later clean PR does not validate an older
 unreviewed binary.
 
-For large Goals, the agent may make staged Git commits when the Goal or user
-authorizes implementation work. Do not push, merge, tag, publish a live release,
-or upload unless the user explicitly asks or the active Goal explicitly includes
-that handoff.
+For large Goals, make coherent staged commits within the authorized scope.
+Default task-branch push/PR authorization and the separate merge/release boundary
+are defined above; explicit user restrictions take precedence.
 
 ### Version number format
 

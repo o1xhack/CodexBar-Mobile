@@ -1,8 +1,10 @@
 # Release Acceptance Checklist — "Definition of Done"
 
-> **给 agent（必读，别等用户提醒）**：upstream-sync / release 类任务，"完成" =
-> **已经打包签名公证 + 发布到用户手里**（Mac Sparkle draft→notarize→appcast +
-> iOS TestFlight），**不是**"代码 commit 了 / push 了"。
+> **给 agent（必读，别等用户提醒）**：先按
+> [通用开发交付规范](development-quality.md) 完成本地验证/独立审查，再 push PR
+> 并完成当前 head 的 PR 审查；默认停在决策交接点，询问合并及适用的 Mac/iOS
+> 发布动作。候选交付与正式发布是两个状态。本清单中的打包、上传和发布步骤
+> 仅在对应授权范围内执行；不能为了满足清单而擅自 merge、推 tag 或发布。
 >
 > 凭证都在用户 Mac 上：`~/.codexbar-secrets/`（CodexBar Sparkle key 等项目私有
 > release secret）+ `~/.codex-secrets/apple/app-store-connect/`（全局 Apple App
@@ -11,10 +13,11 @@
 > **直接在用户的 Mac 上跑这些命令，不要只把命令列给用户让他自己跑。**
 
 ## 0. 什么叫"做完"
-- ❌ "代码写完 + 测试过 + push 了" — **不算**完成。
-- ✅ Mac：`./Scripts/release.sh`（build+sign+notarize+draft），验收后 `--finalize`（publish + appcast push 到 mobile-dev）。
-- ✅ iOS：Archive + 上传 TestFlight。
-- ✅ Todoist 移到 Release，附 release URL。
+- 开发候选完成：适用本地验证与独立 review 通过，PR 当前 head clean、threads 清零、PR checks 和 review gate 通过；等待用户决定 merge/release。仅 push 不算完成。
+- 已授权 Mac draft：签名公证与附件核对完成；未授权 tag push 时用 `./Scripts/release.sh --draft-no-tag-push`，记录真实 source commit 及占位 target。draft 不代表公开发布。
+- 已授权 Mac 正式发布：通过 gate，用户授权 merge/tag/publish 后执行正式流程与 `--finalize`，验证 live release/appcast。
+- 已授权 iOS 交付：按授权完成 Archive、TestFlight、App Review 或公开发布的具体阶段，不将其中一个状态冒充另一个。
+- Todoist 按真实交付状态流转；候选 PR 不提前移到 Release 或标记 done。
 
 ## 1. 代码 & 测试闸门（`release.sh` phase1 会强制跑，先自己过一遍）
 - [ ] CI 触发符合 `docs/ci-policy.md`：PR review 轮次只跑 `PR Fast Checks`；普通改动 merge 后按最终 diff 跑一次 Final CI；不要为了远端重复验证而跳过本节要求的本地 release gate
@@ -50,12 +53,14 @@
 - [ ] 跑 `docs/cloudkit-deploy-audit.md` 审计 → 判断是否要 Dashboard deploy 到 Production。新 provider = runtime zone 复用 `QuotaTransition` record type → 通常**不**需要；新 record type / field / index → **需要**
 
 ## 6. CR（每一大轮）
+- [ ] 首次 push/PR 前及每次修复后 push 前，按 Git skill 完成本地自查、独立 Codex review 和适用复测；保存覆盖完整当前候选的报告。本地 review 不替代下面的 PR review
 - [ ] merge 轮 / bridge 轮 / iOS 轮先自查 diff，再执行下述 Codex Code Review，循环到 clean，findings 全修（含 stale 注释 / @Test 标题）；不要求 Claude / Opus 或其登录凭证
 - [ ] 每个 GitHub PR（含 docs/review-fix/release-closeout PR）必须在**当前 `headRefOid`** 上完成 Codex Code Review；Fast Checks 绿不代表 review 完成
 - [ ] 每个 finding：修复并复测 → 在线程回复 commit/证据 → 明确 Resolve conversation → push → 再次 `@codex review`
 - [ ] merge 前运行 `Scripts/check_pr_review_gate.sh <pr>`：当前 head 必须收到 connector 的 `Didn't find any major issues`，或按 [独立子线程审查](independent-subthread-review.md) 保存明确获用户授权的真实完整审查；所有 thread（含 outdated）必须 `isResolved=true`
 - [ ] 第 5 轮后仍有新 finding：第 6 轮前停止补小洞，在 PR 写 `Codex review architecture audit`，并填写非空的 `Head`、`Repeated finding pattern`、`Root design/requirements problem`、`Revised approach` 四个字段；重审方向后再继续，audit 不能替代最终 clean review
 - [ ] 上述 gate 未通过时，禁止 merge、tag、Mac live release/appcast publish；TestFlight 内测上传独立于该 gate
+- [ ] 当前 head clean、threads 清零、PR checks 及 review gate 通过后，交接用户决定 merge 与适用发布动作；没有既有明确授权时禁止 auto-merge/merge 或发布。合并后的 Final CI 仍须在公开发布前验证
 
 ## 7. 发布（在用户 Mac 上实跑）
 
@@ -63,7 +68,7 @@ TestFlight 是独立内测流程。用户授权上传后，不要求先创建 PR
 
 - [ ] `Scripts/check_pr_review_gate.sh <pr>` + PR CI 均通过后，才 merge sync 分支 → `mobile-dev`（Mac release + appcast 从 mobile-dev 出；TestFlight 可从任务分支上传）
 - [ ] Sparkle 工具加进 PATH：`export PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH"`
-- [ ] `./Scripts/release.sh`（phase1：build + sign + notarize + draft GitHub release）
+- [ ] 已授权 draft：未授权 tag push 时执行 `./Scripts/release.sh --draft-no-tag-push`；默认 phase1 会推 tag，仅在对应授权与 gate 完成后使用。发布前校正 draft target、tag 与 reviewed release commit
 - [ ] iOS 正式审核/公开发布前核对所选 ASC build 的 archive source commit/tree、archive/IPA hash 与 build ID；其代码、资源、构建配置和版本必须与已 clean review 的发布输入完全一致。若 CR 后有影响二进制的变化，或来源无法证明，重新归档上传新 build 并绑定新包；后续纯文档差异不要求重打相同二进制。
 - [ ] iOS：`xcodegen generate` → Archive（`-allowProvisioningUpdates`）→ export/upload 到 App Store Connect（TestFlight）
 - [ ] 用户 QA 通过后 → `./Scripts/release.sh --finalize`（publish draft + 生成签名 appcast + push 到 mobile-dev）
