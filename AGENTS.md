@@ -356,7 +356,7 @@ Languages: English (`en`), Simplified Chinese (`zh-Hans`), Traditional Chinese (
 | User says | Action |
 |-----------|--------|
 | 调研 | Steps 1–2 (research, save to Research/) |
-| 开发 / implement | Steps 3–4 (implementation + tests) |
+| 开发 / implement | Implement + test → local review → clean PR handoff |
 | 开分支 / branch | Use `$codexbar-git-workflow` |
 | 提交 | Use `$codexbar-git-workflow` commit flow |
 | 提交推送 / PR | Use `$codexbar-git-workflow` push/PR/Todoist flow |

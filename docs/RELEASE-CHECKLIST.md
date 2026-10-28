@@ -66,7 +66,8 @@
 
 TestFlight 是独立内测流程。用户授权上传后，不要求先创建 PR、通过 CR、merge 或等远端 CI；不得为了上传 TF 而强制创建 PR。仍完成适用的本地构建/测试、版本号、四语言说明、签名及 CloudKit Production 检查，记录 source commit、版本/build、Apple 处理与 beta 可用状态以及未验证风险。后续合并和公开发布仍执行各自 gate。
 
-- [ ] `Scripts/check_pr_review_gate.sh <pr>` + PR CI 均通过后，才 merge sync 分支 → `mobile-dev`（Mac release + appcast 从 mobile-dev 出；TestFlight 可从任务分支上传）
+- [ ] 已授权候选打包：可从任务分支生成 Mac no-tag draft，无须提前 merge；TestFlight 也可在独立上传授权后从任务分支上传
+- [ ] 已授权正式发布：`Scripts/check_pr_review_gate.sh <pr>` + PR CI 均通过后，才 merge sync 分支 → `mobile-dev`；确认 merge 后适用的 Final CI，再从 `mobile-dev` 完成 Mac 正式 release/appcast
 - [ ] Sparkle 工具加进 PATH：`export PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH"`
 - [ ] 已授权 draft：未授权 tag push 时执行 `./Scripts/release.sh --draft-no-tag-push`；默认 phase1 会推 tag，仅在对应授权与 gate 完成后使用。发布前校正 draft target、tag 与 reviewed release commit
 - [ ] iOS 正式审核/公开发布前核对所选 ASC build 的 archive source commit/tree、archive/IPA hash 与 build ID；其代码、资源、构建配置和版本必须与已 clean review 的发布输入完全一致。若 CR 后有影响二进制的变化，或来源无法证明，重新归档上传新 build 并绑定新包；后续纯文档差异不要求重打相同二进制。
