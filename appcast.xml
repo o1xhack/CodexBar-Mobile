@@ -3,6 +3,26 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.82.0.1</title>
+            <pubDate>Thu, 29 Oct 2026 13:52:55 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>175.1.3.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.82.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.82.0.1-Mobile 3.2.0</h2>
+<h3>Highlights — Mobile 3.2.0</h3>
+<ul>
+<li>Sync upstream v0.80.0–v0.82.0 in one update: Soniox, Trae CN, abliteration.ai and Chatbox AI; clearer monthly allowances and Kimi details; safer passive probes, Cursor sign-in recovery, improved cost accounting and separate automatic update preferences.</li>
+<li>Carry monthly allowance units, custom quota titles, Cursor shared-weekly and uncapped spend, Kimi gift expiry, and plugin pace details to compatible iPhones while keeping older iOS payload readers compatible.</li>
+<li>Preserve multi-account and multi-Mac sync and existing cost history, with compatible quota details for current and newer iPhone versions.</li>
+<li>Restore Mac widget sharing and bundled CLI access to shared settings, preserving app-local cached snapshots and provider selections during recovery.</li>
+<li>Keep source-recorded costs distinct from price estimates across fresh/cached history, the CLI and compatible iPhones; Mac settings-sync options follow their own switch independently of iPhone usage sync.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.82.0.1-mobile.3.2.0/CodexBar-0.82.0.1-mobile.3.2.0.zip" length="92810579" type="application/octet-stream" sparkle:edSignature="GiA4x4LObNaRbht/4HjziGea4sLTIQhQn94gv18M/X4vF9lRcj+Xd5Uc02Sfv2zZZK+1/8ib3S19sDpjIgeoAw=="/>
+        </item>
+        <item>
             <title>0.79.0.1</title>
             <pubDate>Wed, 21 Oct 2026 22:42:02 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -43,41 +63,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.76.0.2-mobile.2.10.0/CodexBar-0.76.0.2-mobile.2.10.0.zip" length="89020805" type="application/octet-stream" sparkle:edSignature="fKebmD1WKCvcZgdZWFWXCzOSivgu47xtOWrv1l5LhSIfnyjsi9gkomzFYwX49ywDHY26j0E0NBS4akhue+zGDA=="/>
-        </item>
-        <item>
-            <title>0.76.0.1</title>
-            <pubDate>Fri, 16 Oct 2026 20:24:22 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>169.1.2.9.0</sparkle:version>
-            <sparkle:shortVersionString>0.76.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.76.0.1-Mobile 2.9.0</h2>
-<h3>Highlights</h3>
-<ul>
-<li>New providers: Claude Platform (Console API credits with expiring grants and month-to-date spend), fal, FLORA, and Parallel; Command Code API keys, Kimi China Desktop sessions, Charm Hyper and Helmcode browser sessions, and current JetBrains AI quota from newer IDE logs.</li>
-<li>Claude: spend-only accounts get a real meter, pace, and a reset at midnight UTC on the 1st; reset credits, Extra usage, Credits, and plan dates are independently selectable; OAuth accounts show their email; stale usage notices are separated from errors.</li>
-<li>Codex and Usage & Spend: every saved account shows up again beyond the third, native details stay stable when OpenCodex replaces totals, ChatGPT-created Auto-review requests are priced at $0 from October 6, and project cost reports flag incomplete history.</li>
-<li>OpenAI Live Usage with per-minute token throughput, cookie imports that find signed-in sessions in every supported browser with bounded Keychain prompts, plugin memory that no longer grows on every refresh, menu bar progress-bar tokens with a stacked-bars preset, Large text and monospaced digits, a Settings provider list you can filter and search, and open-source acknowledgements in About.</li>
-<li>The iPhone companion (Mobile 2.9) receives the new providers, the Claude Platform credit balance and grant expiry days, Claude sign-in emails, and exact $0 Auto-review days.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Sync upstream v0.75.0 and v0.76.0 in one fork release, retaining the complete upstream provider, Claude, Codex, OpenAI, menu bar, Settings, CLI, localization, packaging, and Linux changes listed below.</li>
-<li>Codex cost caches written by 0.74.1.1 are kept and upgraded in place instead of being rebuilt: the fork re-reads only each rollout's leaf session_meta for the Auto-review creator account, so saved rows, history and pricing stay visible and complete immediately (upstream reparses every older file from the start under the scan budget, which lowers day totals for many refreshes).</li>
-<li>Preserve fork CloudKit Production publishing, mobile payloads, download entrypoints, About links, and the fast PR / post-merge CI policy.</li>
-</ul>
-<h3>Added</h3>
-<ul>
-<li>Mobile snapshots publish the Claude Platform Console credit balance (including negative balances) as a prepaid balance, and Claude Platform joins the quota-alert provider list so iPhones can subscribe to its grant warnings.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Claude monthly spend caps that report no rollover publish the same inferred UTC month-end reset the Mac meter shows, so iPhones of every version show when the cap resets.</li>
-<li>Days containing $0 ChatGPT-created Auto-review requests are published to the iPhone as exact costs rather than as lower bounds.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.76.0.1-mobile.2.9.0/CodexBar-0.76.0.1-mobile.2.9.0.zip" length="88965680" type="application/octet-stream" sparkle:edSignature="cT+X1PPaNQHKodVqNZaTf3nWnxINP7XrQG/US1I0UcSmXyPGR7gllJjZOaBkNvKnzx50U+p/R9oafwJbQHvAAA=="/>
         </item>
         <item>
             <title>0.14.0</title>
