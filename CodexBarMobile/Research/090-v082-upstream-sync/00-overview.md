@@ -1,6 +1,6 @@
 # v0.80.0–v0.82.0 单版本上游同步
 
-状态：`done`（本轮候选的调研、实现、测试、产物与审查记录完成；尚未合并或正式发布）。本地完整审查与7f6bdc416的GitHub review已clean，Fast Checks通过；收尾文档之后的最终current-head门禁结果见PR #225。历史失败及当时“待验证”字样按时间保留，不能替代当前结论。
+状态：`done`。2026-10-29 已按授权合并 PR #225（及必要修复 #227/#228）、公开 Mac 0.82.0.1，并提交 iOS 3.3.0 (261) App Review（WAITING_FOR_REVIEW / AFTER_APPROVAL）。最新实际版本、产物 hash、CI 和状态见 [08-public-release.md](08-public-release.md)。下文保留 2026-10-28 候选阶段历史；其中未发布/未上传/placeholder/旧产物表述不代表当前状态。
 
 ## 冻结范围
 
@@ -12,7 +12,7 @@
 - 历史 closed #196/#193 与 Research079：单 train 包含未有提醒的 release；只有 Mac public release 后才回帖完成并关闭 Issue。本轮 PR 仅关联，不用 closing keywords。
 - 全量 release notes、提交/文件清单存 evidence/，后续 06-ios-impact-audit.md 逐项归类与验收。
 
-## 版本方案
+## 版本方案（候选阶段历史）
 
 | 项目 | 候选值 | 依据 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@
 
 若后续用户授权先交付 iOS3.3再正式发布 Mac，正式发布前重新核实 companion 并更新候选包；不在本 Goal 未上传时声称3.3已配套交付。本轮只准备一个 Mac 候选版本。
 
-## 环境与边界
+## 环境与边界（候选阶段历史）
 
 StudioSSD UUID、working symbolic link、项目 realpath 与 BuildScratch 可写检查已通过。Xcode27.1 / 27A9275，iOS SDK27.1、macOS SDK27.0；iOS26.5/27.0/27.1 runtime 可用；最低 iOS17 保持不变。大型构建、Archive、结果和临时模型仅写 BuildScratch。
 
@@ -48,4 +48,4 @@ StudioSSD UUID、working symbolic link、项目 realpath 与 BuildScratch 可写
 
 ## PR对应关系
 
-候选PR [#225](https://github.com/o1xhack/CodexBar-Mobile/pull/225) → open upstream-sync #221/#222，累计v0.80–v0.82一个版本。完整独立本地review已clean，远端review进行中；最终交接按05。
+已合并PR [#225](https://github.com/o1xhack/CodexBar-Mobile/pull/225) → 已关闭 upstream-sync #221/#222，累计v0.80–v0.82一个版本。已合并代码 PR #225/#227/#228 的各自候选 head 审查与门禁已完成；本收尾文档分支的门禁及正式交付按08。

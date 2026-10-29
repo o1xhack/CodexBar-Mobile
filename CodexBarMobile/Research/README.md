@@ -17,7 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
-| 090 | v0.80–v0.82 单版本同步与 iOS 3.3 | `done` | 候选与双阶段review记录完成；等待最终PR门禁/用户合并发布决定 | [090-v082-upstream-sync/00-overview.md](090-v082-upstream-sync/00-overview.md) | 2026-10-28 |
+| 090 | v0.80–v0.82 单版本同步与 iOS 3.3 | `done` | PR225/227/228 已合并；Mac 0.82.0.1 已公开，iOS 3.3.0 (261) WAITING_FOR_REVIEW / AFTER_APPROVAL；16组合仍为替代验证 | [090-v082-upstream-sync/08-public-release.md](090-v082-upstream-sync/08-public-release.md) | 2026-10-29 |
 | 089 | 同周期额度观测点连线 | `done` | 连真实端点，保留周期与账号边界 | [089-quota-observation-connections/00-goal.md](089-quota-observation-connections/00-goal.md) | 2026-10-25 |
 | 088 | Remaining Quota 详情交互性能修复 | `done` | 消除滑块逐点全量历史重算，补真实操作性能验收 | [088-quota-detail-performance/00-goal.md](088-quota-detail-performance/00-goal.md) | 2026-10-24 |
 | 087 | Summary 额度图表详情与真实历史交互 | `in-progress` | 已确认原型；真实历史查询、当前额度、账号跳转与八姿态回归 | [087-summary-quota-detail/00-goal.md](087-summary-quota-detail/00-goal.md) | 2026-10-24 |

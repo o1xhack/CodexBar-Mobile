@@ -1,8 +1,8 @@
 # 候选产物与签名
 
-状态：`done`（本轮候选的调研、实现、测试、产物与审查记录完成；尚未合并或正式发布）。本地完整审查与7f6bdc416的GitHub review已clean，Fast Checks通过；收尾文档之后的最终current-head门禁结果见PR #225。历史失败及当时“待验证”字样按时间保留，不能替代当前结论。
+状态：`done`。2026-10-29 已按授权合并 PR #225（及必要修复 #227/#228）、公开 Mac 0.82.0.1，并提交 iOS 3.3.0 (261) App Review（WAITING_FOR_REVIEW / AFTER_APPROVAL）。最新实际版本、产物 hash、CI 和状态见 [08-public-release.md](08-public-release.md)。下文保留 2026-10-28 候选阶段历史；其中未发布/未上传/placeholder/旧产物表述不代表当前状态。
 
-## 固定版本
+## 固定版本（候选阶段历史）
 
 Mac0.82.0.1 / BUILD175.1 / Mobile3.2.0 / Sparkle175.1.3.2.0；draft逻辑tag v0.82.0.1-mobile.3.2.0，不创建/推送tag。Mac companion使用ASC已交付3.2.0(260)，iOS待交付版本独立3.3.0(261)；正式发布前按versioning重新核对实际顺序，不制造多个用户版本。
 
@@ -43,7 +43,7 @@ Mac0.82.0.1 / BUILD175.1 / Mobile3.2.0 / Sparkle175.1.3.2.0；draft逻辑tag v0.
 - 16组合全部为 **substituted**（64 reads/32真实冻结consumer merges），没有实体双Mac/双iPhone CloudKit/APNs/缓存收敛实测。CloudKit结论 **NO_DEPLOY**；本轮Group仅Mac本地共享容器，iOS/Shared wire不变。
 - GitHub已对7f6bdc416返回clean，Fast Checks通过；最终收尾文档仍需current-head复核，动态结果以PR225为准。未merge/tag/live/feed发布或iOS上传。Final CI在授权合并后执行。
 
-### 最终资产身份
+### 2026-10-28 候选资产身份（已被正式重签包替代）
 
 | 文件 | SHA256 |
 | --- | --- |
@@ -55,3 +55,7 @@ mac-artifacts-verified.json记录实际App、CLI、Widget签名/运行Group及�
 ### Draft附件替换完成
 
 固定ID427366941的两项旧资产已逐一验证原ID/digest及保留副本hash后替换。远端新ZIP/dSYM的size、SHA256与上述最终实包一致，正文hold已更新为真实source与placeholder说明；fresh API回读draft=true。原始logicaltag查询404的失败尝试停在只读断言，未产生mutation；随后绑定实际server draftTag，全部上传仍使用固定releaseID的upload_url。证据evidence/mac-draft-final-assets.json。未创建Git tag或发布feed。
+
+## 正式交付覆盖记录（2026-10-29）
+
+Swift 6.2 编译修复后重新签名/公证，正式 ZIP SHA256 为 `7bd3eb40b2bbbe0c99816eb1211f762fc1932bb8d4acccedec0daaeff008c2c3`（92810579 bytes）；dSYM 为 `1d62ad2dfba238bc8a230e8617ab174a15d9b4dcb3fe57a2b8f7fd2e1add5589`。上文 18ebb/343e9fc0 公证及 06dcb/d0d3 候选资产均为历史，未作为正式发布产物。正式源码、tag、Production 签名、公开 feed、匿名下载验签，以及 iOS Distribution 导出/上传/送审回执统一见 [08](08-public-release.md) 和 [实际交付证据](evidence/authorized-public-delivery.json)。

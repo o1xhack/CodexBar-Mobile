@@ -1,6 +1,6 @@
 # 正式交付与 Final CI 修复
 
-状态：`in-progress`。用户2026-10-29明确授权依次合并PR225、Mac正式Release、iOS创建版本送审并审核后公开发布。
+状态：`done`。授权的合并、Mac 公开、iOS 送审已执行，最终交付与当前外部审核边界见 [08-public-release.md](08-public-release.md)。下文按执行时间保留失败、修复和阶段性待办，不表示仍未发布。
 
 ## 已执行与来源
 
@@ -43,3 +43,7 @@ PR227合并后的Final CI40931175535已通过Swift6.2.4完整build-tests（valid
 本机macOS27.0.1/Xcode27.1/Swift6.4：首轮2tests/1suite PASS（fresh build503.97s/test1.081s）；强化后的最终写法2tests/1suite PASS（build104.14s/test0.972s）。完整lint exit0，3211文件0违规，四语533keys、parser与所有脚本/fork/CI合同通过；合成超时fixture的预期warning不算真实进程超时。evidence/sidebar-compatibility-local-gates.json记录最终测试文件及日志hash。Mac1826/iOS353实际发布输入再次逐项等价，不重打同一实包；独立review0findings后提交当前head PR审查。
 
 iOS261已由Apple处理为VALID/APP_STORE_ELIGIBLE，绑定3.3版本b0ab6af8-64dd-45a4-bef3-03f14051a471，buildID2bb3773f-28d9-4320-9dc5-94fea868add2；AFTER_APPROVAL已fresh回读，四语商店metadata远端等价、Apple CDN实际图标已目视核对。绑定后asc validate为0blockers；6条ASO建议是既有subtitle/keyword字段，未扩展本轮范围；公开3.2商店页已验证AppPrivacy发布。尚未AppReview提交/公开；正式送审仍在Maclive后。CloudKit NO_DEPLOY与16组合substituted限制不变。
+
+## 最终门禁与正式交付
+
+PR #227/#228 均经本地独立审查、GitHub 当前 head clean、Fast Checks 和零线程门禁合并。Final CI 40940572500 六个 Mac 分片、Swift 6.2.4 兼容构建和 aggregate 全部通过；macOS 26 原生侧栏严格断言通过。Mac 于 20:52:57Z 公开，签名 appcast 与匿名下载验签通过。iOS 3.3.0 (261) 于 20:55:36Z 提交审核，回读 WAITING_FOR_REVIEW / AFTER_APPROVAL；尚未代表 Apple 批准或公开。最终 source / hash / schema 审计与兼容限制见 [08](08-public-release.md)。
