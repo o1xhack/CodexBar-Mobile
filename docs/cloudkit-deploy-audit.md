@@ -149,3 +149,7 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 ## 2026-10-28：v0.82.0.1-mobile.3.2.0 候选代码审计
 
 相对最新 published `v0.79.0.1-mobile.3.1.0`，Shared/iCloud、Scripts/cloudkit、CloudSyncEngine.swift、SyncModels.swift 均无 diff，providerPayloadVersion 保持1。quotaLimit/quotaUnit/Progress.expectedUsed/details.rows.expiresAt 增加现有 opaque payload 的 optional JSON，sourceRecorded 增加既有 costProvenance 的容错 raw value；Soniox金额/支出、自定义额度标题使用既有 providerAmount/details/rateWindows。四个新provider只增加已部署 QuotaTransition 类型的运行时 zone/subscription 实例，无新直接 CKRecord type/field/index/query/predicate。判定 **NO_DEPLOY（代码审计）**；未做 Production export、deploy 或数据库读写。签名产物 Production entitlement、最终修复后复查、16组合替代验证和剩余风险见 Research090；本记录不冒充实包或实体多设备验证。
+
+## 2026-10-29：v0.82.0.1 正式发布前最终复核
+
+published `v0.79.0.1-mobile.3.1.0` → release `c6cbe728b9161cac0f816071e270669efd1229c1` 复核仍为 **NO_DEPLOY（代码审计）**。Shared/iCloud、Scripts/cloudkit、CloudSyncEngine、SyncModels 无 diff，providerPayloadVersion=1；两个包含 CK API 的变更文件已分别归类：QuotaProviderList 仅 append 四个 provider，复用既有 QuotaTransition schema 的运行时 zone/subscription；SyncCoordinator 仅改 optional JSON 映射，无新增 CK field/type/index/query/predicate。真实 Mac/iOS 分发签名的相关角色均为 Production；未执行 schema export/deploy 或 Production 数据读写，也未声称实体多设备收敛已验证。实际发布/送审、可选 payload decoder 与替代矩阵边界见 [Research090 正式交付](https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CodexBarMobile/Research/090-v082-upstream-sync/08-public-release.md)。
