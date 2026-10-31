@@ -1,6 +1,151 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Choose the limit each widget tile shows": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose the limit each widget tile shows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットの各タイルに表示する上限を選べます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自选每个小组件格子显示的额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自選每個小工具格子顯示的額度"
+          }
+        }
+      }
+    },
+    "Pick a limit per provider": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a limit per provider"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダーごとに上限を選択"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为每个服务商选择额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "為每個服務商選擇額度"
+          }
+        }
+      }
+    },
+    "In the CodexBar widget’s overview, choose Session or Weekly for each provider, show used or remaining quota, and see which limit every tile shows.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the CodexBar widget’s overview, choose Session or Weekly for each provider, show used or remaining quota, and see which limit every tile shows."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar ウィジェットの概要で、プロバイダーごとにセッションか週間かを選び、使用済みまたは残りを表示できます。各タイルには表示中の上限が示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 CodexBar 小组件的概览中，为每个服务商分别选择当前周期或每周额度，可显示已用或剩余，每个格子都会标明显示的是哪项额度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 CodexBar 小工具的概覽中，為每個服務商分別選擇當前週期或每週額度，可顯示已用或剩餘，每個格子都會標明顯示的是哪項額度。"
+          }
+        }
+      }
+    },
+    "Grok usage history": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok usage history"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok の使用履歴"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 用量历史"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 用量歷史"
+          }
+        }
+      }
+    },
+    "The Summary quota chart now records Grok’s usage over time, even when your Mac reads Grok from the browser.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Summary quota chart now records Grok’s usage over time, even when your Mac reads Grok from the browser."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac がブラウザから Grok を読み取る場合でも、サマリーの利用枠グラフに Grok の使用量の推移が記録されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即使 Mac 通过浏览器读取 Grok，摘要页的额度图表现在也会记录 Grok 的用量变化。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即使 Mac 透過瀏覽器讀取 Grok，摘要頁的額度圖表現在也會記錄 Grok 的用量變化。"
+          }
+        }
+      }
+    },
     "%@ used": {
       "extractionState": "manual",
       "localizations": {

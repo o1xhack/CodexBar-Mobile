@@ -17,6 +17,7 @@ This directory contains research documents for features being considered for Cod
 
 | # | Feature | Status | Blocker | File | Date |
 |---|---------|--------|---------|------|------|
+| 091 | Overview widget 每槽额度窗口（#223）与 Grok 额度历史 | `done` | iOS 3.5.0；远端 CR/合并/TF 以 PR 为准 | [091-overview-windows-grok-history/00-goal.md](091-overview-windows-grok-history/00-goal.md) | 2026-10-30 |
 | 090 | v0.80–v0.82 单版本同步与 iOS 3.3 | `done` | PR225/227/228 已合并；Mac 0.82.0.1 已公开，iOS 3.3.0 (261) WAITING_FOR_REVIEW / AFTER_APPROVAL；16组合仍为替代验证 | [090-v082-upstream-sync/08-public-release.md](090-v082-upstream-sync/08-public-release.md) | 2026-10-29 |
 | 089 | 同周期额度观测点连线 | `done` | 连真实端点，保留周期与账号边界 | [089-quota-observation-connections/00-goal.md](089-quota-observation-connections/00-goal.md) | 2026-10-25 |
 | 088 | Remaining Quota 详情交互性能修复 | `done` | 消除滑块逐点全量历史重算，补真实操作性能验收 | [088-quota-detail-performance/00-goal.md](088-quota-detail-performance/00-goal.md) | 2026-10-24 |

@@ -2,6 +2,14 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [3.5.0 (262)] — Unreleased
+
+### Added
+- CodexBar widget overview (SiriKit and iOS 27 App Intents): per-slot quota window for each manually chosen provider (Default (Weekly), Session or any reported window; issue #223), a Used / Remaining display option for both overview selections, and a window label on every tile. A slot's window applies only while it names that slot's provider; widgets placed earlier keep weekly usage. A chosen window that reset after the last sync shows no stale usage.
+
+### Fixed
+- Summary remaining-quota history now records an identity-less provider singleton (Grok read through browser cookies: no email, organization or credential slot). Its card key is the history owner while it is the provider's only account and no linkage involves the provider; a second account or a linkage discards that stream. Record-slot accounts still never collect history.
+
 ## [3.3.0] — Unreleased
 
 ### Added
