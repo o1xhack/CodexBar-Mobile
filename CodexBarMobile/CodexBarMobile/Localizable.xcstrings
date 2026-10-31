@@ -117,31 +117,31 @@
         }
       }
     },
-    "The Summary quota chart now records Grok’s usage over time, even when your Mac reads Grok from the browser.": {
+    "The Summary quota chart and the Quota pace widget now chart Grok’s usage over time, even when your Mac reads Grok from the browser.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The Summary quota chart now records Grok’s usage over time, even when your Mac reads Grok from the browser."
+            "value": "The Summary quota chart and the Quota pace widget now chart Grok’s usage over time, even when your Mac reads Grok from the browser."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac がブラウザから Grok を読み取る場合でも、サマリーの利用枠グラフに Grok の使用量の推移が記録されるようになりました。"
+            "value": "Mac がブラウザから Grok を読み取る場合でも、サマリーの利用枠グラフと「クォータ消費の推移」ウィジェットに Grok の使用量の推移が表示されるようになりました。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "即使 Mac 通过浏览器读取 Grok，摘要页的额度图表现在也会记录 Grok 的用量变化。"
+            "value": "即使 Mac 通过浏览器读取 Grok，摘要页的额度图表和“额度消耗趋势”小组件现在也会画出 Grok 的用量变化。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "即使 Mac 透過瀏覽器讀取 Grok，摘要頁的額度圖表現在也會記錄 Grok 的用量變化。"
+            "value": "即使 Mac 透過瀏覽器讀取 Grok，摘要頁的額度圖表和「額度消耗趨勢」小工具現在也會畫出 Grok 的用量變化。"
           }
         }
       }

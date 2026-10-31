@@ -213,6 +213,14 @@ enum UsageQuotaProjection {
         return Double(minutes) * 60
     }
 
+    /// A reading whose length cannot be inferred (Grok within a few days of its reset)
+    /// still belongs to the cycle already observed with the same reset, so it keeps that
+    /// cycle's known length instead of breaking the stream.
+    static func inheritedDuration(_ observations: [UsageQuotaObservation], reset: Date) -> TimeInterval? {
+        observations.last { abs($0.resetDate.timeIntervalSince(reset)) <= 120 && $0.windowDuration != nil }?
+            .windowDuration
+    }
+
     /// Read-only provider history, matching the detail chart's legacy wire semantics.
     /// The raw writer proves the current reading, NOT ownership of historical entries:
     /// legacy producers can attach provider-wide history to an account publication.
@@ -277,6 +285,9 @@ enum UsageQuotaProjection {
               let provider = card.provider, captured <= now, captured < reset, now < reset
         else { return [] }
         let duration = self.duration(window: window, providerID: provider.providerID, capturedAt: captured)
+            ?? self.inheritedDuration(
+                observations.filter { $0.capturedAt <= captured }.sorted { $0.capturedAt < $1.capturedAt },
+                reset: reset)
         let cycleStart = duration.map { reset.addingTimeInterval(-$0) }
         var compatible = observations.filter {
             $0.capturedAt <= captured && abs($0.resetDate.timeIntervalSince(reset)) <= 120

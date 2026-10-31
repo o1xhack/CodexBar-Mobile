@@ -92,20 +92,39 @@ struct MobileQuotaBurndown: Equatable, Sendable {
         capturedAt: Date,
         referenceDate: Date)
     {
+        guard let minutes = window.windowMinutes, minutes > 0,
+              series == nil || series?.windowMinutes == minutes
+        else { return nil }
+        self.init(
+            entries: series?.entries ?? [],
+            window: window,
+            duration: Double(minutes) * 60,
+            capturedAt: capturedAt,
+            referenceDate: referenceDate)
+    }
+
+    /// The same observed run for a window whose length is known from the
+    /// phone's own readings rather than `windowMinutes` (Research/091).
+    init?(
+        entries: [SyncUtilizationEntry],
+        window: SyncRateWindow,
+        duration: TimeInterval,
+        capturedAt: Date,
+        referenceDate: Date)
+    {
         guard window.usageKnown, !window.isSyntheticPlaceholder, window.blockingQuota == nil,
               window.usedPercent.isFinite, (0...100).contains(window.usedPercent),
-              let minutes = window.windowMinutes, minutes > 0,
+              duration.isFinite, duration > 0,
               let reset = window.resetsAt,
               reset.timeIntervalSince1970.isFinite,
               capturedAt.timeIntervalSince1970.isFinite,
               referenceDate.timeIntervalSince1970.isFinite,
-              capturedAt <= referenceDate, referenceDate < reset,
-              series == nil || series?.windowMinutes == minutes
+              capturedAt <= referenceDate, referenceDate < reset
         else { return nil }
-        let start = reset.addingTimeInterval(-Double(minutes) * 60)
+        let start = reset.addingTimeInterval(-duration)
         guard start.timeIntervalSince1970.isFinite, start <= capturedAt, capturedAt < reset else { return nil }
 
-        let history = (series?.entries ?? []).enumerated().filter { _, entry in
+        let history = entries.enumerated().filter { _, entry in
             entry.capturedAt.timeIntervalSince1970.isFinite
                 && entry.capturedAt >= start && entry.capturedAt <= capturedAt
                 && entry.usedPercent.isFinite && (0...100).contains(entry.usedPercent)

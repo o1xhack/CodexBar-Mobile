@@ -813,6 +813,66 @@ struct UsageQuotaOverviewTests {
     }
 
     @Test
+    func `the widget receives the verified singleton stream and loses it with a second account`() throws {
+        let sink = UsageQuotaWidgetHistoryRecorder()
+        let store = UsageQuotaOverviewStore(widgetHistory: sink)
+        for (index, used) in [10.0, 20, 30].enumerated() {
+            _ = try Self.publishMerged(
+                Self.identityLessGrok(capturedAt: Self.now.addingTimeInterval(Double(index - 3) * 1800), used: used),
+                into: store)
+        }
+        let stream = try #require(sink.exported.last?.streams.first)
+        #expect(sink.exported.last?.streams.count == 1)
+        #expect(stream.providerID == "grok")
+        #expect(stream.windowDuration == 7 * 86400)
+        #expect(stream.entries.map(\.usedPercent) == [10, 20, 30])
+
+        let named = Self.account(id: "grok-named", record: nil, providerID: "grok", windows: [Self.window(used: 70)])
+        _ = try Self.publishMerged(
+            Self.identityLessGrok(capturedAt: Self.now.addingTimeInterval(-60), used: 35), others: [named],
+            into: store)
+        #expect(sink.exported.last?.streams.isEmpty == true)
+    }
+
+    @Test
+    func `accounts with a stable identity are never exported to the widget`() {
+        let sink = UsageQuotaWidgetHistoryRecorder()
+        let store = UsageQuotaOverviewStore(widgetHistory: sink)
+        for (index, used) in [10.0, 20, 30].enumerated() {
+            store.reconcile(accounts: [Self.account(
+                id: "gemini-a", record: nil, providerID: "gemini",
+                capturedAt: Self.now.addingTimeInterval(Double(index - 3) * 300),
+                windows: [Self.window(used: used)])], now: Self.now)
+        }
+        // The Summary keeps its own verified history; only the widget export is withheld,
+        // because the widget cannot tell a replaced account from the recorded one.
+        #expect(store.overview(accounts: [Self.account(
+            id: "gemini-a", record: nil, providerID: "gemini", capturedAt: Self.now.addingTimeInterval(-300),
+            windows: [Self.window(used: 30)])], now: Self.now).lines.first?.localObservationCount == 3)
+        #expect(!sink.exported.isEmpty)
+        #expect(sink.exported.allSatisfy { $0.streams.isEmpty })
+    }
+
+    @Test
+    func `a reading whose cycle length cannot be inferred keeps the cycle observed with the same reset`() throws {
+        let store = UsageQuotaOverviewStore.inMemory()
+        // Five days before the reset Grok's window reads as weekly; three days before, its
+        // length can no longer be inferred, yet the reset date proves it is the same cycle.
+        let readings: [(offset: TimeInterval, used: Double)] = [
+            (-3 * 3600, 10), (-3600, 20), (2 * 86400, 30), (2 * 86400 + 3600, 40),
+        ]
+        for (offset, used) in readings {
+            _ = try Self.publishMerged(
+                Self.identityLessGrok(capturedAt: Self.now.addingTimeInterval(offset), used: used), into: store)
+        }
+        let late = Self.now.addingTimeInterval(2 * 86400 + 3600)
+        let accounts = try Self.publishMerged(Self.identityLessGrok(capturedAt: late, used: 40), into: store)
+        let line = try #require(store.overview(accounts: accounts, now: late).lines.first)
+        #expect(line.localObservationCount == 4)
+        #expect(line.observedSamples.map(\.remainingPercent) == [90, 80, 70, 60])
+    }
+
+    @Test
     func `promoting a legacy anonymous anchor clears its old unproven history without resetting settings`() throws {
         let weak = Self.weakAccount(capturedAt: Self.now, used: 30)
         let anchor = UsageAccountAnchor(
@@ -1147,6 +1207,12 @@ struct UsageQuotaOverviewTests {
             #expect(memory.writes == 0)
         }
     }
+}
+
+@MainActor
+private final class UsageQuotaWidgetHistoryRecorder: UsageQuotaWidgetHistorySink {
+    var exported: [WidgetLocalQuotaHistory] = []
+    func export(_ history: WidgetLocalQuotaHistory) { self.exported.append(history) }
 }
 
 @MainActor

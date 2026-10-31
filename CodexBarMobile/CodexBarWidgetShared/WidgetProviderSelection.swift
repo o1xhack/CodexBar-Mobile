@@ -317,7 +317,7 @@ enum WidgetProviderSelection {
     /// window only counts its own chart.
     private static func paceRank(_ provider: CodexBarWidgetProviderSummary) -> Int {
         let hasPace = provider.quotaPace?.pace != nil
-        let hasChart = provider.quotaPace?.hasChart == true
+        let hasChart = provider.quotaPace?.hasPublishedChart == true
         return (hasPace ? 2 : 0) + (hasChart ? 1 : 0)
     }
 

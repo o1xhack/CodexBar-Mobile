@@ -71,6 +71,7 @@ struct CodexBarWidgetProvider: AppIntentTimelineProvider {
             fallbackKVSSnapshot: fallback,
             providerLinkages: linkages,
             deviceLifecycleEvents: lifecycleEvents,
+            localHistory: WidgetLocalQuotaHistoryStore.read(),
             now: now)
         let entry = CodexBarWidgetEntry(
             date: now,

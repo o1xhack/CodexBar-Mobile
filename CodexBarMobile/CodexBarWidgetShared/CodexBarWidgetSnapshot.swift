@@ -128,6 +128,23 @@ struct CodexBarWidgetPaceLane: Codable, Equatable, Sendable {
     var remainingPercent: Double? {
         self.points.last?.remainingPercent
     }
+
+    /// Drawn from the phone's own readings rather than Mac-published history.
+    var isLocal: Bool {
+        self.seriesName.hasPrefix("local:")
+    }
+}
+
+extension CodexBarWidgetPaceLane {
+    init(seriesName: String, label: String, model: MobileQuotaBurndown) {
+        self.init(
+            seriesName: seriesName,
+            label: label,
+            start: model.start,
+            reset: model.reset,
+            points: MobileQuotaBurndown.downsample(model.samples, limit: Self.pointLimit)
+                .map { Point(date: $0.date, remainingPercent: $0.remainingPercent) })
+    }
 }
 
 /// One selectable quota window of a provider (Research/071), evaluated with
@@ -266,19 +283,50 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
     }
 
     /// Nil when the provider has neither an observed lane nor a window.
-    init?(provider: ProviderUsageSnapshot, now: Date) {
+    /// `localHistory` is the phone's own readings (Research/091), used only
+    /// for providers without Mac-published lanes.
+    init?(provider: ProviderUsageSnapshot, now: Date, localHistory: WidgetLocalQuotaHistory? = nil) {
         let resolved = MobileQuotaBurndown.resolvedLanes(for: provider, referenceDate: now)
-        let lanes = resolved.map { resolved in
+        var lanes = resolved.map { resolved in
             CodexBarWidgetPaceLane(
                 seriesName: resolved.lane.seriesName,
                 label: resolved.lane.label,
-                start: resolved.model.start,
-                reset: resolved.model.reset,
-                points: MobileQuotaBurndown.downsample(resolved.model.samples, limit: CodexBarWidgetPaceLane.pointLimit)
-                    .map { CodexBarWidgetPaceLane.Point(date: $0.date, remainingPercent: $0.remainingPercent) })
+                model: resolved.model)
         }
         let paceAllowed = QuotaPace.allowsPace(for: provider)
         let candidates = QuotaPaceWindowSelection.candidates(for: provider)
+        var localLaneNames: [String: String] = [:]
+        if resolved.isEmpty, WidgetLocalQuotaHistory.appliesTo(providerID: provider.providerID), let localHistory {
+            for candidate in candidates {
+                guard let stream = localHistory.stream(providerID: provider.providerID, windowID: candidate.id)
+                else { continue }
+                var entries = stream.entries.filter { $0.capturedAt <= provider.lastUpdated }
+                // The app may have stamped the current reading with its source time;
+                // the current reading is appended below, so it never counts twice.
+                if entries.last?.usedPercent == candidate.window.usedPercent { entries.removeLast() }
+                guard let model = MobileQuotaBurndown(
+                          entries: entries,
+                          window: candidate.window,
+                          duration: stream.windowDuration,
+                          capturedAt: provider.lastUpdated,
+                          referenceDate: now),
+                      // Only a real earlier reading makes a chart; the current
+                      // reading alone is already the hero number.
+                      model.samples.count > 1
+                else { continue }
+                let name = "local:\(candidate.id)"
+                localLaneNames[candidate.id] = name
+                lanes.append(CodexBarWidgetPaceLane(
+                    seriesName: name,
+                    label: QuotaPaceWindowSelection.widgetTitle(
+                        label: candidate.window.label,
+                        windowMinutes: candidate.window.windowMinutes,
+                        cardIndex: candidate.cardIndex,
+                        period: candidate.window.period,
+                        providerID: provider.providerID),
+                    model: model))
+            }
+        }
         let windows = candidates.map { candidate in
             let window = candidate.window
             return CodexBarWidgetPaceWindow(
@@ -293,7 +341,8 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
                     providerID: provider.providerID) : nil,
                 remainingPercent: QuotaPaceWindowSelection.remainingPercent(of: window, now: now),
                 resetsAt: window.resetsAt,
-                laneSeriesName: resolved.first { $0.lane.window == window }?.lane.seriesName,
+                laneSeriesName: resolved.first { $0.lane.window == window }?.lane.seriesName
+                    ?? localLaneNames[candidate.id],
                 cardIndex: candidate.cardIndex)
         }
         guard !lanes.isEmpty || !windows.isEmpty else { return nil }
@@ -336,6 +385,8 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
         let charted = ["weekly", "session"].lazy.compactMap { name in
             self.windows.first { $0.laneSeriesName == name && $0.remainingPercent != nil }
         }.first
+            // The phone's own chart (Research/091) for a provider without Mac lanes.
+            ?? self.windows.first { $0.laneSeriesName?.hasPrefix("local:") == true && $0.remainingPercent != nil }
         if let charted { return self.pointed(at: charted, source: .defaultWindow) }
         return CodexBarWidgetPaceSummary(
             pace: nil,
@@ -401,13 +452,19 @@ struct CodexBarWidgetPaceSummary: Codable, Equatable, Sendable {
     /// pace or a chart. A weekly window that only exists among extra
     /// windows (Antigravity) does not make a provider eligible.
     var isAutomaticCandidate: Bool {
-        self.pace != nil || !self.lanes.isEmpty
+        self.pace != nil || self.lanes.contains { !$0.isLocal }
     }
 
     /// A chart of the described data: any lane for the automatic window,
     /// otherwise the lane of the described window itself.
     var hasChart: Bool {
         self.followsWindow ? self.primaryLane != nil : !self.lanes.isEmpty
+    }
+
+    /// A chart from Mac-published history; automatic ranking ignores the
+    /// phone's own (Research/091) so it never displaces Codex or Claude.
+    var hasPublishedChart: Bool {
+        self.followsWindow ? self.primaryLane.map { !$0.isLocal } == true : self.lanes.contains { !$0.isLocal }
     }
 
     /// Something to draw: a pace, a remaining percent, or a chart.
@@ -743,6 +800,7 @@ enum CodexBarWidgetSnapshotBuilder {
         fallbackKVSSnapshot: SyncedUsageSnapshot? = nil,
         providerLinkages: [ProviderAccountLinkage] = [],
         deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
+        localHistory: WidgetLocalQuotaHistory? = nil,
         now: Date = .now) -> CodexBarWidgetSnapshot
     {
         switch result {
@@ -751,6 +809,7 @@ enum CodexBarWidgetSnapshotBuilder {
                 from: snapshots,
                 providerLinkages: providerLinkages,
                 deviceLifecycleEvents: deviceLifecycleEvents,
+                localHistory: localHistory,
                 now: now)
         case .empty:
             if let fallbackKVSSnapshot {
@@ -758,6 +817,7 @@ enum CodexBarWidgetSnapshotBuilder {
                     from: [fallbackKVSSnapshot],
                     providerLinkages: providerLinkages,
                     deviceLifecycleEvents: deviceLifecycleEvents,
+                    localHistory: localHistory,
                     now: now)
             }
             return .noData(now: now)
@@ -767,6 +827,7 @@ enum CodexBarWidgetSnapshotBuilder {
                     from: [fallbackKVSSnapshot],
                     providerLinkages: providerLinkages,
                     deviceLifecycleEvents: deviceLifecycleEvents,
+                    localHistory: localHistory,
                     now: now)
                 snapshot = CodexBarWidgetSnapshot(
                     state: snapshot.state,
@@ -793,6 +854,7 @@ enum CodexBarWidgetSnapshotBuilder {
         from snapshots: [SyncedUsageSnapshot],
         providerLinkages: [ProviderAccountLinkage] = [],
         deviceLifecycleEvents: [DeviceLifecycleEvent] = [],
+        localHistory: WidgetLocalQuotaHistory? = nil,
         now: Date = .now) -> CodexBarWidgetSnapshot
     {
         guard !snapshots.isEmpty else {
@@ -837,7 +899,17 @@ enum CodexBarWidgetSnapshotBuilder {
 
         // Provider-level cost envelopes contribute to aggregate spend, but
         // they are not user accounts and must not become widget provider rows.
-        let summaries = providers.map { self.summary(for: $0, now: now) }
+        // The phone's readings belong to a provider's single account; with a
+        // second account the widget cannot tell whose they are.
+        let accountCounts = Dictionary(
+            providers.filter { !$0.isProviderLevelCostEnvelope }.map { ($0.providerID, 1) },
+            uniquingKeysWith: +)
+        let summaries = providers.map { provider in
+            self.summary(
+                for: provider,
+                now: now,
+                localHistory: accountCounts[provider.providerID] == 1 ? localHistory : nil)
+        }
         let visibleSummaries = zip(providers, summaries)
             .filter { provider, _ in !provider.isProviderLevelCostEnvelope }
             .map(\.1)
@@ -891,7 +963,8 @@ enum CodexBarWidgetSnapshotBuilder {
 
     static func summary(
         for provider: ProviderUsageSnapshot,
-        now: Date) -> CodexBarWidgetProviderSummary
+        now: Date,
+        localHistory: WidgetLocalQuotaHistory? = nil) -> CodexBarWidgetProviderSummary
     {
         let costSummary = ProviderSnapshotMerger.supportsUSDAggregation(provider.costSummary)
             ? provider.costSummary : nil
@@ -930,7 +1003,7 @@ enum CodexBarWidgetSnapshotBuilder {
             isError: provider.isError,
             statusMessage: provider.statusMessage,
             lastUpdated: provider.lastUpdated,
-            quotaPace: CodexBarWidgetPaceSummary(provider: provider, now: now),
+            quotaPace: CodexBarWidgetPaceSummary(provider: provider, now: now, localHistory: localHistory),
             weeklyResetsAt: weekly?.nextReset,
             weeklyUsedPercent: weeklyUsed)
     }

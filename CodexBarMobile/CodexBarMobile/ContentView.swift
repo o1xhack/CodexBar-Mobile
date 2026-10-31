@@ -5107,7 +5107,7 @@ enum MobileReleaseNotesCatalog {
                     id: "grok-history", symbol: "chart.xyaxis.line",
                     title: String(localized: "Grok usage history"),
                     detail: String(
-                        localized: "The Summary quota chart now records Grok’s usage over time, even when your Mac reads Grok from the browser.")),
+                        localized: "The Summary quota chart and the Quota pace widget now chart Grok’s usage over time, even when your Mac reads Grok from the browser.")),
             ],
             sections: []),
         ReleaseNotesVersion(
@@ -6554,6 +6554,7 @@ private struct WidgetSettingsView: View {
         }
         let widgetSnapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(
             from: [snapshot],
+            localHistory: WidgetLocalQuotaHistoryStore.read(),
             now: .now)
         return widgetSnapshot.state == .loaded ? widgetSnapshot : .placeholder()
     }

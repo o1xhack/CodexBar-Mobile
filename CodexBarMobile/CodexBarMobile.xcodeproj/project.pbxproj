@@ -18,6 +18,7 @@
 		0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */; };
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
+		082F25F3C6A9DE41AC843E80 /* WidgetLocalQuotaHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4079A9E1A64713106DAB7F8B /* WidgetLocalQuotaHistoryTests.swift */; };
 		08A9EE66C4053BB814A64F88 /* UsageQuotaCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF27BDA86EA01A9BD2362579 /* UsageQuotaCompatibilityTests.swift */; };
 		08DAFDFF22C66A2F782B89A9 /* V026RenderedTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63562F3CAD90EB09C32903E /* V026RenderedTextTests.swift */; };
 		09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */; };
@@ -252,6 +253,7 @@
 		BAF8432BD40F9F09F4EA74D4 /* V079CostAuthorityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43B49C70DD8E3FC3D7DD92E /* V079CostAuthorityTests.swift */; };
 		BB8F10F697D015D14695319C /* V047Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843C143ECCF5C4A8EB5F7F44 /* V047Snapshots.swift */; };
 		BB98D3ECAFF6D381B6D775FE /* V027Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F340DA45364A878F1BB616 /* V027Snapshots.swift */; };
+		BE2EA376977252CFF9542714 /* WidgetLocalQuotaHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741000A9CF31A96CDEF19A9D /* WidgetLocalQuotaHistory.swift */; };
 		BE6CE16FDE42EC25FCE2012F /* KiroCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E75C0925B40108545FE35A3 /* KiroCreditsCard.swift */; };
 		BE82D86B4B008C19B081CF7E /* V070PresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BCA21D82118C328C5A39650 /* V070PresentationTests.swift */; };
 		BF223BECF86FCB0D3C4785CD /* MobileQuotaBurndown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D317FDA7B59C971619973C86 /* MobileQuotaBurndown.swift */; };
@@ -317,6 +319,7 @@
 		F91FAC531225917E4E86A892 /* PushSetupDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */; };
 		F96A94C5A2AB38A1DB68555A /* OpenRouterStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5B28EEE593B46A1604352 /* OpenRouterStatsCard.swift */; };
 		F97B630E810DB48A4CB150C7 /* LinkageRecordMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */; };
+		FB9D5B7205F68FB981613A0A /* WidgetLocalQuotaHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741000A9CF31A96CDEF19A9D /* WidgetLocalQuotaHistory.swift */; };
 		FD2364635784A71AE994402E /* DeviceLifecycleEventTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CAFB868825B9A3F09FE0AA /* DeviceLifecycleEventTests.swift */; };
 		FD7B1AA72AD0A426CB473876 /* QuotaPaceWindowSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037C02AFA0AD5472CE3B718E /* QuotaPaceWindowSelection.swift */; };
 		FE0F6EED9F97E88267101B6C /* GrokBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */; };
@@ -500,6 +503,7 @@
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
 		40401457B31DE8E1ADEC1641 /* WidgetProviderCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetProviderCatalogue.swift; sourceTree = "<group>"; };
+		4079A9E1A64713106DAB7F8B /* WidgetLocalQuotaHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetLocalQuotaHistoryTests.swift; sourceTree = "<group>"; };
 		41510D76E67D4C157DB5D905 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/WidgetStatus.strings; sourceTree = "<group>"; };
 		4165BE31BA546C16D203EACE /* SummaryCardResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCardResolver.swift; sourceTree = "<group>"; };
 		44D42B29EEA7ECECF396429B /* ViewCacheIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewCacheIdentityTests.swift; sourceTree = "<group>"; };
@@ -556,6 +560,7 @@
 		731ECB211729DE961CC82954 /* ProviderSourceStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSourceStatus.swift; sourceTree = "<group>"; };
 		734E172567E501F3041FA875 /* V072ProviderPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V072ProviderPresentationTests.swift; sourceTree = "<group>"; };
 		7406876C2D5012BFF418FB11 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/WidgetActivity.strings; sourceTree = "<group>"; };
+		741000A9CF31A96CDEF19A9D /* WidgetLocalQuotaHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetLocalQuotaHistory.swift; sourceTree = "<group>"; };
 		74B0A596604D1C8CA137C073 /* CostMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostMetricCard.swift; sourceTree = "<group>"; };
 		74DC888E67DDE31A9A250104 /* MoreAppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreAppsView.swift; sourceTree = "<group>"; };
 		74F4B85E0AFCE36929FA4EEE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.intentdefinition; name = Base; path = Base.lproj/WidgetStatus.intentdefinition; sourceTree = "<group>"; };
@@ -875,6 +880,7 @@
 				44D42B29EEA7ECECF396429B /* ViewCacheIdentityTests.swift */,
 				B1BB1B7D889AC7E25520F356 /* WidgetActivityProjectionTests.swift */,
 				4E99CE7398A3BA54F4202DB5 /* WidgetConfigurationAppIntentsTests.swift */,
+				4079A9E1A64713106DAB7F8B /* WidgetLocalQuotaHistoryTests.swift */,
 				6C84584F7A18675D8A2E8A81 /* WidgetProviderSelectionTests.swift */,
 				534FD5DA53F564D357F039EE /* WidgetSnapshotBuilderTests.swift */,
 				8AC0B6FF92A39F3671C44FE2 /* Fixtures */,
@@ -920,6 +926,7 @@
 				6CA751A1638AFC94E23C38FA /* WidgetActivityView.swift */,
 				198A369D4D16AD6BDDB7038B /* WidgetConfiguration.xcstrings */,
 				A7D93C3084621BE903FDADAB /* WidgetConfigurationAppIntents.swift */,
+				741000A9CF31A96CDEF19A9D /* WidgetLocalQuotaHistory.swift */,
 				40401457B31DE8E1ADEC1641 /* WidgetProviderCatalogue.swift */,
 				A720D2B9B124834977F7A418 /* WidgetProviderSelection.swift */,
 				75010593141F9A40251328A7 /* WidgetStatus.intentdefinition */,
@@ -1581,6 +1588,7 @@
 				26AC46B00EDA26107412B467 /* ViewCacheIdentityTests.swift in Sources */,
 				AAD38B49F341E26428134603 /* WidgetActivityProjectionTests.swift in Sources */,
 				59EE9A6CBF65D6788166FC48 /* WidgetConfigurationAppIntentsTests.swift in Sources */,
+				082F25F3C6A9DE41AC843E80 /* WidgetLocalQuotaHistoryTests.swift in Sources */,
 				5F6266E4F1AA20536278C5C2 /* WidgetProviderSelectionTests.swift in Sources */,
 				80B6863B91547B2CA369FC58 /* WidgetSnapshotBuilderTests.swift in Sources */,
 			);
@@ -1725,6 +1733,7 @@
 				10FEFC29978C1B22D5599BD7 /* WidgetActivityPublisher.swift in Sources */,
 				6B09013A53AB897492346AEF /* WidgetActivityView.swift in Sources */,
 				412874292922CEE47C2CDDC2 /* WidgetConfigurationAppIntents.swift in Sources */,
+				BE2EA376977252CFF9542714 /* WidgetLocalQuotaHistory.swift in Sources */,
 				C20843320D1FDBB2568E1590 /* WidgetProviderCatalogue.swift in Sources */,
 				B1D59C84629F7317657710F5 /* WidgetProviderSelection.swift in Sources */,
 				5540BECA76FC9C3BDB1196FF /* WidgetStatus.intentdefinition in Sources */,
@@ -1823,6 +1832,7 @@
 				55C7C6DD91048AE5A198CA85 /* WidgetActivityTimeline.swift in Sources */,
 				CA364295E052B5CFC0CFC614 /* WidgetActivityView.swift in Sources */,
 				456DC41502D23CA06A038C2A /* WidgetConfigurationAppIntents.swift in Sources */,
+				FB9D5B7205F68FB981613A0A /* WidgetLocalQuotaHistory.swift in Sources */,
 				F79C345372FCAA3D217E3F93 /* WidgetProviderCatalogue.swift in Sources */,
 				47ACC2512A20DF9808E40EB0 /* WidgetProviderSelection.swift in Sources */,
 				5991ABA431F498C1D4846FC3 /* WidgetStatus.intentdefinition in Sources */,
