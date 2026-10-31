@@ -11,4 +11,7 @@ struct CodexBarWidgetEntry: TimelineEntry {
     /// CodexBar widget overview provider selection (Research/073), kept
     /// outside the legacy App Intent for the same reason.
     var overviewSelection: WidgetOverviewSelection = .manual
+    /// Overview window and display choices (issue #223), kept outside the
+    /// legacy App Intent for the same reason.
+    var overviewQuota = WidgetOverviewQuotaOptions()
 }

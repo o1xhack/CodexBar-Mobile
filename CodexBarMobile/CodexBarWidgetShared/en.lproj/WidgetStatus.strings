@@ -45,3 +45,14 @@
 "CBStatusStatusWidgetProviderCounttwo" = "2";
 "CBStatusStatusWidgetProviderCountthree" = "3";
 "CBStatusStatusWidgetProviderCountfour" = "4";
+
+/* Overview quota windows and display (issue #223). */
+"CBStatusquotaDisplay" = "Show Quota As";
+"CBStatusStatusWidgetQuotaDisplayTitle" = "Show Quota As";
+"CBStatusStatusWidgetQuotaDisplayunknown" = "Unknown";
+"CBStatusStatusWidgetQuotaDisplayused" = "Used";
+"CBStatusStatusWidgetQuotaDisplayremaining" = "Remaining";
+"CBStatuswindow1" = "Provider 1 Window";
+"CBStatuswindow2" = "Provider 2 Window";
+"CBStatuswindow3" = "Provider 3 Window";
+"CBStatuswindow4" = "Provider 4 Window";

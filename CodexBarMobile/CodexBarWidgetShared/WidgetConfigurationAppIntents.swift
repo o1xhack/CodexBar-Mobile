@@ -118,6 +118,23 @@ enum StatusWidgetProviderCountAppEnum: String, AppEnum {
     }
 }
 
+/// SiriKit `StatusWidgetQuotaDisplay`: what the overview's percentages count
+/// (issue #223).
+@available(iOS 27.0, *)
+enum StatusWidgetQuotaDisplayAppEnum: String, AppEnum {
+    case used
+    case remaining
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: LocalizedStringResource(
+        "Show Quota As",
+        table: "WidgetConfiguration"))
+
+    static let caseDisplayRepresentations: [StatusWidgetQuotaDisplayAppEnum: DisplayRepresentation] = [
+        .used: DisplayRepresentation(title: LocalizedStringResource("Used", table: "WidgetConfiguration")),
+        .remaining: DisplayRepresentation(title: LocalizedStringResource("Remaining", table: "WidgetConfiguration")),
+    ]
+}
+
 /// SiriKit `TokenActivitySource`.
 @available(iOS 27.0, *)
 enum TokenActivitySourceAppEnum: String, AppEnum {
@@ -330,6 +347,71 @@ struct QuotaPaceWindowOptionAppEntityQuery: EntityQuery {
     }
 }
 
+/// Window choices of one overview provider slot (issue #223). The list
+/// follows the provider currently set in that slot; resolving a stored
+/// choice goes through `QuotaPaceWindowOptionAppEntityQuery`, whose
+/// identifiers already name their provider.
+@available(iOS 27.0, *)
+enum OverviewWindowOptions {
+    static func options(providerID: String?) -> [QuotaPaceWindowOptionAppEntity] {
+        let catalogue = (try? WidgetProviderCatalogue.read()) ?? []
+        return QuotaPaceWindowChoice.options(
+            for: catalogue.first { $0.id == providerID },
+            preferredLocalizations: Bundle.main.preferredLocalizations,
+            defaultTitle: QuotaPaceWindowChoice.defaultTitle,
+            durationText: QuotaPaceWindowChoice.durationText)
+            .map(QuotaPaceWindowOptionAppEntity.init)
+    }
+}
+
+@available(iOS 27.0, *)
+struct OverviewWindow1Options: DynamicOptionsProvider {
+    @IntentParameterDependency<StatusWidgetAppIntent>(\.$provider1)
+    var intent
+
+    func results() async throws -> [QuotaPaceWindowOptionAppEntity] {
+        OverviewWindowOptions.options(providerID: self.intent?.provider1.id)
+    }
+
+    func defaultResult() async -> QuotaPaceWindowOptionAppEntity? { .defaultWindow }
+}
+
+@available(iOS 27.0, *)
+struct OverviewWindow2Options: DynamicOptionsProvider {
+    @IntentParameterDependency<StatusWidgetAppIntent>(\.$provider2)
+    var intent
+
+    func results() async throws -> [QuotaPaceWindowOptionAppEntity] {
+        OverviewWindowOptions.options(providerID: self.intent?.provider2.id)
+    }
+
+    func defaultResult() async -> QuotaPaceWindowOptionAppEntity? { .defaultWindow }
+}
+
+@available(iOS 27.0, *)
+struct OverviewWindow3Options: DynamicOptionsProvider {
+    @IntentParameterDependency<StatusWidgetAppIntent>(\.$provider3)
+    var intent
+
+    func results() async throws -> [QuotaPaceWindowOptionAppEntity] {
+        OverviewWindowOptions.options(providerID: self.intent?.provider3.id)
+    }
+
+    func defaultResult() async -> QuotaPaceWindowOptionAppEntity? { .defaultWindow }
+}
+
+@available(iOS 27.0, *)
+struct OverviewWindow4Options: DynamicOptionsProvider {
+    @IntentParameterDependency<StatusWidgetAppIntent>(\.$provider4)
+    var intent
+
+    func results() async throws -> [QuotaPaceWindowOptionAppEntity] {
+        OverviewWindowOptions.options(providerID: self.intent?.provider4.id)
+    }
+
+    func defaultResult() async -> QuotaPaceWindowOptionAppEntity? { .defaultWindow }
+}
+
 // MARK: - Intents
 
 /// Configuration of the iOS 27 CodexBar widget (`WidgetKinds.statusAppIntent`).
@@ -366,8 +448,33 @@ struct StatusWidgetAppIntent: WidgetConfigurationIntent {
     @Parameter(title: LocalizedStringResource("Provider 4", table: "WidgetConfiguration"))
     var provider4: StatusWidgetProviderAppEntity?
 
+    @Parameter(title: LocalizedStringResource("Show Quota As", table: "WidgetConfiguration"), default: .used)
+    var quotaDisplay: StatusWidgetQuotaDisplayAppEnum
+
+    @Parameter(
+        title: LocalizedStringResource("Provider 1 Window", table: "WidgetConfiguration"),
+        optionsProvider: OverviewWindow1Options())
+    var window1: QuotaPaceWindowOptionAppEntity?
+
+    @Parameter(
+        title: LocalizedStringResource("Provider 2 Window", table: "WidgetConfiguration"),
+        optionsProvider: OverviewWindow2Options())
+    var window2: QuotaPaceWindowOptionAppEntity?
+
+    @Parameter(
+        title: LocalizedStringResource("Provider 3 Window", table: "WidgetConfiguration"),
+        optionsProvider: OverviewWindow3Options())
+    var window3: QuotaPaceWindowOptionAppEntity?
+
+    @Parameter(
+        title: LocalizedStringResource("Provider 4 Window", table: "WidgetConfiguration"),
+        optionsProvider: OverviewWindow4Options())
+    var window4: QuotaPaceWindowOptionAppEntity?
+
     /// The provider selection belongs to the overview; the provider slots to
     /// manual selection and the count to "By weekly reset" (Research/073).
+    /// Each slot's window follows its provider; the quota display belongs to
+    /// both overview selections (issue #223).
     /// SiriKit gives each parameter one parent and does not hide the
     /// children of a hidden parameter, so there the slots stay under `mode`
     /// and also show with "By weekly reset" (where they are ignored).
@@ -379,16 +486,22 @@ struct StatusWidgetAppIntent: WidgetConfigurationIntent {
                     \.$colorStyle
                     \.$providerSelection
                     \.$providerCount
+                    \.$quotaDisplay
                 }
             } otherwise: {
                 Summary {
                     \.$mode
                     \.$colorStyle
                     \.$providerSelection
+                    \.$quotaDisplay
                     \.$provider1
+                    \.$window1
                     \.$provider2
+                    \.$window2
                     \.$provider3
+                    \.$window3
                     \.$provider4
+                    \.$window4
                 }
             }
         } otherwise: {
@@ -406,7 +519,9 @@ struct StatusWidgetAppIntent: WidgetConfigurationIntent {
         colorStyle: StatusWidgetColorStyleAppEnum = .mono,
         providerSelection: StatusWidgetProviderSelectionAppEnum = .manual,
         providerCount: StatusWidgetProviderCountAppEnum = .two,
-        providers: [StatusWidgetProviderAppEntity?] = [])
+        providers: [StatusWidgetProviderAppEntity?] = [],
+        quotaDisplay: StatusWidgetQuotaDisplayAppEnum = .used,
+        windows: [QuotaPaceWindowOptionAppEntity?] = [])
     {
         self.mode = mode
         self.colorStyle = colorStyle
@@ -417,6 +532,12 @@ struct StatusWidgetAppIntent: WidgetConfigurationIntent {
         self.provider2 = slots[1]
         self.provider3 = slots[2]
         self.provider4 = slots[3]
+        self.quotaDisplay = quotaDisplay
+        let windowSlots = windows + Array(repeating: nil, count: max(0, 4 - windows.count))
+        self.window1 = windowSlots[0]
+        self.window2 = windowSlots[1]
+        self.window3 = windowSlots[2]
+        self.window4 = windowSlots[3]
     }
 }
 

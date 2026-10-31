@@ -571,6 +571,36 @@
         }
       }
     },
+    "Provider 1 Window" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatuswindow1.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider 1 Window"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商 1 额度窗口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務商 1 額度時段"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロバイダー 1 のクォータ"
+          }
+        }
+      }
+    },
     "Provider 2" : {
       "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatusprovider2.",
       "extractionState" : "manual",
@@ -597,6 +627,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プロバイダー 2"
+          }
+        }
+      }
+    },
+    "Provider 2 Window" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatuswindow2.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider 2 Window"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商 2 额度窗口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務商 2 額度時段"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロバイダー 2 のクォータ"
           }
         }
       }
@@ -631,6 +691,36 @@
         }
       }
     },
+    "Provider 3 Window" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatuswindow3.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider 3 Window"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商 3 额度窗口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務商 3 額度時段"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロバイダー 3 のクォータ"
+          }
+        }
+      }
+    },
     "Provider 4" : {
       "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatusprovider4.",
       "extractionState" : "manual",
@@ -657,6 +747,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プロバイダー 4"
+          }
+        }
+      }
+    },
+    "Provider 4 Window" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatuswindow4.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider 4 Window"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务商 4 额度窗口"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務商 4 額度時段"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プロバイダー 4 のクォータ"
           }
         }
       }
@@ -781,6 +901,36 @@
         }
       }
     },
+    "Remaining" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatusStatusWidgetQuotaDisplayremaining.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remaining"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩餘"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "残り"
+          }
+        }
+      }
+    },
     "Second Source" : {
       "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBWcompareParam2.",
       "extractionState" : "manual",
@@ -837,6 +987,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "プロバイダーのクォータがリセットまで持つかを確認します。"
+          }
+        }
+      }
+    },
+    "Show Quota As" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatusquotaDisplay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Quota As"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "额度显示方式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "額度顯示方式"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クォータの表示"
           }
         }
       }
@@ -1017,6 +1197,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "トークンのデータソース"
+          }
+        }
+      }
+    },
+    "Used" : {
+      "comment" : "Widget configuration (App Intents, iOS 27+); same wording as SiriKit CBStatusStatusWidgetQuotaDisplayused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用済み"
           }
         }
       }
