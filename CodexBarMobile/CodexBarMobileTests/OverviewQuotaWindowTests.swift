@@ -110,6 +110,18 @@ struct OverviewQuotaWindowTests {
         #expect(gone.usagePercent == 35 && gone.windowTitle == weekly.windowTitle)
     }
 
+    @Test func `a provider without a weekly window names its fractional most-used window`() {
+        let kiro = Self.summary("kiro", name: "Kiro", windows: [
+            SyncRateWindow(
+                id: "primary", label: "Credits", usedPercent: 12.3, windowMinutes: nil,
+                resetsAt: Self.now.addingTimeInterval(9 * 86400), resetDescription: nil),
+        ])
+        let figures = WidgetProviderSelection.overviewFigures(for: kiro, selection: .manual, now: Self.now)
+        #expect(figures.usagePercent == 12.3)
+        #expect(figures.windowTitle == kiro.quotaPace?.windows.first?.widgetTitle(providerID: "kiro"))
+        #expect(figures.windowTitle != nil)
+    }
+
     @Test func `a session that reset after the last sync shows no stale usage`() {
         let later = Self.now.addingTimeInterval(2 * 3600)
         let session = WidgetProviderSelection.overviewFigures(

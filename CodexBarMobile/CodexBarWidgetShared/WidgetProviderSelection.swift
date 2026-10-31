@@ -189,9 +189,12 @@ enum WidgetProviderSelection {
             if let weeklyUsed = provider.weeklyUsedPercent {
                 return (weeklyUsed, nil, Self.weeklyTitle)
             }
-            let fullest = windows.first { window in
-                window.resetsAt == provider.resetsAt
-                    && window.remainingPercent.map { 100 - $0 } == provider.usagePercent
+            // Remaining is derived as 100 - used, so compare with a tolerance (12.3 vs 12.2999…).
+            let fullest = provider.usagePercent.flatMap { used in
+                windows.first { window in
+                    window.resetsAt == provider.resetsAt
+                        && window.remainingPercent.map { abs(100 - $0 - used) < 0.001 } == true
+                }
             }
             return (provider.usagePercent, provider.resetsAt, fullest?.widgetTitle(providerID: provider.providerID))
         }
