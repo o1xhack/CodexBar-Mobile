@@ -36,12 +36,14 @@ struct WidgetLocalQuotaHistoryTests {
     }
 
     private static func pace(
-        _ providers: [ProviderUsageSnapshot], history: WidgetLocalQuotaHistory?) -> CodexBarWidgetPaceSummary?
+        _ providers: [ProviderUsageSnapshot], history: WidgetLocalQuotaHistory?,
+        linkages: [ProviderAccountLinkage] = []) -> CodexBarWidgetPaceSummary?
     {
         let snapshot = SyncedUsageSnapshot(
             providers: providers, syncTimestamp: Self.now.addingTimeInterval(-60),
             deviceName: "Fictional Mac", deviceID: "fictional-mac")
-        return CodexBarWidgetSnapshotBuilder.makeSnapshot(from: [snapshot], localHistory: history, now: Self.now)
+        return CodexBarWidgetSnapshotBuilder.makeSnapshot(
+            from: [snapshot], providerLinkages: linkages, localHistory: history, now: Self.now)
             .topProviders.first { $0.providerID == "grok" }?.quotaPace
     }
 
@@ -72,6 +74,20 @@ struct WidgetLocalQuotaHistoryTests {
         let windowID = try #require(QuotaPaceWindowSelection.candidates(for: Self.grok()).first?.id)
         let second = Self.grok(email: "second@example.com", used: 70)
         #expect(Self.pace([Self.grok(), second], history: Self.history(windowID: windowID))?.lanes.isEmpty == true)
+
+        // The app was not running to withdraw the readings: the widget itself refuses a
+        // replacement account that has a name or a credential slot, or a linked provider.
+        #expect(Self.pace([second], history: Self.history(windowID: windowID))?.lanes.isEmpty == true)
+        let slotted = ProviderUsageSnapshot(
+            providerID: "grok", providerName: "Grok", primary: nil, secondary: nil, accountEmail: nil,
+            loginMethod: nil, statusMessage: nil, isError: false, lastUpdated: Self.now.addingTimeInterval(-60),
+            rateWindows: Self.grok().rateWindows, accountRecordKey: "install-b")
+        #expect(Self.pace([slotted], history: Self.history(windowID: windowID))?.lanes.isEmpty == true)
+        let link = ProviderAccountLinkage(
+            providerID: "grok", linkedIdentifiers: ["grok:account:other", "grok:legacy-no-identity"],
+            confirmedFromDeviceID: "fictional-phone")
+        #expect(Self.pace([Self.grok()], history: Self.history(windowID: windowID), linkages: [link])?
+            .lanes.isEmpty == true)
 
         let oldCycle = Self.history(windowID: windowID, reset: Self.reset.addingTimeInterval(-7 * 86400))
         #expect(Self.pace([Self.grok()], history: oldCycle)?.lanes.isEmpty == true)

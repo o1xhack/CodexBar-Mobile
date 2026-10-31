@@ -899,16 +899,18 @@ enum CodexBarWidgetSnapshotBuilder {
 
         // Provider-level cost envelopes contribute to aggregate spend, but
         // they are not user accounts and must not become widget provider rows.
-        // The phone's readings belong to a provider's single account; with a
-        // second account the widget cannot tell whose they are.
+        // The phone's readings belong to an identity-less provider singleton
+        // (Research/091). The widget refreshes without the app, so it re-checks
+        // that rule itself: one account, still without identity, not linked.
         let accountCounts = Dictionary(
             providers.filter { !$0.isProviderLevelCostEnvelope }.map { ($0.providerID, 1) },
             uniquingKeysWith: +)
+        let linkedProviders = Set(UsageCardLinkages.effective(providerLinkages).map(\.providerID))
         let summaries = providers.map { provider in
-            self.summary(
-                for: provider,
-                now: now,
-                localHistory: accountCounts[provider.providerID] == 1 ? localHistory : nil)
+            let ownsLocalHistory = accountCounts[provider.providerID] == 1
+                && !linkedProviders.contains(provider.providerID)
+                && WidgetLocalQuotaHistory.isIdentityLess(provider)
+            return self.summary(for: provider, now: now, localHistory: ownsLocalHistory ? localHistory : nil)
         }
         let visibleSummaries = zip(providers, summaries)
             .filter { provider, _ in !provider.isProviderLevelCostEnvelope }

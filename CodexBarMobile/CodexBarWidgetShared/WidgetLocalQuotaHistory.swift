@@ -25,6 +25,16 @@ struct WidgetLocalQuotaHistory: Codable, Equatable, Sendable {
         self.streams.first { $0.providerID == providerID && $0.windowID == windowID }
     }
 
+    /// The widget's own check of the exporter's anonymous-singleton rule: the
+    /// account still publishes no identity or credential slot. A replacement
+    /// account with a name must not inherit the readings while the app is not
+    /// running to withdraw them.
+    static func isIdentityLess(_ provider: ProviderUsageSnapshot) -> Bool {
+        let placeholder = "\(provider.providerID):legacy-no-identity"
+        return (provider.accountRecordKey ?? "").isEmpty
+            && ProviderSnapshotMerger.effectiveIdentifiers(for: provider).allSatisfy { $0 == placeholder }
+    }
+
     /// Providers with Mac-published lanes keep them; local readings never
     /// replace or mix into them.
     static func appliesTo(providerID: String) -> Bool {

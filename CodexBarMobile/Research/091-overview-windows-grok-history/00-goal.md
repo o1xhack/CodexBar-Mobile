@@ -15,7 +15,7 @@
 widget 快照由 widget 进程从 CloudKit 自建，Mac lane 只覆盖 Codex/Claude。改为由 iPhone 自己的历史补上：
 
 - App：`UsageQuotaOverviewStore.reconcile` 结束后经 `UsageQuotaWidgetHistorySink` 导出 `WidgetLocalQuotaHistory`（App Group 文件 `widget-local-quota-history-v1.json`）。只导出“匿名单例”owner（该服务唯一账号、无身份、无 linkage，且 `historyMatchesAnchor` + `history(_:isOwnedBy:)` 仍成立）的流，每个窗口只取最新重置周期。有稳定身份的账号不导出：widget 只能确认“该服务只有一个账号”，无法确认是哪一个，换号后可能把旧账号读数画给新账号。仅 `live()` 接线，demo/测试 store 不写；账号列表为空（快照未加载）时不覆盖；内容变化才写并刷新 Quota pace 两种 kind。
-- widget：`CodexBarWidgetSnapshotBuilder` 读取该文件；合并快照中该服务恰好一个账号时，`CodexBarWidgetPaceSummary` 对没有 Mac lane 的服务按窗口 id 生成 `local:<windowID>` lane（`MobileQuotaBurndown` 新增按周期长度构造入口，沿用重置 ±120 秒、用量回落即重来、只取 capturedAt 之前），App 可能用来源时间记下当前读数，若最后一条与当前用量相同则去掉，避免同一读数算两点；去掉后仍要有一个真实的较早读数才画。本地 lane 不参与自动选择（`isAutomaticCandidate`）和排序（`paceRank` 用 `hasPublishedChart`），不会挤掉 Codex/Claude。未选窗口时默认窗口原先只认 weekly/session lane，现在再回退到本地 lane，Grok 不再显示“还没有配速数据”。
+- widget：`CodexBarWidgetSnapshotBuilder` 读取该文件。widget 不经 App 独立刷新，所以自己重新检查匿名单例条件（GitHub Codex 审查 P2）：合并快照中该服务恰好一个账号、该账号仍无身份也无凭证槽（`WidgetLocalQuotaHistory.isIdentityLess`）、没有生效的 linkage（`UsageCardLinkages` 移到共享层）。满足时，`CodexBarWidgetPaceSummary` 对没有 Mac lane 的服务按窗口 id 生成 `local:<windowID>` lane（`MobileQuotaBurndown` 新增按周期长度构造入口，沿用重置 ±120 秒、用量回落即重来、只取 capturedAt 之前），App 可能用来源时间记下当前读数，若最后一条与当前用量相同则去掉，避免同一读数算两点；去掉后仍要有一个真实的较早读数才画。本地 lane 不参与自动选择（`isAutomaticCandidate`）和排序（`paceRank` 用 `hasPublishedChart`），不会挤掉 Codex/Claude。未选窗口时默认窗口原先只认 weekly/session lane，现在再回退到本地 lane，Grok 不再显示“还没有配速数据”。
 - 周期长度：Grok 无 `windowMinutes`，距重置不足约 3.5 天时 `QuotaPace.duration` 推不出周长，原先会因 duration 变 nil 清空整段历史。现在同一重置时间内沿用已观测到的周期长度（记录与 Summary 显示两处都用 `UsageQuotaProjection.inheritedDuration`）。
 
 限制：曲线点来自 App 运行时的观测（打开 App/前台刷新时记录），widget 自身刷新不新增点。
