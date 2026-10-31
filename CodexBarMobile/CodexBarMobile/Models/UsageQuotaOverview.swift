@@ -78,6 +78,33 @@ struct UsageQuotaHistory: Codable, Equatable, Sendable {
     /// Frozen stable owner of these samples. Legacy archives without this proof retain
     /// their settings, but their observations cannot establish an account-specific pattern.
     var stableAccountTokens: [String]?
+    /// Card key of a provider's only account when it publishes no identity or credential slot
+    /// (Grok via browser cookies). Mutually exclusive with `stableAccountTokens`.
+    var anonymousSingletonToken: String?
+
+    var owner: UsageQuotaHistoryOwner? {
+        if let stableAccountTokens { return .stable(stableAccountTokens) }
+        return self.anonymousSingletonToken.map(UsageQuotaHistoryOwner.anonymousSingleton)
+    }
+
+    mutating func setOwner(_ owner: UsageQuotaHistoryOwner) {
+        switch owner {
+        case let .stable(tokens):
+            self.stableAccountTokens = tokens
+            self.anonymousSingletonToken = nil
+        case let .anonymousSingleton(token):
+            self.stableAccountTokens = nil
+            self.anonymousSingletonToken = token
+        }
+    }
+}
+
+/// Frozen proof that a history stream belongs to one account. Stable identities are the
+/// normal owner; an identity-less provider singleton is accepted only while it stays the
+/// provider's only account and is not linked to another publication.
+enum UsageQuotaHistoryOwner: Equatable, Sendable {
+    case stable([String])
+    case anonymousSingleton(String)
 }
 
 struct UsageQuotaPoint: Equatable, Sendable {

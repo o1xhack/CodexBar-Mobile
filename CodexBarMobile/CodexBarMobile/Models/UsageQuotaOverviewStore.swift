@@ -118,6 +118,9 @@ final class UsageQuotaOverviewStore: ObservableObject {
                     && (history.stableAccountTokens == nil ||
                         (history.stableAccountTokens?.isEmpty == false
                             && history.stableAccountTokens?.allSatisfy(UsageAccountIdentity.isStable) == true))
+                    && (history.anonymousSingletonToken == nil ||
+                        (history.stableAccountTokens == nil
+                            && history.anonymousSingletonToken?.hasPrefix("\(history.binding.providerID):card:") == true))
                     && history.observations.allSatisfy {
                         $0.capturedAt.timeIntervalSince1970.isFinite && $0.resetDate.timeIntervalSince1970.isFinite
                             && $0.capturedAt < $0.resetDate && $0.usedPercent.isFinite && (0...100)
@@ -156,10 +159,16 @@ final class UsageQuotaOverviewStore: ObservableObject {
                 if let index = archive.preferences.accountAnchors.firstIndex(where: { $0.id == id }) {
                     let existing = Set(archive.preferences.accountAnchors[index].tokens)
                     let ownsStable = existing.contains(where: UsageAccountIdentity.isStable)
+                    let incomingStable = incoming.contains(where: UsageAccountIdentity.isStable)
                     // A reusable slot is not an account owner. An anonymous interval breaks
                     // continuity; first learning its stable owner cannot legitimize old samples.
-                    if !ownsStable || !incoming.contains(where: UsageAccountIdentity.isStable) {
-                        archive.histories.removeAll { $0.binding.accountAnchorID == id }
+                    // An identity-less provider singleton keeps its own stream while it stays
+                    // identity-less; `record` re-verifies that owner on every observation.
+                    if !ownsStable || !incomingStable {
+                        let keepsSingleton = !ownsStable && !incomingStable
+                        archive.histories.removeAll {
+                            $0.binding.accountAnchorID == id && !(keepsSingleton && $0.anonymousSingletonToken != nil)
+                        }
                     }
                     let learnable = ownsStable ? incoming.filter { !UsageAccountIdentity.isStable($0) } : incoming
                     archive.preferences.accountAnchors[index].tokens = existing.union(learnable).sorted()
@@ -167,6 +176,14 @@ final class UsageQuotaOverviewStore: ObservableObject {
                     archive.preferences.accountAnchors.append(UsageAccountAnchor(
                         id: id, providerID: account.providerID, tokens: incoming.sorted()))
                 }
+            }
+            // A second account or a linkage makes an identity-less singleton ambiguous. Its old
+            // stream must not resume afterwards, because the gap cannot be attributed.
+            let ambiguousProviders = Set(Dictionary(grouping: accounts, by: \.providerID)
+                .filter { $0.value.count > 1 }.keys)
+                .union(UsageCardLinkages.effective(linkages).map(\.providerID))
+            archive.histories.removeAll {
+                $0.anonymousSingletonToken != nil && ambiguousProviders.contains($0.binding.providerID)
             }
             if !archive.preferences.hasInitialized {
                 let defaults = Self.initialCandidates(
@@ -179,10 +196,9 @@ final class UsageQuotaOverviewStore: ObservableObject {
                 if !archive.preferences.selections.isEmpty { archive.preferences.hasInitialized = true }
             }
             for (anchor, account) in assigned where !account.isError && account.sourceReport?.allFailed != true {
-                guard UsageQuotaProjection.hasUnambiguousHistorySource(
-                    account, anchorID: anchor, preferences: archive.preferences, linkages: linkages),
-                    let stableOwner = archive.preferences.accountAnchors.first(where: { $0.id == anchor })?
-                        .tokens.filter(UsageAccountIdentity.isStable).sorted() else { continue }
+                guard let owner = UsageQuotaProjection.historyOwner(
+                    account, anchorID: anchor, accounts: accounts,
+                    preferences: archive.preferences, linkages: linkages) else { continue }
                 for candidate in QuotaPaceWindowSelection.candidates(for: account) {
                     guard let evidence = UsageQuotaSourceResolver.evidence(
                         account: account, windowID: candidate.id,
@@ -203,7 +219,7 @@ final class UsageQuotaOverviewStore: ObservableObject {
                         capturedAt: captured, usedPercent: min(100, window.usedPercent), resetDate: reset,
                         windowDuration: UsageQuotaProjection.duration(
                             window: window, providerID: account.providerID, capturedAt: captured))
-                    Self.record(observation, binding: binding, stableOwner: stableOwner, archive: &archive)
+                    Self.record(observation, binding: binding, owner: owner, archive: &archive)
                 }
             }
             if archive.histories.count > Self.maximumHistoryStreams {
@@ -277,14 +293,14 @@ final class UsageQuotaOverviewStore: ObservableObject {
     }
 
     private static func record(
-        _ observation: UsageQuotaObservation, binding: UsageQuotaBinding, stableOwner: [String],
+        _ observation: UsageQuotaObservation, binding: UsageQuotaBinding, owner: UsageQuotaHistoryOwner,
         archive: inout UsageQuotaArchive)
     {
         var observation = observation
         if let index = archive.histories.firstIndex(where: { $0.binding == binding }) {
-            if archive.histories[index].stableAccountTokens != stableOwner {
+            if archive.histories[index].owner != owner {
                 archive.histories[index].observations.removeAll()
-                archive.histories[index].stableAccountTokens = stableOwner
+                archive.histories[index].setOwner(owner)
             }
             var observations = archive.histories[index].observations
             var replacementContinuity: Bool?
@@ -333,8 +349,9 @@ final class UsageQuotaOverviewStore: ObservableObject {
             archive.histories[index].observations = observations
         } else {
             observation.startsSegment = false
-            archive.histories.append(UsageQuotaHistory(
-                binding: binding, observations: [observation], stableAccountTokens: stableOwner))
+            var history = UsageQuotaHistory(binding: binding, observations: [observation])
+            history.setOwner(owner)
+            archive.histories.append(history)
         }
     }
 
