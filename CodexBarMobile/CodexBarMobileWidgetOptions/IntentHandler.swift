@@ -58,6 +58,52 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
         self.provideOptions(with: completion)
     }
 
+    /// Issue #223: each overview slot's window list follows that slot's
+    /// provider, like the Quota pace window below.
+    func defaultWindow1(for intent: SelectStatusWidgetIntent) -> QuotaPaceWindowOption? {
+        self.defaultWindowChoice()
+    }
+
+    func defaultWindow2(for intent: SelectStatusWidgetIntent) -> QuotaPaceWindowOption? {
+        self.defaultWindowChoice()
+    }
+
+    func defaultWindow3(for intent: SelectStatusWidgetIntent) -> QuotaPaceWindowOption? {
+        self.defaultWindowChoice()
+    }
+
+    func defaultWindow4(for intent: SelectStatusWidgetIntent) -> QuotaPaceWindowOption? {
+        self.defaultWindowChoice()
+    }
+
+    func provideWindow1OptionsCollection(
+        for intent: SelectStatusWidgetIntent,
+        with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
+    {
+        self.provideWindowOptions(providerID: intent.provider1?.identifier, with: completion)
+    }
+
+    func provideWindow2OptionsCollection(
+        for intent: SelectStatusWidgetIntent,
+        with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
+    {
+        self.provideWindowOptions(providerID: intent.provider2?.identifier, with: completion)
+    }
+
+    func provideWindow3OptionsCollection(
+        for intent: SelectStatusWidgetIntent,
+        with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
+    {
+        self.provideWindowOptions(providerID: intent.provider3?.identifier, with: completion)
+    }
+
+    func provideWindow4OptionsCollection(
+        for intent: SelectStatusWidgetIntent,
+        with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
+    {
+        self.provideWindowOptions(providerID: intent.provider4?.identifier, with: completion)
+    }
+
     /// Research/071: the window list follows the provider currently set on
     /// the widget being edited. SiriKit asks again every time the picker
     /// opens, so changing the provider changes the offered windows.
@@ -69,8 +115,14 @@ final class IntentHandler: INExtension, SelectStatusWidgetIntentHandling, Select
         for intent: SelectQuotaPaceWidgetIntent,
         with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
     {
+        self.provideWindowOptions(providerID: intent.provider?.identifier, with: completion)
+    }
+
+    private func provideWindowOptions(
+        providerID: String?,
+        with completion: @escaping (INObjectCollection<QuotaPaceWindowOption>?, Error?) -> Void)
+    {
         do {
-            let providerID = intent.provider?.identifier
             let record = try WidgetProviderCatalogue.read().first { $0.id == providerID }
             let options = QuotaPaceWindowChoice.options(
                 for: record,

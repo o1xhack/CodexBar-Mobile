@@ -45,3 +45,14 @@
 "CBStatusStatusWidgetProviderCounttwo" = "2";
 "CBStatusStatusWidgetProviderCountthree" = "3";
 "CBStatusStatusWidgetProviderCountfour" = "4";
+
+/* Overview quota windows and display (issue #223). */
+"CBStatusquotaDisplay" = "クォータの表示";
+"CBStatusStatusWidgetQuotaDisplayTitle" = "クォータの表示";
+"CBStatusStatusWidgetQuotaDisplayunknown" = "不明";
+"CBStatusStatusWidgetQuotaDisplayused" = "使用済み";
+"CBStatusStatusWidgetQuotaDisplayremaining" = "残り";
+"CBStatuswindow1" = "プロバイダー 1 のクォータ";
+"CBStatuswindow2" = "プロバイダー 2 のクォータ";
+"CBStatuswindow3" = "プロバイダー 3 のクォータ";
+"CBStatuswindow4" = "プロバイダー 4 のクォータ";

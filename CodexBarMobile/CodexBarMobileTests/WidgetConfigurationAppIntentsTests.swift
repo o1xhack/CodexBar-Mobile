@@ -72,6 +72,7 @@ struct WidgetConfigurationAppIntentsTests {
         "StatusWidgetColorStyleAppEnum": StatusWidgetColorStyleAppEnum.allCases.map(\.rawValue),
         "StatusWidgetProviderSelectionAppEnum": StatusWidgetProviderSelectionAppEnum.allCases.map(\.rawValue),
         "StatusWidgetProviderCountAppEnum": StatusWidgetProviderCountAppEnum.allCases.map(\.rawValue),
+        "StatusWidgetQuotaDisplayAppEnum": StatusWidgetQuotaDisplayAppEnum.allCases.map(\.rawValue),
         "TokenActivitySourceAppEnum": TokenActivitySourceAppEnum.allCases.map(\.rawValue),
     ]
 
@@ -199,14 +200,19 @@ struct WidgetConfigurationAppIntentsTests {
                 "colorStyle": status.colorStyle.rawValue,
                 "providerSelection": status.providerSelection.rawValue,
                 "providerCount": status.providerCount.rawValue,
+                "quotaDisplay": status.quotaDisplay.rawValue,
             ],
             enumTypes: [
                 "StatusWidgetMode": "StatusWidgetModeAppEnum",
                 "StatusWidgetColorStyle": "StatusWidgetColorStyleAppEnum",
                 "StatusWidgetProviderSelection": "StatusWidgetProviderSelectionAppEnum",
                 "StatusWidgetProviderCount": "StatusWidgetProviderCountAppEnum",
+                "StatusWidgetQuotaDisplay": "StatusWidgetQuotaDisplayAppEnum",
             ],
-            entityTypes: ["StatusWidgetProvider": "StatusWidgetProviderAppEntity"])
+            entityTypes: [
+                "StatusWidgetProvider": "StatusWidgetProviderAppEntity",
+                "QuotaPaceWindowOption": "QuotaPaceWindowOptionAppEntity",
+            ])
     }
 
     @available(iOS 27.0, *)

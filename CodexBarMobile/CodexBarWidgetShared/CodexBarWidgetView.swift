@@ -1003,10 +1003,14 @@ private extension CodexBarWidgetView {
         let accent = self.palette.isColorful && !provider.isError
             ? ProviderColorPalette.color(for: provider.providerID)
             : self.palette.providerAccent(index: index, isError: provider.isError)
+        let quota = self.entry.overviewQuota
         let figures = WidgetProviderSelection.overviewFigures(
             for: provider,
             selection: self.entry.overviewSelection,
+            windowID: self.entry.overviewSelection == .manual ? quota.windowID(for: provider.providerID) : nil,
             now: self.entry.date)
+        let shown = figures.usagePercent.map { quota.display == .remaining ? 100 - min(100, max(0, $0)) : $0 }
+        let caption = quota.display == .remaining ? String(localized: "left") : String(localized: "used")
         return VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             HStack(spacing: 5) {
                 if !narrow { self.providerMark(provider, accent: accent) }
@@ -1015,11 +1019,20 @@ private extension CodexBarWidgetView {
                     .foregroundStyle(self.palette.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                // Compact tiles have no caption line, so the window rides on the name.
+                if compact, !provider.isError, let title = figures.windowTitle {
+                    Text(title)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(self.palette.secondary.opacity(0.8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .layoutPriority(-1)
+                }
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(provider.isError
                     ? String(localized: "Unavailable")
-                    : self.overviewPercentText(figures.usagePercent))
+                    : self.overviewPercentText(shown))
                     .font(.system(size: narrow ? 16 : (compact ? 22 : 36), weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(self.palette.isColorful ? accent : self.palette.primary)
@@ -1037,12 +1050,16 @@ private extension CodexBarWidgetView {
                         .accessibilityLabel(String(format: String(localized: "Resets in %@"), reset))
                 }
             }
-            self.progressLine(provider.isError ? nil : figures.usagePercent, height: 4, fill: accent)
+            self.progressLine(provider.isError ? nil : shown, height: 4, fill: accent)
             if !compact {
-                Text(provider.isError ? String(localized: "Sync Error") : String(localized: "used"))
+                // Issue #223: name the limit the tile shows, e.g. "Session · used".
+                Text(provider.isError
+                    ? String(localized: "Sync Error")
+                    : figures.windowTitle.map { "\($0) · \(caption)" } ?? caption)
                     .font(.caption2)
                     .foregroundStyle(self.palette.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

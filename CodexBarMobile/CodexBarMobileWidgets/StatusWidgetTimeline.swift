@@ -16,7 +16,8 @@ struct CodexBarStatusTimelineProvider: IntentTimelineProvider {
             date: .now,
             configuration: StatusWidgetConfigurationAdapter.configuration(from: configuration),
             snapshot: context.isPreview ? .placeholder() : .syncing(),
-            overviewSelection: StatusWidgetConfigurationAdapter.overviewSelection(from: configuration)))
+            overviewSelection: StatusWidgetConfigurationAdapter.overviewSelection(from: configuration),
+            overviewQuota: StatusWidgetConfigurationAdapter.overviewQuota(from: configuration)))
     }
 
     func getTimeline(
@@ -26,6 +27,7 @@ struct CodexBarStatusTimelineProvider: IntentTimelineProvider {
     {
         let configuration = StatusWidgetConfigurationAdapter.configuration(from: intent)
         let selection = StatusWidgetConfigurationAdapter.overviewSelection(from: intent)
+        let quota = StatusWidgetConfigurationAdapter.overviewQuota(from: intent)
         #if DEBUG
         let providerIDs = (configuration.providers ?? []).map(\.id).joined(separator: ",")
         Logger(subsystem: "com.o1xhack.codexbar.mobile.widgets", category: "status")
@@ -42,7 +44,8 @@ struct CodexBarStatusTimelineProvider: IntentTimelineProvider {
         Task {
             await completion(CodexBarWidgetProvider.makeTimeline(
                 configuration: configuration,
-                overviewSelection: selection))
+                overviewSelection: selection,
+                overviewQuota: quota))
         }
     }
 }
@@ -105,12 +108,14 @@ struct StatusAppIntentTimelineProvider: AppIntentTimelineProvider {
             date: .now,
             configuration: StatusWidgetConfigurationAdapter.configuration(from: intent),
             snapshot: context.isPreview ? .placeholder() : .syncing(),
-            overviewSelection: StatusWidgetConfigurationAdapter.overviewSelection(from: intent))
+            overviewSelection: StatusWidgetConfigurationAdapter.overviewSelection(from: intent),
+            overviewQuota: StatusWidgetConfigurationAdapter.overviewQuota(from: intent))
     }
 
     func timeline(for intent: StatusWidgetAppIntent, in _: Context) async -> Timeline<CodexBarWidgetEntry> {
         let configuration = StatusWidgetConfigurationAdapter.configuration(from: intent)
         let selection = StatusWidgetConfigurationAdapter.overviewSelection(from: intent)
+        let quota = StatusWidgetConfigurationAdapter.overviewQuota(from: intent)
         #if DEBUG
         let providerIDs = (configuration.providers ?? []).map(\.id).joined(separator: ",")
         appIntentTimelineLogger.notice(
@@ -121,7 +126,8 @@ struct StatusAppIntentTimelineProvider: AppIntentTimelineProvider {
             selection=\(selection.logDescription, privacy: .public)
             """)
         #endif
-        return await CodexBarWidgetProvider.makeTimeline(configuration: configuration, overviewSelection: selection)
+        return await CodexBarWidgetProvider.makeTimeline(
+            configuration: configuration, overviewSelection: selection, overviewQuota: quota)
     }
 }
 

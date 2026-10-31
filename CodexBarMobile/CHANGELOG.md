@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [3.5.0 (262)] — Unreleased
+
+### Added
+- CodexBar widget overview (SiriKit and iOS 27 App Intents): per-slot quota window for each manually chosen provider (Default (Weekly), Session or any reported window; issue #223), a Used / Remaining display option for both overview selections, and a window label on every tile. A slot's window applies only while it names that slot's provider; widgets placed earlier keep weekly usage. A chosen window that reset after the last sync shows no stale usage.
+
+### Fixed
+- Summary remaining-quota history now records an identity-less provider singleton (Grok read through browser cookies: no email, organization or credential slot). Its card key is the history owner while it is the provider's only account and no linkage involves the provider; a second account or a linkage discards that stream. Record-slot accounts still never collect history.
+- Quota pace widget now charts an identity-less provider singleton without Mac-published lanes (Grok via browser cookies) from the phone's own readings: the app writes the current cycle to the app group, and the widget draws it only while the merged snapshot has exactly one account of that provider, the readings share the current reset and at least one is genuinely earlier than the current reading. Without a chosen window it becomes the default chart instead of "No pace data yet". Local charts never drive automatic provider selection or ranking; accounts with a stable identity and Codex/Claude are not exported.
+- A reading whose cycle length cannot be inferred (Grok within about 3.5 days of its reset) keeps the length already observed with the same reset, so the Summary history and widget chart no longer restart for the last days of a cycle.
+
 ## [3.3.0] — Unreleased
 
 ### Added

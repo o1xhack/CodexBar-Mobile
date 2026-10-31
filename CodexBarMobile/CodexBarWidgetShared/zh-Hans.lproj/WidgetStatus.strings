@@ -45,3 +45,14 @@
 "CBStatusStatusWidgetProviderCounttwo" = "2";
 "CBStatusStatusWidgetProviderCountthree" = "3";
 "CBStatusStatusWidgetProviderCountfour" = "4";
+
+/* Overview quota windows and display (issue #223). */
+"CBStatusquotaDisplay" = "额度显示方式";
+"CBStatusStatusWidgetQuotaDisplayTitle" = "额度显示方式";
+"CBStatusStatusWidgetQuotaDisplayunknown" = "未知";
+"CBStatusStatusWidgetQuotaDisplayused" = "已用";
+"CBStatusStatusWidgetQuotaDisplayremaining" = "剩余";
+"CBStatuswindow1" = "服务商 1 额度窗口";
+"CBStatuswindow2" = "服务商 2 额度窗口";
+"CBStatuswindow3" = "服务商 3 额度窗口";
+"CBStatuswindow4" = "服务商 4 额度窗口";

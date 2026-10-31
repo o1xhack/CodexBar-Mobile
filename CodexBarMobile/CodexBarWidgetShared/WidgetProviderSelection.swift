@@ -86,6 +86,28 @@ enum WidgetOverviewSelection: Equatable, Sendable {
     }
 }
 
+/// What an overview tile's percentage counts (issue #223).
+enum WidgetOverviewQuotaDisplay: Equatable, Sendable {
+    case used
+    case remaining
+}
+
+/// Per-tile quota choices of the overview (issue #223), kept outside the
+/// legacy App Intent like `WidgetOverviewSelection`.
+struct WidgetOverviewQuotaOptions: Equatable, Sendable {
+    /// `QuotaPaceWindowChoice` identifiers of manual provider slots. Each
+    /// names its own provider, so a choice never applies to another one.
+    var windowChoices: [String] = []
+    var display: WidgetOverviewQuotaDisplay = .used
+
+    /// The window chosen for `providerID`; nil follows the weekly default.
+    func windowID(for providerID: String) -> String? {
+        self.windowChoices.lazy
+            .compactMap { QuotaPaceWindowChoice.windowID(from: $0, providerID: providerID) }
+            .first
+    }
+}
+
 enum WidgetProviderSelection {
     /// The overview's providers for the configured selection.
     static func overview(
@@ -144,20 +166,45 @@ enum WidgetProviderSelection {
     /// without any weekly window keeps its most-used window. The selection no
     /// longer changes the figures; the parameter stays so callers and tests
     /// keep naming the mode they render.
+    ///
+    /// A manual slot's chosen window (`windowID`, issue #223) replaces the
+    /// weekly figures with that window's own usage and reset; a window the
+    /// provider no longer reports falls back to the weekly figures.
+    /// `windowTitle` names the window the figures describe, when known.
     static func overviewFigures(
         for provider: CodexBarWidgetProviderSummary,
         selection _: WidgetOverviewSelection,
-        now: Date) -> (usagePercent: Double?, resetsAt: Date?)
+        windowID: String? = nil,
+        now: Date) -> (usagePercent: Double?, resetsAt: Date?, windowTitle: String?)
     {
+        let windows = provider.quotaPace?.windows ?? []
+        if let windowID, let window = windows.first(where: { $0.id == windowID }) {
+            let title = window.widgetTitle(providerID: provider.providerID)
+            // A window that reset after the data was built (a 5-hour session within the
+            // widget's refresh interval) has no current usage until the next sync.
+            let current = window.resetsAt.map { $0 > now } ?? true
+            return (current ? window.remainingPercent.map { 100 - $0 } : nil, current ? window.resetsAt : nil, title)
+        }
         guard let weeklyReset = provider.weeklyResetsAt else {
             if let weeklyUsed = provider.weeklyUsedPercent {
-                return (weeklyUsed, nil)
+                return (weeklyUsed, nil, Self.weeklyTitle)
             }
-            return (provider.usagePercent, provider.resetsAt)
+            // Remaining is derived as 100 - used, so compare with a tolerance (12.3 vs 12.2999…).
+            let fullest = provider.usagePercent.flatMap { used in
+                windows.first { window in
+                    window.resetsAt == provider.resetsAt
+                        && window.remainingPercent.map { abs(100 - $0 - used) < 0.001 } == true
+                }
+            }
+            return (provider.usagePercent, provider.resetsAt, fullest?.widgetTitle(providerID: provider.providerID))
         }
         let next = WeeklyResetWindow.nextOccurrence(of: weeklyReset, after: now)
         // A reset that has passed since the data was built leaves its usage stale.
-        return (next == weeklyReset ? provider.weeklyUsedPercent : nil, next)
+        return (next == weeklyReset ? provider.weeklyUsedPercent : nil, next, Self.weeklyTitle)
+    }
+
+    private static var weeklyTitle: String {
+        String(localized: "Weekly")
     }
 
     static func resolve(
@@ -270,7 +317,7 @@ enum WidgetProviderSelection {
     /// window only counts its own chart.
     private static func paceRank(_ provider: CodexBarWidgetProviderSummary) -> Int {
         let hasPace = provider.quotaPace?.pace != nil
-        let hasChart = provider.quotaPace?.hasChart == true
+        let hasChart = provider.quotaPace?.hasPublishedChart == true
         return (hasPace ? 2 : 0) + (hasChart ? 1 : 0)
     }
 

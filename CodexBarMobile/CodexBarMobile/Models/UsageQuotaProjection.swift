@@ -46,15 +46,18 @@ enum UsageQuotaProjection {
                 .first { $0.0 == selection.accountAnchorID && $0.1.providerID == selection.providerID }
             // A linkage may make an old selection resolve to a different canonical account. Its
             // previous local history must not be transplanted to that account's current quota.
-            let unambiguous = card.provider.map {
-                self.hasUnambiguousHistorySource(
-                    $0, anchorID: selection.accountAnchorID, preferences: preferences, linkages: linkages)
-            } ?? false
+            let owner = card.provider.flatMap {
+                self.historyOwner(
+                    $0, anchorID: selection.accountAnchorID, accounts: accounts,
+                    preferences: preferences, linkages: linkages)
+            }
             let storedHistory = histories.first { $0.binding == selection.binding }
-            let verifiedOwner = storedHistory.map { self.historyMatchesAnchor($0, preferences: preferences) } == true
-            let history = canonical == nil || !unambiguous || !verifiedOwner ? [] : storedHistory?.observations ?? []
+            let verifiedOwner = storedHistory.map {
+                self.historyMatchesAnchor($0, preferences: preferences) && self.history($0, isOwnedBy: owner)
+            } == true
+            let history = canonical == nil || owner == nil || !verifiedOwner ? [] : storedHistory?.observations ?? []
             let singleProviderAccount = accounts.filter { $0.providerID == selection.providerID }.count == 1
-            let synced = canonical == nil || !unambiguous || !singleProviderAccount ? [] : self.syncedObservations(
+            let synced = canonical == nil || owner == nil || !singleProviderAccount ? [] : self.syncedObservations(
                 card: card, windowID: selection.windowID,
                 sourceSnapshots: sourceSnapshots, quotaSources: quotaSources, now: now)
             // Local receipts supersede an older synced value at the same timestamp. The
@@ -145,12 +148,61 @@ enum UsageQuotaProjection {
         return matches.count == 1 && matches.first?.id == anchorID
     }
 
+    /// The proof a new observation of this account is stored under, or nil when its samples
+    /// cannot be attributed to one account. Weak record slots stay excluded: a reusable
+    /// credential slot can hold a different account between readings.
+    static func historyOwner(
+        _ account: ProviderUsageSnapshot, anchorID: String, accounts: [ProviderUsageSnapshot],
+        preferences: UsageQuotaPreferences, linkages: [ProviderAccountLinkage]) -> UsageQuotaHistoryOwner?
+    {
+        if self.hasUnambiguousHistorySource(account, anchorID: anchorID, preferences: preferences, linkages: linkages) {
+            let stable = preferences.accountAnchors.first { $0.id == anchorID }?
+                .tokens.filter(UsageAccountIdentity.isStable).sorted() ?? []
+            return stable.isEmpty ? nil : .stable(stable)
+        }
+        return self.anonymousSingletonToken(
+            account, anchorID: anchorID, accounts: accounts, preferences: preferences, linkages: linkages)
+            .map(UsageQuotaHistoryOwner.anonymousSingleton)
+    }
+
+    /// Card key of a provider's only account when it carries no identity at all, such as Grok
+    /// read through browser cookies. A second account of the provider, any linkage involving
+    /// the provider, or an anchor that once learned a stable owner withdraws the proof.
+    static func anonymousSingletonToken(
+        _ account: ProviderUsageSnapshot, anchorID: String, accounts: [ProviderUsageSnapshot],
+        preferences: UsageQuotaPreferences, linkages: [ProviderAccountLinkage]) -> String?
+    {
+        let tokens = UsageAccountIdentity.tokens(for: account)
+        guard tokens.count == 1, let token = tokens.first, token.hasPrefix("\(account.providerID):card:"),
+              accounts.filter({ $0.providerID == account.providerID }).count == 1,
+              !UsageCardLinkages.effective(linkages).contains(where: { $0.providerID == account.providerID }),
+              let anchor = preferences.accountAnchors.first(where: {
+                  $0.id == anchorID && $0.providerID == account.providerID
+              }),
+              !anchor.tokens.contains(where: UsageAccountIdentity.isStable), anchor.tokens.contains(token)
+        else { return nil }
+        return token
+    }
+
     static func historyMatchesAnchor(_ history: UsageQuotaHistory, preferences: UsageQuotaPreferences) -> Bool {
         guard let anchor = preferences.accountAnchors.first(where: {
             $0.id == history.binding.accountAnchorID && $0.providerID == history.binding.providerID
         }) else { return false }
         let stable = Set(anchor.tokens.filter(UsageAccountIdentity.isStable))
+        if let token = history.anonymousSingletonToken {
+            return stable.isEmpty && history.stableAccountTokens == nil && anchor.tokens.contains(token)
+        }
         return !stable.isEmpty && Set(history.stableAccountTokens ?? []) == stable
+    }
+
+    /// Whether the stored stream was recorded under the same kind of owner as the current reading.
+    /// Stable token equality itself is established by `historyMatchesAnchor`.
+    static func history(_ history: UsageQuotaHistory, isOwnedBy owner: UsageQuotaHistoryOwner?) -> Bool {
+        switch owner {
+        case .stable: history.stableAccountTokens != nil && history.anonymousSingletonToken == nil
+        case let .anonymousSingleton(token): history.anonymousSingletonToken == token
+        case nil: false
+        }
     }
 
     static func duration(window: SyncRateWindow, providerID: String, capturedAt: Date) -> TimeInterval? {
@@ -159,6 +211,14 @@ enum UsageQuotaProjection {
         }
         guard let minutes = window.windowMinutes, minutes > 0, minutes < 1440 else { return nil }
         return Double(minutes) * 60
+    }
+
+    /// A reading whose length cannot be inferred (Grok within a few days of its reset)
+    /// still belongs to the cycle already observed with the same reset, so it keeps that
+    /// cycle's known length instead of breaking the stream.
+    static func inheritedDuration(_ observations: [UsageQuotaObservation], reset: Date) -> TimeInterval? {
+        observations.last { abs($0.resetDate.timeIntervalSince(reset)) <= 120 && $0.windowDuration != nil }?
+            .windowDuration
     }
 
     /// Read-only provider history, matching the detail chart's legacy wire semantics.
@@ -225,6 +285,9 @@ enum UsageQuotaProjection {
               let provider = card.provider, captured <= now, captured < reset, now < reset
         else { return [] }
         let duration = self.duration(window: window, providerID: provider.providerID, capturedAt: captured)
+            ?? self.inheritedDuration(
+                observations.filter { $0.capturedAt <= captured }.sorted { $0.capturedAt < $1.capturedAt },
+                reset: reset)
         let cycleStart = duration.map { reset.addingTimeInterval(-$0) }
         var compatible = observations.filter {
             $0.capturedAt <= captured && abs($0.resetDate.timeIntervalSince(reset)) <= 120

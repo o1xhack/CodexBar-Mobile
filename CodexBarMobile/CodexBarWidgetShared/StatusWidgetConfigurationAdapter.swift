@@ -54,6 +54,46 @@ enum StatusWidgetConfigurationAdapter {
             count: intent.providerCount.count)
     }
 
+    /// The overview's per-slot windows and display (issue #223). Widgets added
+    /// before the parameters existed read nil / `unknown`: weekly usage, as before.
+    static func overviewQuota(from intent: SelectStatusWidgetIntent) -> WidgetOverviewQuotaOptions {
+        self.overviewQuota(
+            slots: [
+                (intent.provider1?.identifier, intent.window1?.identifier),
+                (intent.provider2?.identifier, intent.window2?.identifier),
+                (intent.provider3?.identifier, intent.window3?.identifier),
+                (intent.provider4?.identifier, intent.window4?.identifier),
+            ],
+            remaining: intent.quotaDisplay == .remaining)
+    }
+
+    @available(iOS 27.0, *)
+    static func overviewQuota(from intent: StatusWidgetAppIntent) -> WidgetOverviewQuotaOptions {
+        self.overviewQuota(
+            slots: [
+                (intent.provider1?.id, intent.window1?.id),
+                (intent.provider2?.id, intent.window2?.id),
+                (intent.provider3?.id, intent.window3?.id),
+                (intent.provider4?.id, intent.window4?.id),
+            ],
+            remaining: intent.quotaDisplay == .remaining)
+    }
+
+    /// A slot's window counts only while it names the slot's current provider:
+    /// changing the provider leaves the old choice behind without applying it.
+    private static func overviewQuota(
+        slots: [(providerID: String?, window: String?)],
+        remaining: Bool) -> WidgetOverviewQuotaOptions
+    {
+        let choices = slots.compactMap { slot -> String? in
+            guard let providerID = slot.providerID, let window = self.paceWindowChoice(identifier: slot.window),
+                  QuotaPaceWindowChoice.windowID(from: window, providerID: providerID) != nil
+            else { return nil }
+            return window
+        }
+        return WidgetOverviewQuotaOptions(windowChoices: choices, display: remaining ? .remaining : .used)
+    }
+
     private static func overviewSelection(soonestWeeklyReset: Bool, count: Int?) -> WidgetOverviewSelection {
         guard soonestWeeklyReset else { return .manual }
         return .soonestWeeklyReset(count: WidgetOverviewSelection.clampedCount(

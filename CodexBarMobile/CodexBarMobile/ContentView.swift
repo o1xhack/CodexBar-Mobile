@@ -5094,8 +5094,25 @@ private struct NSEInvocationLogSection: View {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "3.3.0",
+            version: "3.5.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Choose the limit each widget tile shows"),
+            highlights: [
+                .init(
+                    id: "overview-windows", symbol: "rectangle.grid.2x2",
+                    title: String(localized: "Pick a limit per provider"),
+                    detail: String(
+                        localized: "In the CodexBar widget’s overview, choose Session or Weekly for each provider, show used or remaining quota, and see which limit every tile shows.")),
+                .init(
+                    id: "grok-history", symbol: "chart.xyaxis.line",
+                    title: String(localized: "Grok usage history"),
+                    detail: String(
+                        localized: "The Summary quota chart and the Quota pace widget now chart Grok’s usage over time, even when your Mac reads Grok from the browser.")),
+            ],
+            sections: []),
+        ReleaseNotesVersion(
+            version: "3.3.0",
+            status: "",
             summary: String(localized: "More services, clearer allowance details"),
             highlights: [
                 .init(
@@ -6537,6 +6554,7 @@ private struct WidgetSettingsView: View {
         }
         let widgetSnapshot = CodexBarWidgetSnapshotBuilder.makeSnapshot(
             from: [snapshot],
+            localHistory: WidgetLocalQuotaHistoryStore.read(),
             now: .now)
         return widgetSnapshot.state == .loaded ? widgetSnapshot : .placeholder()
     }

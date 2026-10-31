@@ -1647,3 +1647,13 @@ extension ProviderUsageSnapshot {
         return copy
     }
 }
+
+/// Linkages the cross-Mac merger actually applies: merge records that no
+/// later "unmerge" record suppresses (unmerging appends an inverse record).
+enum UsageCardLinkages {
+    static func effective(_ linkages: [ProviderAccountLinkage]) -> [ProviderAccountLinkage] {
+        let partition = ProviderSnapshotMerger.partitionLinkages(linkages)
+        let suppressed = ProviderSnapshotMerger.suppressedEdges(unmergeLinkages: partition.unmerges)
+        return partition.merges.filter { !ProviderSnapshotMerger.isLinkageSuppressed($0, by: suppressed) }
+    }
+}
