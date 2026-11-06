@@ -17,7 +17,7 @@ import Foundation
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
 /// snapshots. The full catalog now has 126 snapshots: 121 using current
-/// provider IDs (110 distinct), three legacy-ID compatibility fixtures,
+/// provider IDs (111 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
 /// the iOS app does not yet know about. All values and accounts remain
