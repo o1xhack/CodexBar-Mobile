@@ -407,7 +407,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 60,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
                 resetDescription: "in 4 days"),
             accountEmail: "café-mock@codex.test",
@@ -434,7 +434,7 @@ enum MockProviderInjector {
                     resetDescription: "in 45 min"),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 60,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
                     resetDescription: "in 4 days"),
             ],
@@ -460,7 +460,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 100, // boundary: fully consumed
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
                 resetDescription: "in 4 days"),
             accountEmail: "bob-mock@codex.test",
@@ -482,7 +482,7 @@ enum MockProviderInjector {
                     resetDescription: "in 30 min"),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 100, // boundary
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
                     resetDescription: "in 4 days"),
             ],
@@ -508,7 +508,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 12,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
                 resetDescription: "in 4 days"),
             accountEmail: "carol-mock@codex.test",
@@ -530,7 +530,7 @@ enum MockProviderInjector {
                     resetDescription: "in 4 hours"),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 12,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
                     resetDescription: "in 4 days"),
             ],
@@ -561,7 +561,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly Sonnet",
                 usedPercent: 65,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: self.nowReference.addingTimeInterval(259_200),
                 resetDescription: "in 3 days"),
             accountEmail: "personal-mock@claude.test",
@@ -583,12 +583,12 @@ enum MockProviderInjector {
                     resetDescription: "in 1 hour"),
                 SyncRateWindow(
                     label: "Weekly Sonnet", usedPercent: 65,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
                     resetDescription: "in 3 days"),
                 SyncRateWindow(
                     label: "Weekly Opus", usedPercent: 90,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
                     resetDescription: "in 3 days"),
             ],
@@ -612,7 +612,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly Sonnet",
                 usedPercent: 38,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: self.nowReference.addingTimeInterval(259_200),
                 resetDescription: "in 3 days"),
             accountEmail: "work-mock@claude.test",
@@ -634,7 +634,7 @@ enum MockProviderInjector {
                     resetDescription: "in 2 hours"),
                 SyncRateWindow(
                     label: "Weekly Sonnet", usedPercent: 38,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
                     resetDescription: "in 3 days"),
             ],
@@ -770,7 +770,7 @@ enum MockProviderInjector {
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 70,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsAt: now.addingTimeInterval(518_400),
                 resetDescription: "in 6 days"),
             accountEmail: "lanes-mock@synthetic.test",
@@ -793,7 +793,7 @@ enum MockProviderInjector {
                     resetDescription: "in 1 hour"),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 70,
-                    windowMinutes: 10080,
+                    windowMinutes: 10_080,
                     resetsAt: now.addingTimeInterval(518_400),
                     resetDescription: "in 6 days"),
                 SyncRateWindow(
@@ -807,7 +807,7 @@ enum MockProviderInjector {
                     name: "session", windowMinutes: 300,
                     entries: sessionEntries),
                 SyncUtilizationSeries(
-                    name: "weekly", windowMinutes: 10080,
+                    name: "weekly", windowMinutes: 10_080,
                     entries: weeklyEntries),
                 SyncUtilizationSeries(
                     name: "search", windowMinutes: 60,
@@ -984,7 +984,7 @@ enum MockProviderInjector {
             primaryResetDescription: "in 30 min",
             secondary: .init(
                 label: "Weekly", usedPercent: 65,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 3 * 86400,
                 resetDescription: "in 3 days"),
             thirtyDayCostUSD: 0.50, sessionCostUSD: 0.02),
@@ -1107,7 +1107,7 @@ enum MockProviderInjector {
             primaryResetDescription: "in 1.5 hours",
             secondary: .init(
                 label: "Weekly", usedPercent: 80,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 5 * 86400,
                 resetDescription: "in 5 days"),
             thirtyDayCostUSD: 3.30, sessionCostUSD: 0.13),
@@ -1370,7 +1370,7 @@ enum MockProviderInjector {
             primaryResetDescription: "Daily · 41% used",
             secondary: .init(
                 label: "Weekly", usedPercent: 22,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 5 * 86400,
                 resetDescription: "Weekly · 22% used"),
             thirtyDayCostUSD: 12.00, sessionCostUSD: 0.35),
@@ -1441,7 +1441,7 @@ enum MockProviderInjector {
             primaryResetDescription: "5-hour · 47% used",
             secondary: .init(
                 label: "Weekly", usedPercent: 31,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 4 * 86400,
                 resetDescription: "Weekly · 31% used"),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
@@ -1486,7 +1486,7 @@ enum MockProviderInjector {
             primaryResetDescription: "5-hour · 36% used",
             secondary: .init(
                 label: "Weekly", usedPercent: 54,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 3 * 86400,
                 resetDescription: "Weekly · 54% used"),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
@@ -1534,7 +1534,7 @@ enum MockProviderInjector {
             primaryResetDescription: "$2.20 / $10.00",
             secondary: .init(
                 label: "Weekly", usedPercent: 37,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 4 * 86400,
                 resetDescription: "$18.50 / $50.00"),
             thirtyDayCostUSD: 38.40, sessionCostUSD: 2.20),
@@ -1556,7 +1556,7 @@ enum MockProviderInjector {
             primaryResetDescription: "5-hour · 31% used",
             secondary: .init(
                 label: "Weekly", usedPercent: 46,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 3 * 86400,
                 resetDescription: "Weekly · 46% used"),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
@@ -1579,7 +1579,7 @@ enum MockProviderInjector {
             primaryResetDescription: "5-hour · 34% used",
             secondary: .init(
                 label: "Weekly", usedPercent: 48,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 4 * 86400,
                 resetDescription: "Weekly · 48% used"),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
@@ -1844,7 +1844,7 @@ enum MockProviderInjector {
             primaryResetDescription: "",
             secondary: .init(
                 label: "Weekly", usedPercent: 27,
-                windowMinutes: 10080,
+                windowMinutes: 10_080,
                 resetsInSeconds: 4 * 86400,
                 resetDescription: ""),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
@@ -2040,8 +2040,8 @@ enum MockProviderInjector {
             primaryUsage: 25, primaryLabel: "Session",
             primaryWindowMinutes: 300, primaryResetsInSeconds: 3600,
             primaryResetDescription: "", secondary: .init(
-                label: "Weekly", usedPercent: 40, windowMinutes: 10080,
-                resetsInSeconds: 604800, resetDescription: ""),
+                label: "Weekly", usedPercent: 40, windowMinutes: 10_080,
+                resetsInSeconds: 604_800, resetDescription: ""),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
