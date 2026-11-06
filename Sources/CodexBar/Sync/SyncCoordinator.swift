@@ -1182,6 +1182,25 @@ final class SyncCoordinator {
             reportingPeriodSummary: reportingPeriodSummary)
     }
 
+    static func orderedPerplexitySyncWindows(
+        _ windows: [SyncRateWindow], snapshot: UsageSnapshot) -> [SyncRateWindow]
+    {
+        let sourceWindows: [(String, RateWindow?)] = [
+            ("primary", snapshot.primary), ("secondary", snapshot.secondary), ("tertiary", snapshot.tertiary),
+        ] + (snapshot.extraRateWindows ?? []).filter(\.usageKnown).map { ($0.id, Optional($0.window)) }
+        let order = snapshot.orderedPerplexityDisplayWindows()
+        return windows.enumerated().sorted { lhs, rhs in
+            func rank(_ item: (offset: Int, element: SyncRateWindow)) -> Int {
+                guard let source = sourceWindows.first(where: { $0.0 == item.element.id })?.1 else {
+                    return order.count + item.offset
+                }
+                return order.firstIndex(of: source) ?? order.count + item.offset
+            }
+            let left = rank(lhs), right = rank(rhs)
+            return left == right ? lhs.offset < rhs.offset : left < right
+        }.map(\.element)
+    }
+
     static func syncPrimaryRateWindow(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -1281,6 +1300,12 @@ final class SyncCoordinator {
                 shows: balancePolicy.showsSecondaryBalanceDescription)
             rateWindows[semanticWindows.primary == nil ? 0 : 1] = annotated
             semanticWindows.secondary = annotated
+        }
+
+        // Provider-specific: use the available personal pool first, then organization credits.
+        // Keep every window and its stable ID; only the automatic display order changes.
+        if provider == .perplexity, let snapshot {
+            rateWindows = Self.orderedPerplexitySyncWindows(rateWindows, snapshot: snapshot)
         }
 
         rateWindows = Self.projectingBlockingQuota(rateWindows, provider: provider, snapshot: snapshot)

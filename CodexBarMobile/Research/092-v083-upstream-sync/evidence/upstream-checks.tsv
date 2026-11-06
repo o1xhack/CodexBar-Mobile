@@ -1,0 +1,37 @@
+publish	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124509649499
+assemble	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124509542584
+desktop / build (x86_64, ubuntu-24.04)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637269
+cli / build-cli (linux-arm64, ubuntu-24.04-arm, linux, linux, aarch64, true, aarch64)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637252
+cli / build-cli (linux-x64, ubuntu-24.04, linux, linux, x86_64, true, x86-64)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637245
+cli / build-cli (linux-musl-x64, ubuntu-24.04, linux, linux-musl, x86_64, false, swift-6.3.3-RELEASE_st...	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637221
+cli / build-cli (macos-arm64, xcode-27, macos, macos, arm64, arm64, false)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637213
+cli / build-cli (macos-x86_64, xcode-27, macos, macos, x86_64, x86_64, false)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637208
+cli / build-cli (linux-musl-arm64, ubuntu-24.04-arm, linux, linux-musl, aarch64, false, swift-6.3.3-REL...	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637203
+desktop / build (aarch64, ubuntu-24.04-arm)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637182
+macos	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498637152
+availability	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498597100
+validate	completed	success	https://github.com/steipete/CodexBar/actions/runs/41187900775/job/124498458984
+publish	completed	skipped	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124497313798
+assemble	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124497196693
+availability	completed	skipped	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488036560
+cli / build-cli (macos-x86_64, xcode-27, macos, macos, x86_64, x86_64, false)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488010504
+cli / build-cli (macos-arm64, xcode-27, macos, macos, arm64, arm64, false)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488010466
+cli / build-cli (linux-musl-arm64, ubuntu-24.04-arm, linux, linux-musl, aarch64, false, swift-6.3.3-REL...	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488010289
+cli / build-cli (linux-arm64, ubuntu-24.04-arm, linux, linux, aarch64, true, aarch64)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009885
+desktop / build (x86_64, ubuntu-24.04)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009836
+desktop / build (aarch64, ubuntu-24.04-arm)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009747
+cli / build-cli (linux-musl-x64, ubuntu-24.04, linux, linux-musl, x86_64, false, swift-6.3.3-RELEASE_st...	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009670
+cli / build-cli (linux-x64, ubuntu-24.04, linux, linux, x86_64, true, x86-64)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009650
+validate	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488009362
+macos	completed	success	https://github.com/steipete/CodexBar/actions/runs/41180521080/job/124488008773
+prune-swiftpm-caches	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124476312355
+lint-build-test	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124476312298
+build-linux-musl-cli	completed	skipped	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469179565
+build-linux-cli (linux-x64, ubuntu-24.04)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469178391
+build-linux-cli (linux-arm64, ubuntu-24.04-arm)	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469178383
+swift-test-macos	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469178350
+lint	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469111925
+changes	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177826593/job/124469111896
+deploy	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177825924/job/124468986525
+report-build-status	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177825924/job/124468986458
+build	completed	success	https://github.com/steipete/CodexBar/actions/runs/41177825924/job/124468943377

@@ -96,7 +96,7 @@ defineProvider({
     };
     const number = (value) => (typeof value === "number" && Number.isFinite(value) ? value : fail());
     if (!data || typeof data !== "object" || Array.isArray(data)) fail();
-    const balanceCents = number(data.balance_cents ?? data.balanceCents);
+    const balance = number(data.balance_cents ?? data.balanceCents);
     const renewal = number(data.renewal_date_ts ?? data.renewalDateTs);
     const purchasedField = number(data.current_period_purchased_cents ?? data.currentPeriodPurchasedCents);
     const totalUsageCents = number(data.total_usage_cents ?? data.totalUsageCents);
@@ -127,6 +127,11 @@ defineProvider({
     const purchasedUsed = Math.min(remaining, purchased);
     remaining -= purchasedUsed;
     const promoUsed = Math.min(remaining, promo);
+    const optional = (value) => (value === undefined || value === null ? undefined : number(value));
+    const orgDraws = optional(data.org_pool_draws_cents ?? data.orgPoolDrawsCents);
+    const orgCap = optional(data.org_user_cap_cents ?? data.orgUserCapCents);
+    const orgDepleted = data.is_org_pool_depleted ?? data.isOrgPoolDepleted;
+    if (orgDepleted !== undefined && orgDepleted !== null && typeof orgDepleted !== "boolean") fail();
     const promoExpiry = promoGrants
       .map((grant) => grant.expires_at_ts ?? grant.expiresAtTs)
       .filter(Number.isFinite)
@@ -138,6 +143,24 @@ defineProvider({
         : undefined;
     const percent = (used, total) => (total > 0 ? Math.max(0, Math.min(100, (used / total) * 100)) : 100);
     const promoDescription = description(promoUsed, promo, "bonus");
+    let extraWindows;
+    if (orgDraws !== undefined || orgCap !== undefined) {
+      // Org members draw on the organization pool after seat credits. balance_cents is the account's total
+      // available credits, so the org share is whatever the personal pools do not cover.
+      const orgUsed = Math.max(0, orgDraws ?? 0);
+      const personalLeft = recurring - recurringUsed + (purchased - purchasedUsed) + (promo - promoUsed);
+      const orgAvailable = orgDepleted === true ? 0 : Math.max(0, balance - personalLeft);
+      extraWindows = [
+        {
+          id: "org-credits",
+          title: "Organization",
+          window: {
+            usedPercent: percent(orgUsed, orgUsed + orgAvailable),
+            resetDescription: description(orgUsed, orgUsed + orgAvailable, "credits"),
+          },
+        },
+      ];
+    }
     return {
       primary:
         recurring > 0
@@ -160,6 +183,7 @@ defineProvider({
         usedPercent: percent(purchasedUsed, purchased),
         resetDescription: description(purchasedUsed, purchased, "credits"),
       },
+      extraWindows,
       details: [
         {
           title: "Credits",
@@ -167,7 +191,7 @@ defineProvider({
             { label: "Recurring", value: description(recurringUsed, recurring, "credits") ?? "Unavailable" },
             { label: "Promotional", value: description(promoUsed, promo, "credits") ?? "Unavailable" },
             { label: "Purchased", value: description(purchasedUsed, purchased, "credits") ?? "Unavailable" },
-            { label: "Balance", value: ctx.format.usd(balanceCents / 100) },
+            { label: "Balance", value: ctx.format.usd(balance / 100) },
             { label: "Total usage", value: ctx.format.usd(totalUsageCents / 100) },
           ],
         },

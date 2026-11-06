@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -578,6 +579,22 @@ def repair_sparkle_test_runtime(swift_command: list[str], environment: dict[str,
         return sparkle_runtime_matches_source(destination, source)
 
 
+def cleanup_discovery_home(home: str) -> None:
+    if sys.platform == "darwin":
+        def raise_walk_error(error: OSError) -> None:
+            raise error
+
+        # Xcode can mount a read-only Metal toolchain inside the isolated home.
+        # Unmount only volumes rooted here; never descend into them or follow symlinks.
+        for directory, children, _ in os.walk(home, onerror=raise_walk_error):
+            for child in children[:]:
+                path = Path(directory) / child
+                if not path.is_symlink() and os.path.ismount(path):
+                    subprocess.run(["/usr/sbin/diskutil", "unmount", str(path)], check=True, timeout=60)
+                    children.remove(child)
+    shutil.rmtree(home)
+
+
 def parse_swift_test_list(output: str) -> list[TestSelection]:
     selections: set[TestSelection] = set()
     unknown: list[str] = []
@@ -619,9 +636,12 @@ def parse_swift_test_list(output: str) -> list[TestSelection]:
 
 
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
-    with tempfile.TemporaryDirectory(prefix="codexbar-test-discovery-") as home:
+    home = tempfile.mkdtemp(prefix="codexbar-test-discovery-")
+    try:
         environment = os.environ | {"HOME": home, "CFFIXED_USER_HOME": home}
         return isolated_swift_test_list(swift_command, inventory, environment)
+    finally:
+        cleanup_discovery_home(home)
 
 
 def isolated_swift_test_list(swift_command, inventory, environment) -> list[TestSelection]:

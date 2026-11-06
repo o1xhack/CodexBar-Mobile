@@ -120,9 +120,8 @@ struct CostUsageStoreTests {
         #expect(indexes.contains("files_path_idx"))
         #expect(indexes.contains("file_day_aggregates_day_idx"))
         #expect(indexes.contains("file_day_aggregates_model_day_idx"))
-        #expect(indexes.contains("day_aggregates_day_idx"))
-        #expect(indexes.contains("day_aggregates_model_idx"))
-        #expect(indexes.contains("day_aggregates_model_day_idx"))
+        #expect(indexes.contains("files_home_path_idx"))
+        #expect(indexes.contains("day_aggregates_home_model_idx"))
     }
 }
 
@@ -955,11 +954,16 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     private static let testedPredecessorParserHashes = [
+        "2d777571778d8f12", // Published fork 0.82.0.1.
         "bf8c2cb80c247dd9", // Published fork 0.79.0.1.
         "a5aa8ea108856b6d",
         "3f88178bf03ad704",
         "0d41437dcd95c17e", // Published 0.73.0.1 with the ledger pricing fix.
         "68cbd75ed0e591d9", // Published 0.74.1.1 with the ledger pricing fix on upstream 0.74.1.
+        "f98b2d0afc00443c", // Corrected revision-14 reports survive the identified-pricing export change.
+        "0ef5e15cc00e8e25", // Current main before resumed-tier and Fast pricing correction.
+        "5a57546c60494379", // Home-scoped main before archived-row retention.
+        "e5909f60274b2c47", // Home scoping preserves the released rows and scan checkpoints.
         "4e1358d00a4a47b5", // Current main before the optional local-history source.
         "54a95e8fe7bd6ee9", // Selected-session inspection before checkpoint validation.
         "455876ace937d42a", // Current main before selected-session detail reads.
@@ -1067,7 +1071,11 @@ extension CostUsageStoreTests {
         let usageRow = CostUsageStoreUsageRow(path: file.path, rowIndex: 0, payload: Data([8, 9, 10]))
         let aggregate = Self.aggregate(day: "2026-08-01", model: "gpt-5.6-sol", scale: 1)
         let lineage = Self.lineage(path: file.path)
-        let line = Self.bufferedLine(path: file.path, kind: .subagent, index: 0)
+        var line = Self.bufferedLine(path: file.path, kind: .subagent, index: 0)
+        line
+            .payload = Data(
+                #"{"lineIndex":0,"ordinal":10,"endOffset":100,"line":{"threadSettingsApplied":{"priority":true}}}"#
+                    .utf8)
         let discovery = Self.discoveryState(paths: [file.path])
         let lookback = CostUsageStoreLookbackState(
             scanSinceDay: "2026-08-01",
@@ -1100,6 +1108,9 @@ extension CostUsageStoreTests {
             expectedAfterAdoption.metadata.previousReportPayload = nil
         }
         #expect(after == expectedAfterAdoption)
+        let legacy = try JSONDecoder().decode(
+            CostUsageScanner.CodexBufferedFastLine.self, from: #require(after.bufferedLines.first).payload)
+        #expect(legacy.line == .threadSettingsApplied(priority: .priority))
         #expect(await current.rebuildCount == 0)
         #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
@@ -1124,7 +1135,10 @@ extension CostUsageStoreTests {
         #expect(resumed.resumeState == nil)
     }
 
-    @Test(arguments: ["8050a4faf4fddb96", "dd19ffa2dcfa8d47", "ed735dc27ffa70d9", "99d920977063318a"])
+    @Test(arguments: [
+        "8050a4faf4fddb96", "dd19ffa2dcfa8d47", "ed735dc27ffa70d9", "99d920977063318a",
+        "0ef5e15cc00e8e25", "5a57546c60494379", "e5909f60274b2c47",
+    ])
     func `retained report migration preserves compatible rows and clears stale payload`(
         predecessorHash: String) async throws
     {
@@ -1253,11 +1267,16 @@ extension CostUsageStoreTests {
         let metadata = Self.metadata()
         #expect(await predecessor.setMetadata(metadata))
 
+        let expected = {
+            var value = metadata
+            value.previousReportPayload = nil
+            return value
+        }()
         let stores = (0..<16).map { _ in CostUsageStore(cacheRoot: fixture.root) }
         await withTaskGroup(of: Void.self) { group in
             for store in stores {
                 group.addTask {
-                    #expect(await store.fetchMetadata() == metadata)
+                    #expect(await store.fetchMetadata() == expected)
                     #expect(await store.rebuildCount == 0)
                 }
             }
@@ -2417,5 +2436,54 @@ private final class SQLiteTestConnection: @unchecked Sendable {
         }
         guard step == SQLITE_DONE else { throw TestError.sqlite(step) }
         return names
+    }
+}
+
+extension CostUsageStoreTests {
+    @Test
+    func `retention replacement and budget enforcement cannot change another home`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let first = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-a/sessions")
+        let second = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-b/sessions")
+        for (store, path) in [(first, "/fixture/a.jsonl"), (second, "/fixture/b.jsonl")] {
+            #expect(await store.upsertFile(Self.file(path: path, day: "2026-07-01")))
+            #expect(await store.appendTokenSnapshots([Self.snapshot(path: path, eventIndex: 0)]))
+            let aggregate = Self.aggregate(day: "2026-07-01", model: "fixture-model", scale: 1)
+            #expect(await store.replaceFileDayAggregates(path: path, aggregates: [aggregate]))
+            #expect(await store.replaceDayAggregates([aggregate]))
+            #expect(await store.setDiscoveryState(Self.discoveryState(paths: [path])))
+        }
+        let preserved = await first.readSnapshot()
+        #expect(preserved.dayAggregates.map(\.inputTokens) == [10])
+        #expect(await !(second.deleteFile(path: "/fixture/a.jsonl")))
+        #expect(await !(second.upsertFile(Self.file(path: "/fixture/a.jsonl", day: "2026-08-01"))))
+        #expect(await second.rebuildCount == 0)
+        _ = await second.retainDayWindow(sinceDay: "2026-08-01", untilDay: "2026-08-01")
+        #expect(await second.readSnapshot().files.isEmpty)
+        #expect(await second.replaceDayAggregates([]))
+        _ = await second.enforceBudgets(maxRows: 0, maxFileBytes: 0)
+        #expect(await first.readSnapshot() == preserved)
+        #expect(await first.rebuildCount == 0)
+    }
+
+    @Test
+    func `reading one home does not visit another homes rows`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let first = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-a/sessions")
+        let second = CostUsageStore(cacheRoot: fixture.root, home: "/fixture/home-b/sessions")
+        #expect(await first.upsertFile(Self.file(path: "/fixture/a.jsonl", day: "2026-08-01")))
+        let (expected, smallWork) = try await first.measureSQLWork { $0.readSnapshot() }
+        // Only the selected home's index range should be traversed, even with many other rows.
+        for index in 0..<1000 {
+            let path = "/fixture/b-\(index).jsonl"
+            #expect(await second.upsertFile(Self.file(path: path, day: "2026-08-01")))
+            #expect(await second.appendTokenSnapshots([Self.snapshot(path: path, eventIndex: 0)]))
+        }
+        let (actual, largeWork) = try await first.measureSQLWork { $0.readSnapshot() }
+        #expect(actual == expected)
+        #expect(largeWork.virtualMachineSteps <= smallWork.virtualMachineSteps + 100)
+        #expect(largeWork.statements == smallWork.statements)
     }
 }

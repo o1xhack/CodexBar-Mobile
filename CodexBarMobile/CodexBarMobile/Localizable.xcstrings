@@ -1,6 +1,118 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Rewards": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rewards"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "奖励额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "獎勵額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "報酬クレジット"
+          }
+        }
+      }
+    },
+    "Reward expiry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reward expiry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "奖励到期日"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "獎勵到期日"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "報酬の有効期限"
+          }
+        }
+      }
+    },
+    "More services and clearer credits": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More services and clearer credits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服务，更清晰的额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服務，更清晰的額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応サービスとクレジット表示を改善"
+          }
+        }
+      }
+    },
+    "See OpenDesign usage, Perplexity organization credits, WorkBuddy rewards and updated MiniMax quotas synced from your Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See OpenDesign usage, Perplexity organization credits, WorkBuddy rewards and updated MiniMax quotas synced from your Mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看从 Mac 同步的 OpenDesign 用量、Perplexity 组织额度、WorkBuddy 奖励和更新的 MiniMax 额度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看從 Mac 同步的 OpenDesign 用量、Perplexity 組織額度、WorkBuddy 獎勵和更新的 MiniMax 額度。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から同期した OpenDesign の使用状況、Perplexity の組織クレジット、WorkBuddy の報酬、更新された MiniMax のクォータを確認できます。"
+          }
+        }
+      }
+    },
     "Choose the limit each widget tile shows": {
       "extractionState": "manual",
       "localizations": {

@@ -23,14 +23,15 @@ enum ProviderDetailLocalization {
         "sofya", "tavily", "tinyapi", "xapi",
         // Upstream v0.75.0–v0.76.0 bundled plugins.
         "claudeplatform", "fal", "flora", "parallel", "futureagi", "munito",
-        "soniox", "traecn", "abliteration", "chatbox", "kimi",
+        "soniox", "traecn", "abliteration", "chatbox", "kimi", "opendesign",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
     /// payloads. Dynamic account, team, model and plugin-provided labels are
     /// intentionally absent and therefore remain verbatim.
     private static let semanticLabels: Set<String> = [
-        "Kimi Code", "Other features", "Bonus credits", "Invoice billing", "Prepaid", "Monthly budget",
+        "Rewards", "Reward expiry", "Kimi Code", "Other features", "Bonus credits", "Invoice billing", "Prepaid",
+        "Monthly budget",
         "Image Generation",
         "30d cash", "30d credits", "30d spend", "30d tokens", "7d spend",
         "API credits", "API key", "API key budget", "API key limit", "API key remaining", "API key used",

@@ -393,6 +393,24 @@ enum CostUsageScanner {
         }
     }
 
+    enum CodexNativePricingTier: Codable, Equatable {
+        case standard, priority, unknown
+
+        init(from decoder: Decoder) throws {
+            self = try decoder.singleValueContainer().decode(Bool.self) ? .priority : .standard
+        }
+
+        func encode(to encoder: Encoder) throws {
+            try (self == .priority).encode(to: encoder)
+        }
+    }
+
+    struct CodexRequestPricingEvidence {
+        var turnID: String?
+        var nativeTier: CodexNativePricingTier?
+        var hasCreatorAccount: Bool
+    }
+
     struct CodexRequestLedgerState: Codable, Equatable {
         var responseIDs: Set<String> = []
         var mirroredResponses: [String: String]? = [:]
@@ -402,6 +420,7 @@ enum CostUsageScanner {
         /// Thread settings persist until replaced, including across resumed turns.
         var threadPriority: Bool?
         var priorityTurnIDs: Set<String>?
+        var resumedTurnPriority: Bool?
         var sessionID: String?
         var pendingLedgerMirrors: Set<String>?
         var pendingLedgerResponseID: String?
@@ -1332,7 +1351,7 @@ enum CostUsageScanner {
 
         private func cachedFileURL(for sessionId: String) -> URL? {
             guard let path = self.discovery.filePathBySessionId[sessionId] else { return nil }
-            guard FileManager.default.fileExists(atPath: path) else {
+            guard FileManager.default.fileExists(atPath: path) || CostUsageScanner.isArchivedCodexRollout(path) else {
                 self.discovery.filePathBySessionId.removeValue(forKey: sessionId)
                 return nil
             }
@@ -1341,7 +1360,8 @@ enum CostUsageScanner {
 
         private func cachedSessionFiles() -> [String: URL] {
             self.discovery.filePathBySessionId.reduce(into: [:]) { result, entry in
-                guard FileManager.default.fileExists(atPath: entry.value) else { return }
+                guard FileManager.default.fileExists(atPath: entry.value) || CostUsageScanner
+                    .isArchivedCodexRollout(entry.value) else { return }
                 result[entry.key] = URL(fileURLWithPath: entry.value)
             }
         }
@@ -2067,8 +2087,9 @@ enum CostUsageScanner {
             guard let usage = cachedUsage,
                   usage.hasCurrentCodexParser,
                   usage.sessionId == sessionId,
-                  usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId,
-                  let cachedSnapshots = usage.codexTokenSnapshots
+                  usage.codexArchived == true || usage.codexScanFileId == nil || usage.codexScanFileId == metadata
+                      .fileId,
+                      let cachedSnapshots = usage.codexTokenSnapshots
             else { return nil }
 
             let metadataMatches = usage.mtimeUnixMs == metadata.mtimeUnixMs
@@ -2081,11 +2102,12 @@ enum CostUsageScanner {
                         fileURL: fileURL,
                         metadata: metadata)
                 } == true
-            guard metadataMatches || appendSafePrefixMatches else { return nil }
+            guard usage.codexArchived == true || metadataMatches || appendSafePrefixMatches else { return nil }
             let missingParent = CostUsageScanner.isUnresolvedMissingParentFork(usage)
-            if let parentID = usage.codexForkAccountingState?.metadata.forkedFromId
-                ?? (missingParent ? usage.forkedFromId : nil),
-                try usage.forkBaselineDependencyKey != self.currentDependencyKey(for: parentID)
+            if usage.codexArchived != true,
+               let parentID = usage.codexForkAccountingState?.metadata.forkedFromId
+               ?? (missingParent ? usage.forkedFromId : nil),
+               try usage.forkBaselineDependencyKey != self.currentDependencyKey(for: parentID)
             {
                 return nil
             }
@@ -2289,6 +2311,14 @@ enum CostUsageScanner {
         }
     }
 
+    static func isArchivedCodexRollout(_ path: String) -> Bool {
+        guard path.lowercased().hasSuffix(".jsonl"), !FileManager.default.fileExists(atPath: path) else {
+            return false
+        }
+        var directory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path + ".zst", isDirectory: &directory) && !directory.boolValue
+    }
+
     private static func cachedCodexSessionFiles(
         cache: CostUsageCache,
         range: CostUsageDayRange,
@@ -2314,16 +2344,18 @@ enum CostUsageScanner {
     private static func cachedCodexSessionIndex(
         cache: CostUsageCache,
         roots: [URL],
-        knownExistingPaths: Set<String>) -> [String: URL]
+        knownExistingPaths: Set<String>,
+        archivedOnly: Bool) -> [String: URL]
     {
         var out: [String: URL] = [:]
         for (path, usage) in cache.files {
+            guard !archivedOnly || usage.codexArchived == true else { continue }
             guard let sessionId = usage.sessionId, !sessionId.isEmpty else { continue }
             if knownExistingPaths.contains(Self.codexPathKey(URL(fileURLWithPath: path))) {
                 out[sessionId] = URL(fileURLWithPath: path)
                 continue
             }
-            guard FileManager.default.fileExists(atPath: path) else { continue }
+            guard FileManager.default.fileExists(atPath: path) || usage.codexArchived == true else { continue }
             let fileURL = URL(fileURLWithPath: path)
             guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { continue }
             out[sessionId] = fileURL
@@ -3488,7 +3520,7 @@ enum CostUsageScanner {
         case sessionMeta(CodexSessionMetadata)
         case turnContext(CodexTurnContextMetadata)
         case interAgentCommunication(triggerTurn: Bool)
-        case threadSettingsApplied(priority: Bool)
+        case threadSettingsApplied(priority: CodexNativePricingTier)
         case taskStarted(turnID: String?)
         case taskCompleted(CodexTurnPerformanceCompletion)
         case tokenCount(CodexTokenCountRecord)
@@ -3772,8 +3804,13 @@ enum CostUsageScanner {
         case "event_msg":
             if payload["type"] as? String == "thread_settings_applied" {
                 let settings = payload["thread_settings"] as? [String: Any]
-                return .threadSettingsApplied(
-                    priority: Self.codexModelEvidence(settings?["service_tier"] as? String) == "priority")
+                let suppliedTier = settings?["service_tier"]
+                let tier: CodexNativePricingTier = switch Self.codexModelEvidence(suppliedTier as? String) {
+                case "default": .standard
+                case "priority": .priority
+                default: settings != nil && suppliedTier == nil ? .standard : .unknown
+                }
+                return .threadSettingsApplied(priority: tier)
             }
             if payload["type"] as? String == "task_started" {
                 return .taskStarted(turnID: Self.codexTurnID(from: payload))
@@ -4093,7 +4130,7 @@ enum CostUsageScanner {
         maxBytesToRead: Int64? = nil,
         shouldStopReading: ((Int64) -> Bool)? = nil,
         inheritedTotalsResolver: ((String, String) throws -> CodexForkBaseline)? = nil,
-        ownedRequestObserver: ((CodexRequestUsageRecord, String) -> Void)? = nil,
+        ownedRequestObserver: ((CodexRequestUsageRecord, String, CodexRequestPricingEvidence) -> Void)? = nil,
         rejectedRequestObserver: ((CodexInvalidRequestUsage) -> Void)? = nil,
         scanIssueObserver: (() -> Void)? = nil,
         checkCancellation: CancellationCheck? = nil) throws -> CodexParseResult
@@ -4140,6 +4177,10 @@ enum CostUsageScanner {
         var tokenSnapshots: [CostUsageCodexTokenSnapshot] = []
         var lastAcceptedTokenTimestamp: String?
         var requestLedger = initialRequestLedgerState ?? CodexRequestLedgerState()
+        var nativeThreadTier: CodexNativePricingTier?
+        // A nil value is a started turn without a record; a missing key is an unobserved turn.
+        var nativeTiersByTurn: [String: CodexNativePricingTier?] = [:]
+        var pendingTierTurn: String?
         var replacedLegacyRowIndices: Set<Int> = []
         var ledgerLegacyPricingKeys: [Int: CodexSourcePricingKey] = [:]
         let retainedRows = Dictionary(initialRequestLedgerRows.compactMap { row in
@@ -4257,7 +4298,11 @@ enum CostUsageScanner {
                 ?? (turnID == currentTurnID || turnID == requestLedger.activeTurnID
                     ? Self.codexModelEvidence(currentModel) : nil)
                 ?? CostUsagePricing.codexUnattributedModel
-            ownedRequestObserver?(record, model)
+            if pendingTierTurn == turnID { pendingTierTurn = nil }
+            ownedRequestObserver?(record, model, CodexRequestPricingEvidence(
+                turnID: turnID,
+                nativeTier: turnID.map { nativeTiersByTurn[$0] ?? .unknown } ?? nativeThreadTier,
+                hasCreatorAccount: codexSession.hasCreatorAccount == true))
             // Identity, rather than cumulative counters, proves that a reset is a new request.
             // Copied parent records fail the ownership check above even if the parent is unavailable.
             let isReplay = requestLedger.responseIDs.contains(responseID)
@@ -4407,6 +4452,16 @@ enum CostUsageScanner {
             else { return index }
             // A typed mirror changes request identity, not the matching row's saved billing evidence.
             let pricing = retainedPricing.flatMap { $0.model == normalizedModel ? $0 : nil }
+            let isPriority = requestLedger.priorityTurnIDs?.contains(turnID ?? "") == true
+            let observedMode: String? = if isPriority {
+                "priority"
+            } else if requestLedger.resumedTurnPriority == false,
+                      turnID == (currentTurnID ?? requestLedger.activeTurnID)
+            {
+                "standard"
+            } else {
+                nil
+            }
             rows.append(CodexUsageRow(
                 day: day,
                 model: normalizedModel,
@@ -4421,8 +4476,7 @@ enum CostUsageScanner {
                 knownCostNanos: pricing?.knownCostNanos,
                 unpricedTokens: pricing?.unpricedTokens,
                 pricingModel: pricing?.pricingModel,
-                pricingMode: pricing?.pricingMode
-                    ?? (requestLedger.priorityTurnIDs?.contains(turnID ?? "") == true ? "priority" : nil),
+                pricingMode: pricing?.pricingMode ?? observedMode,
                 responseID: responseID,
                 requestMirrorKeys: mirrorKeys))
             rowSourceEndOffsets[index] = endOffset
@@ -4878,6 +4932,29 @@ enum CostUsageScanner {
             requestLedger.turnPerformance?[turnID] = performance
         }
 
+        func applyRequestPricingSettings(_ tier: CodexNativePricingTier) {
+            guard ownedRequestObserver != nil else { return }
+            nativeThreadTier = tier
+            guard let turnID = pendingTierTurn else { return }
+            let prior = nativeTiersByTurn[turnID].flatMap(\.self)
+            nativeTiersByTurn.updateValue(prior.map { $0 == tier ? tier : .unknown } ?? tier, forKey: turnID)
+        }
+
+        func startRequestPricingTurn(_ turnID: String?) {
+            guard ownedRequestObserver != nil else { return }
+            pendingTierTurn = turnID
+            if let turnID { nativeTiersByTurn.updateValue(nativeThreadTier, forKey: turnID) }
+        }
+
+        func observeThreadPriority(for turnID: String?) {
+            if requestLedger.threadPriority == true {
+                if requestLedger.priorityTurnIDs == nil { requestLedger.priorityTurnIDs = [] }
+                requestLedger.priorityTurnIDs?.insert(turnID ?? "")
+            } else {
+                requestLedger.priorityTurnIDs?.remove(turnID ?? "")
+            }
+        }
+
         @discardableResult
         func processFastLine(
             _ fastLine: CodexFastLine,
@@ -4894,6 +4971,14 @@ enum CostUsageScanner {
                 if let title = Self.codexModelEvidence(metadata.title) { codexSession.title = title }
                 if let turnID = metadata.turnID {
                     requestLedger.activeTurnID = turnID
+                    // Resuming a turn can refresh its context without another task_started event.
+                    if let priority = requestLedger.threadPriority, currentTurnID == nil || currentTurnID == turnID {
+                        // An unchanged default cannot disprove saved request-level Priority evidence.
+                        if priority != (requestLedger.priorityTurnIDs?.contains(turnID) == true) {
+                            requestLedger.resumedTurnPriority = priority
+                        }
+                        observeThreadPriority(for: turnID)
+                    }
                 }
                 if let model = metadata.model {
                     // An explicitly blank context clears stale model evidence; an omitted field preserves it.
@@ -4905,19 +4990,17 @@ enum CostUsageScanner {
                 observePerformanceEffort(metadata)
             case .interAgentCommunication:
                 break
-            case let .threadSettingsApplied(priority):
-                requestLedger.threadPriority = priority
+            case let .threadSettingsApplied(tier):
+                requestLedger.threadPriority = tier == .priority
+                applyRequestPricingSettings(tier)
             case .mirrorBoundary:
                 requestLedger.clearPendingMirrors()
             case let .taskStarted(turnID):
                 requestLedger.clearPendingMirrors()
                 currentTurnID = turnID
-                if requestLedger.threadPriority == true {
-                    if requestLedger.priorityTurnIDs == nil { requestLedger.priorityTurnIDs = [] }
-                    requestLedger.priorityTurnIDs?.insert(turnID ?? "")
-                } else {
-                    requestLedger.priorityTurnIDs?.remove(turnID ?? "")
-                }
+                startRequestPricingTurn(turnID)
+                requestLedger.resumedTurnPriority = nil
+                observeThreadPriority(for: turnID)
                 if let turnID { requestLedger.turnPerformance?[turnID]?.completion = nil }
             case let .taskCompleted(completion):
                 guard !suppressUnownedCopiedPrefix else { return nil }
@@ -5495,6 +5578,7 @@ enum CostUsageScanner {
         loadHistoryBeforeFreshness: Bool = false) throws -> CodexFileScanOutcome
     {
         try context.checkCancellation?()
+        if cache.files[fileURL.path]?.codexArchived == true { return .processed }
         let metadata = Self.codexFileMetadata(fileURL: fileURL)
         if context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(fileURL))
             || cache.files[metadata.path]?.codexPendingSourcePricing != nil
@@ -5692,7 +5776,7 @@ enum CostUsageScanner {
                 $0.codexPendingSourcePricing != nil
             })
         let pricingMetadataMigrationPathKeys = Set(cache.files.compactMap { path, usage in
-            Self.needsCodexPricingMetadata(usage, range: range)
+            usage.codexArchived != true && Self.needsCodexPricingMetadata(usage, range: range)
                 ? Self.codexPathKey(URL(fileURLWithPath: path))
                 : nil
         })
@@ -5711,7 +5795,7 @@ enum CostUsageScanner {
             old: cache.codexPriorityMetadataKey,
             new: codexPriorityMetadataKey)
         let turnIDCacheMigrationPathKeys = hasPriorityMetadata ? Set(cache.files.compactMap { path, usage in
-            usage.codexTurnIDs == nil && usage.touchesCodexScanWindow(
+            usage.codexArchived != true && usage.codexTurnIDs == nil && usage.touchesCodexScanWindow(
                 sinceKey: range.scanSinceKey,
                 untilKey: range.scanUntilKey,
                 calendar: range.calendar)
@@ -5831,7 +5915,10 @@ enum CostUsageScanner {
         options: Options,
         range: CostUsageDayRange) -> CostUsageStoreLoad
     {
-        CostUsageStoreAccess.load(cacheRoot: options.cacheRoot, calendar: range.calendar)
+        CostUsageStoreAccess.load(
+            cacheRoot: options.cacheRoot,
+            home: CodexHomeCostStoreScope.key(options: options),
+            calendar: range.calendar)
     }
 
     final class CodexScanHistoryHydrator {
@@ -5850,14 +5937,6 @@ enum CostUsageScanner {
             for (path, usage) in load.cache.files {
                 self.update(path: path, usage: usage)
             }
-        }
-
-        func reset() {
-            self.unloadedTokenPaths.removeAll()
-            self.pathsByKey.removeAll()
-            self.pathsBySessionID.removeAll()
-            self.keyByPath.removeAll()
-            self.sessionIDByPath.removeAll()
         }
 
         func update(path: String, usage: CostUsageFileUsage?) {
@@ -6089,8 +6168,15 @@ enum CostUsageScanner {
             let range = scanRange
             try checkCancellation?()
             if options.forceRescan {
+                let archived = cache.files.filter { $0.value.codexArchived == true }
+                for path in cache.files.keys where archived[path] == nil {
+                    history.removeHistory(path: path)
+                }
                 cache = CostUsageCache()
-                history.reset()
+                cache.files = archived
+                for usage in archived.values {
+                    Self.applyFileDays(cache: &cache, fileDays: usage.days, sign: 1)
+                }
             }
 
             // Bookkeeping shares one snapshot; parsing and completion still revalidate live files.
@@ -6325,12 +6411,11 @@ enum CostUsageScanner {
             let fileIndex = CodexSessionFileIndex(
                 files: files,
                 roots: plan.roots,
-                cachedSessionFiles: shouldPageDiscovery
-                    ? [:]
-                    : Self.cachedCodexSessionIndex(
-                        cache: cache,
-                        roots: plan.roots,
-                        knownExistingPaths: filePathsInScan),
+                cachedSessionFiles: Self.cachedCodexSessionIndex(
+                    cache: cache,
+                    roots: plan.roots,
+                    knownExistingPaths: filePathsInScan,
+                    archivedOnly: shouldPageDiscovery),
                 cachedDiscovery: plan.rootsChanged ? nil : cache.codexSessionDiscovery,
                 scanBudget: scanBudget,
                 headParseObserver: self.codexSessionHeadParseObserverStore?.observer,
@@ -6444,7 +6529,7 @@ enum CostUsageScanner {
                 for key in cache.files.keys
                     where !filePathsInScan.contains(Self.codexPathKey(URL(fileURLWithPath: key)))
                 {
-                    guard let old = cache.files[key] else { continue }
+                    guard let old = cache.files[key], old.codexArchived != true else { continue }
                     if plan.preserveUnavailableHistoryDuringRecovery,
                        !FileManager.default.fileExists(atPath: key) { continue }
                     let shouldDrop = shouldDropAllUnscannedFiles ||
@@ -6460,7 +6545,7 @@ enum CostUsageScanner {
                 for key in cache.files.keys {
                     guard !shouldDropAllUnscannedFiles else { break }
                     guard !scanResult.deferredCachePaths.contains(key) else { continue }
-                    guard let old = cache.files[key] else { continue }
+                    guard let old = cache.files[key], old.codexArchived != true else { continue }
                     guard old.touchesCodexScanWindow(
                         sinceKey: range.scanSinceKey,
                         untilKey: range.scanUntilKey,
@@ -6493,6 +6578,14 @@ enum CostUsageScanner {
                 && cachedSinceKey == retainedSinceKey
                 && cachedUntilKey == retainedUntilKey
             Self.pruneDays(cache: &cache, sinceKey: retainedSinceKey, untilKey: retainedUntilKey)
+            for usage in cache.files.values where usage.codexArchived == true {
+                Self.applyFileDays(
+                    cache: &cache,
+                    fileDays: usage.days.filter {
+                        !CostUsageDayRange.isInRange(dayKey: $0.key, since: retainedSinceKey, until: retainedUntilKey)
+                    },
+                    sign: 1)
+            }
             cache.roots = plan.rootsFingerprint
             cache.scanSinceKey = retainedSinceKey
             cache.scanUntilKey = retainedUntilKey
@@ -6696,7 +6789,8 @@ enum CostUsageScanner {
         metadata: CodexFileMetadata,
         usage: CostUsageFileUsage) -> Int64?
     {
-        let identityMatches = usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId
+        let identityMatches = usage.codexArchived == true
+            || usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId
         guard !usage.hasPendingCodexScanWork,
               usage.codexJSONLResumeState == nil,
               identityMatches
@@ -6704,11 +6798,11 @@ enum CostUsageScanner {
         let parsedBytes = max(0, usage.parsedBytes ?? usage.size)
         let targetSize = max(0, usage.codexScanTargetSize ?? usage.size)
         guard targetSize <= usage.size,
-              targetSize <= metadata.size,
+              usage.codexArchived == true || targetSize <= metadata.size,
               parsedBytes >= targetSize
         else { return nil }
 
-        if usage.mtimeUnixMs == metadata.mtimeUnixMs, usage.size == metadata.size {
+        if usage.codexArchived == true || (usage.mtimeUnixMs == metadata.mtimeUnixMs && usage.size == metadata.size) {
             return targetSize
         }
         guard usage.codexScanFileId != nil,

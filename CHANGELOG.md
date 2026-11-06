@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.83.0.1 — 2026-11-06
+
+### Highlights — Mobile 3.3.0
+- Sync upstream v0.83.0: OpenDesign quotas, plugin layouts and browser support, Codex account names and reminders, archived cost history, Sol Fast pricing, provider fixes and safer iCloud retries.
+- Preserve fork multi-account sync and cost history; compatible iPhones receive organization credits, rewards and updated quota details.
+- Companion Mobile 3.3.0 is the verified public version; iOS 3.5.0 (263) is prepared separately as a local candidate.
+
+## 0.83.0 — 2026-10-31
+
+### Highlights
+
+- Plugins: plugin providers now use the full menu-bar layout (inheriting your global layout, with countdowns and conditionals), can show compact multi-quota summaries and a built-in provider logo, declare an approved Usage Dashboard link, and import cookies from every supported browser including Aside.
+- Codex: cost history survives Codex archiving old sessions as `.jsonl.zst` and switching between Codex homes, GPT-6.1 Sol Fast requests are priced at Fast rates, accounts can have custom names, and opt-in reminders warn before an unused weekly quota resets or reset credits expire.
+- Providers: new OpenDesign subscription quotas; Kiro works with Kiro CLI 3; Perplexity organization credits, WorkBuddy reward credits, LiteLLM team budgets, MiniMax China, Copilot monthly pace and ended subscriptions, and Brave Origin sign-in are supported.
+- Menu bar and CLI: pace defaults to neutral percentages with green/red state bars, layouts gain separator glyphs, `codexbar serve` clients can request fresh measurements, and identified Codex requests can be priced across several SSH hosts.
+
+### Added
+
+- CLI: expose descriptor-based authentication inputs and existing setup hints in provider inventory JSON. (#4705)
+- Plugins: support an explicitly approved Usage Dashboard link from a fixed URL or a plain setting. (#4725)
+- Codex: optionally add reset-credit expiry reminders at 1 day and 1 hour, preserving the existing three-day summary and saved receipts (#4838). Thanks @PumpkinsLemon!
+- CLI: combine identified Codex requests from multiple SSH hosts, counting copies once and keeping successful sources when a host fails (#4834). Thanks @salmonumbrella!
+- CLI: estimate deduplicated Codex request spend across SSH hosts with explicit unknown prices, conflict exclusions, and a coordinated schema 2 upgrade (#4833, #4836). Thanks @salmonumbrella!
+- Plugins: render global menu-bar layouts with plugin-owned windows, reset countdowns and conditionals, preserving saved plugin overrides (#4789).
+- OpenDesign: track the active workspace's five-hour and weekly subscription allowance through its browser session (#4601). Thanks @vimcaw and @irfndi!
+- Plugins: let each snapshot choose a built-in provider logo for its menu bar and switcher, independently of plugin identity and quota ownership (#4801). Thanks @KLIEBHAN!
+- Plugins: show compact multi-quota summaries with ordered logos and quota percentages in the merged menu bar (#4802). Thanks @KLIEBHAN!
+- Codex: optionally warn 24 hours and 1 hour before a weekly reset when quota remains, with account-scoped reminders that survive restarts (#4849). Thanks @hugo-alves!
+- Menu bar: add eight separator glyphs to layouts and conditional branches, with spoken accessibility names and safe downgrade projections (#4795). Thanks @urda!
+- Codex: name saved accounts in Settings and account menus without changing authentication or cached usage; privacy mode hides aliases. (#4782) Thanks @shirishpothi!
+- Hooks: `usage_updated` events can carry the sampled raw Codex plan identifier, the provider surface that reported it, and the observation time, without inferring allowances from display labels. (#4775, #4800) Thanks @LeoLin990405!
+- WorkBuddy: show platform reward credits separately within the total allowance, with the earliest unspent grant’s expiry and no false allowance reset when rewards expire. (#4799) Thanks @codertesla!
+
+### Fixed
+
+- Codex: apply GPT-6.1 Sol Fast pricing, including long-context requests, and refresh request tiers when a turn resumes. (#4814) Thanks @cassiarota!
+- LiteLLM: show member overrides or the team's default budget with matching team-scoped spend, ignoring mismatched memberships (#4842, #4843). Thanks @cnietoc!
+- Claude: isolate watchdog children at spawn, preserve their exit status, and clean up only session-owned processes and sleep inhibitors (#4829, #4830). Thanks @Quinnod345!
+- Plugins: import declared-domain cookies from the shared supported-browser catalog, including Aside, and continue through rejected sessions (#4792).
+- z.ai: show prepaid CNY balances for BigModel CN personal accounts without a Coding Plan, including the shared menu-bar Balance element (#4796). Thanks @AaronJiTuo!
+- Cursor: support Brave Origin for browser login and shared cookie imports with SweetCookieKit 0.5.11 (#4837). Thanks @retX0!
+- AWS Bedrock: report unavailable Cost Explorer data instead of zero spend (#4846). Thanks @djbclark!
+- Claude: report the CLI's unavailable per-model breakdown in usage details while retaining current session and weekly quotas (#4809). Thanks @DreamyTalesPAN!
+- iCloud Sync: retry account snapshots after a dropped upload without allowing delayed results to confirm newer data (#4798). Thanks @audichuang!
+- DeepSeek: import Platform sessions from supported Chromium browsers using the shared browser catalog, preserving saved Chrome profile selections (#4821). Thanks @343max!
+- Trae CN: align Used, Total, and Remaining credits to two decimal places when any amount is fractional (#4819). Thanks @liuyuplus!
+- MiniMax: discover China web sessions and read the current console's quota percentages, boosted limits, and unlimited windows. (#4831, #4832) Thanks @tangwz!
+- Localization: correctly validate reordered plural arguments after ordinary placeholders. (#4817) Thanks @xuancao1953-1!
+- Codex: preserve established local cost coverage and catch-up progress when switching Codex homes (#4770, #4773). Thanks @harjothkhara!
+- Menu bar: name the Auto window once per row, so Auto % with Auto pace shows `5h 0% –` instead of `5h 0% 5h –`; separate rows, other windows, and VoiceOver keep their labels (#4820, #4822). Thanks @egigoka!
+- OpenCodex: reduce temporary memory use when importing large usage logs (#4803).
+- Copilot: show calendar-month pace for Premium and chat quotas in the menu bar when a reset date is available (#4847, #4848). Thanks @chriscorbell!
+- Cursor: explain when the Cursor app session has expired and no browser session works, with steps to sign in again (#4804). Thanks @julianpinedayyz!
+- Perplexity: show organization pool credits separately and use them for automatic usage after personal credits run out (#4826, #4828). Thanks @Abelo9996!
+- Plugins: refresh the selected menu-bar percentage when its usage changes while the automatic window stays unchanged (#4787). Thanks @vincent-peng!
+- Codex: retain cached cost history when previously scanned rollouts become `.jsonl.zst` archives, without duplicate counting (#4523, #4534, #4818). Thanks @BananaIIya, @kali113, @kcharlan, and @cassiarota!
+- OpenCode Go: use the active OpenCode CLI API key stored under `opencode` for server quotas instead of falling back to local estimates. (#4815) Thanks @sreejithraman!
+- Copilot: explain ended subscriptions instead of showing a raw decoding error. (#4851) Thanks @djbclark!
+- Kiro: prefer stateless usage reads to avoid probe chats when available, and use the V2 harness with older-CLI fallback when a CLI report is needed. (#4853, #4854, #4746) Thanks @jeanroloff!
+
+### Changed
+
+- CLI: let HTTP clients request fresh usage and full dashboard measurements with `refresh=1`, coalescing concurrent requests and limiting forced measurements to one per provider every five seconds (#4785).
+- CLI: malformed or ambiguous arguments now fail with an error instead of being guessed (Commander 0.3.0).
+- Menu bar: make neutral pace percentages with font-scaled green/red state bars the default, preserving saved color choices (#4714, #4791). Thanks @arnodirlam!
+- Updates: refresh Sparkle to improve update installation, download progress, and release-note handling.
+
 ## 0.82.0.1 — 2026-10-28
 
 ### Highlights — Mobile 3.2.0
@@ -42,6 +109,7 @@
 - Trae CN: distinguish the Usage meter from the Credits details in Visible usage items while preserving hidden choices (#4764, #4780). Thanks @LeoLin990405 and @liuyuplus!
 - WorkBuddy: keep resets on the paid subscription cycle instead of an earlier trial or reward expiry (#4767). Thanks @codertesla!
 - WorkBuddy: use the official mascot instead of the placeholder letter icon (#4768). Thanks @codertesla!
+
 
 ## 0.81.0 — 2026-10-24
 
