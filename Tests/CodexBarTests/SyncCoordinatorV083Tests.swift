@@ -59,19 +59,28 @@ struct SyncCoordinatorV083Tests {
         #expect(QuotaProviderList.providers.last?.id == "opendesign")
         #expect(MockProviderInjector.allMocks().contains { $0.providerID == "opendesign" })
     }
+
     @Test
     func `Different OpenDesign workspaces on two Macs do not merge by a shared label`() throws {
         let identifiers = ["mac-a", "mac-b"].enumerated().map { index, device in
-            let identity = ProviderIdentitySnapshot(providerID: .opendesign, accountEmail: nil,
-                accountOrganization: "Shared workspace name", loginMethod: "Pro", accountID: "workspace-\(index)")
-            let key = SyncCoordinator.syncAccountRecordKey(provider: .opendesign, requested: nil,
-                deviceID: device, identity: identity)
-            return SyncCoordinator.syncAccountIdentities(provider: .opendesign,
-                identity: identity, accountRecordKey: key)
+            let identity = ProviderIdentitySnapshot(
+                providerID: .opendesign,
+                accountEmail: nil,
+                accountOrganization: "Shared workspace name",
+                loginMethod: "Pro",
+                accountID: "workspace-\(index)")
+            let key = SyncCoordinator.syncAccountRecordKey(
+                provider: .opendesign,
+                requested: nil,
+                deviceID: device,
+                identity: identity)
+            return SyncCoordinator.syncAccountIdentities(
+                provider: .opendesign,
+                identity: identity,
+                accountRecordKey: key)
         }
         #expect(identifiers[0] == ["opendesign:record:device-mac-a"])
         #expect(identifiers[1] == ["opendesign:record:device-mac-b"])
-        #expect(Set(try #require(identifiers[0])).isDisjoint(with: try #require(identifiers[1])))
+        #expect(try Set(#require(identifiers[0])).isDisjoint(with: #require(identifiers[1])))
     }
-
 }

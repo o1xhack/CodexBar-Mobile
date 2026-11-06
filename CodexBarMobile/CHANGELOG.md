@@ -1,4 +1,4 @@
-# Changelog
+# Changelog — CodexBar Mobile (iOS)
 
 ## 3.5.0 (263) — 2026-11-06
 
@@ -7,7 +7,6 @@
 
 ### Changed
 - Support v0.83 synced Perplexity organization credits, WorkBuddy rewards, MiniMax quotas and corrected cost history through the existing compatible envelope.
- — CodexBar Mobile (iOS)
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 

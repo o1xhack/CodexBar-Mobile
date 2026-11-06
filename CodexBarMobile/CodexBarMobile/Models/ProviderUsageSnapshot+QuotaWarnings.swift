@@ -21,15 +21,27 @@ extension ProviderUsageSnapshot {
         windowID: String? = nil,
         period: SyncRateWindowPeriod? = nil) -> (thresholds: [Int]?, enabled: Bool)
     {
+        let nativeIndex: Int
+        if self.providerID == "perplexity", let windowID {
+            // Automatic credit selection may move the organization pool to the front.
+            // Mac notifications still belong to the original personal primary/secondary lanes.
+            switch windowID {
+            case "primary": nativeIndex = 0
+            case "secondary": nativeIndex = 1
+            default: return (nil, false)
+            }
+        } else {
+            nativeIndex = index
+        }
         let isNotifiableExtra = self.providerID == "aixy" ||
             (self.providerID == "claude" &&
                 (windowID?.hasPrefix("claude-weekly-scoped-") == true || windowID == "claude-routines"))
-        guard index < 2 || isNotifiableExtra else { return (nil, false) }
+        guard nativeIndex < 2 || isNotifiableExtra else { return (nil, false) }
 
         let isSessionLane: Bool = switch period {
         case .session, .daily: true
         case .weekly, .monthly, .lifetime: false
-        case nil: index == 0
+        case nil: nativeIndex == 0
         }
         guard let cfg = self.quotaWarnings else {
             return (SyncQuotaWarningConfig.macDefaults, true)

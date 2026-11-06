@@ -26,7 +26,7 @@
 | 20 | LiteLLM: show member overrides or the team's default budget with matching team-scoped spend, ignoring mismatched memberships (#4842, #4843). Thanks @cnietoc! | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
 | 21 | Claude: isolate watchdog children at spawn, preserve their exit status, and clean up only session-owned processes and sleep inhibitors (#4829, #4830). Thanks @Quinnod345! | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
 | 22 | Plugins: import declared-domain cookies from the shared supported-browser catalog, including Aside, and continue through rejected sessions (#4792). | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
-| 23 | z.ai: show prepaid CNY balances for BigModel CN personal accounts without a Coding Plan, including the shared menu-bar Balance element (#4796). Thanks @AaronJiTuo! | z.ai CN预付CNY余额走既有providerCost.balance→SyncCoordinator.mapProviderAmount（保留currencyCode CNY），quota与余额独立；沿用金额卡，不折算USD、不推断Coding Plan。 |
+| 23 | z.ai: show prepaid CNY balances for BigModel CN personal accounts without a Coding Plan, including the shared menu-bar Balance element (#4796). Thanks @AaronJiTuo! | z.ai CN预付CNY余额由zai.js输出Quota details/Account balance，沿既有details与localizeZAIBalanceBreakdown展示人民币；不新增providerAmount，不折算USD、不推断Coding Plan。 |
 | 24 | Cursor: support Brave Origin for browser login and shared cookie imports with SweetCookieKit 0.5.11 (#4837). Thanks @retX0! | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
 | 25 | AWS Bedrock: report unavailable Cost Explorer data instead of zero spend (#4846). Thanks @djbclark! | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
 | 26 | Claude: report the CLI's unavailable per-model breakdown in usage details while retaining current session and weekly quotas (#4809). Thanks @DreamyTalesPAN! | 上游provider/认证/状态实现完整合并；既有quota/details/statusMessage/providerAmount通道承载结果，iOS不执行Mac浏览器/CLI认证；验证受影响provider测试。 |
@@ -53,7 +53,7 @@
 
 ## fork保护与README审计
 
-README逐字保持mobile-dev，hash未更新。上游README只有provider数、OpenDesign条目、WorkBuddy奖励、Mac提醒与social图版本变化；功能事实已在本轮CHANGELOG/Research与上游provider docs承接，无安全/排错缺漏需要改变fork下载入口。CI策略、release脚本、签名与Production容器不变。
+merge提交逐字保持mobile-dev README。合并后单独审计并经独立审查，只适配provider数111、OpenDesign条目和WorkBuddy奖励三处产品事实；guard hash随本次有意修改一起审查，不接收上游README整体、不改fork身份或下载入口。上游Mac提醒与social图版本无安全/排错缺漏。CI策略、release脚本、签名与Production容器不变。
 
 ## Preview 与身份
 
