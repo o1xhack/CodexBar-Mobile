@@ -7,36 +7,6 @@ import Testing
 @MainActor
 struct SyncCoordinatorV083Tests {
     @Test
-    func `Organization credits remain available after personal pools run out`() {
-        let spent = RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: "100/100 credits")
-        let organization = RateWindow(
-            usedPercent: 20,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: "20/100 credits")
-        let snapshot = UsageSnapshot(
-            primary: spent,
-            secondary: spent,
-            tertiary: spent,
-            extraRateWindows: [.init(
-                id: "org-credits",
-                title: "Organization",
-                window: organization)],
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
-        let windows = ["primary", "secondary", "tertiary", "org-credits"].map { id in
-            SyncCoordinator.syncRateWindow(
-                id: id,
-                label: id,
-                window: id == "org-credits" ? organization : spent)
-        }
-        let ordered = SyncCoordinator.orderedPerplexitySyncWindows(windows, snapshot: snapshot)
-        #expect(ordered.first?.id == "org-credits")
-        #expect(ordered.first?.usedPercent == 20)
-        #expect(Set(ordered.compactMap(\.id)) == Set(windows.compactMap(\.id)))
-        #expect(SyncCoordinator.orderedPerplexitySyncWindows(windows, snapshot: snapshot) == ordered)
-    }
-
-    @Test
     func `OpenDesign quotas retain limits and workspace stays source scoped`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let window = RateWindow(

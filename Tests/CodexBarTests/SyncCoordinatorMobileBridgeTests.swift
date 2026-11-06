@@ -177,4 +177,43 @@ struct SyncCoordinatorMobileBridgeTests {
         #expect(primary.usedPercent == 0)
         #expect(!primary.usageKnown)
     }
+
+    @Test
+    func `Perplexity organization credits preserve native wire slots for older iPhones`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-v083-perplexity-wire")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .perplexity,
+            metadata: #require(ProviderDefaults.metadata[.perplexity]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let spent = RateWindow(
+            usedPercent: 100,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: "100/100 credits")
+        let organization = RateWindow(
+            usedPercent: 20,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: "20/100 credits")
+        let usage = UsageSnapshot(
+            primary: spent,
+            secondary: spent,
+            tertiary: spent,
+            extraRateWindows: [.init(
+                id: "org-credits",
+                title: "Organization",
+                window: organization)],
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(usage.automaticPerplexityWindow() == organization)
+        store._setSnapshotForTesting(usage, provider: .perplexity)
+        let pusher = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+        await coordinator.pushCurrentSnapshot()
+        let synced = try #require(pusher.lastSnapshot?.providers.first { $0.providerID == "perplexity" })
+        #expect(synced.allRateWindows.map(\.id) == ["primary", "secondary", "tertiary", "org-credits"])
+        #expect(synced.primary?.usedPercent == 100)
+        #expect(synced.allRateWindows.last?.usedPercent == 20)
+    }
 }
