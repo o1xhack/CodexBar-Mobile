@@ -5570,6 +5570,18 @@ enum CostUsageScanner {
         return context.resources.scanHistoryHydrator.isHydrated(for: [fileURL], cache: cache)
     }
 
+    private static func canReadCodexRecoverySource(
+        fileURL: URL,
+        metadata: CodexFileMetadata,
+        context: CodexFileScanContext,
+        cache: CostUsageCache) -> Bool
+    {
+        let needsRecovery = context.sourceRowRecoveryPathKeys.contains(self.codexPathKey(fileURL))
+            || cache.files[metadata.path]?.codexPendingSourcePricing != nil
+        guard needsRecovery else { return true }
+        return metadata.fileId != nil && FileManager.default.isReadableFile(atPath: metadata.path)
+    }
+
     private static func scanCodexFile(
         fileURL: URL,
         context: CodexFileScanContext,
@@ -5580,13 +5592,10 @@ enum CostUsageScanner {
         try context.checkCancellation?()
         if cache.files[fileURL.path]?.codexArchived == true { return .processed }
         let metadata = Self.codexFileMetadata(fileURL: fileURL)
-        if context.sourceRowRecoveryPathKeys.contains(Self.codexPathKey(fileURL))
-            || cache.files[metadata.path]?.codexPendingSourcePricing != nil
-        {
-            guard metadata.fileId != nil, FileManager.default.isReadableFile(atPath: metadata.path) else {
-                state.deferredCachePaths.insert(metadata.path)
-                return .deferred
-            }
+        guard Self.canReadCodexRecoverySource(fileURL: fileURL, metadata: metadata, context: context, cache: cache)
+        else {
+            state.deferredCachePaths.insert(metadata.path)
+            return .deferred
         }
         defer {
             context.resources.cachePathAliasIndex.update(
