@@ -1535,7 +1535,7 @@ final class SyncCoordinator {
                 return "organization-\(digest)"
             }
             return "device-\(deviceID.lowercased())"
-        case .futureagi, .soniox, .traecn, .abliteration, .chatbox:
+        case .opendesign, .futureagi, .soniox, .traecn, .abliteration, .chatbox:
             return requested ?? "device-\(deviceID.lowercased())"
         case .gemini:
             // The explicit Web source exposes no verified Google account identity. Keep its quotas
