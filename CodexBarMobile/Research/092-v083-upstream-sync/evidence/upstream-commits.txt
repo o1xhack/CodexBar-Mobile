@@ -1,0 +1,58 @@
+348e2fa8d chore(release): prepare 0.83.0
+a8b880d8f feat(codex): add reset-credit expiry countdown reminders
+95c1d57b2 feat(cost): price identified Codex requests across multiple SSH hosts
+dab75f57a feat(plugins): render plugin snapshots through the menu-bar layout
+9ea096eda fix(copilot): explain ended subscriptions
+f20961a91 fix(kiro): read usage from the API first and use the V2 harness on Kiro CLI 3
+279a263f6 fix(cost): price GPT-6.1 Sol Fast requests at Fast rates
+d8e55d39a fix(litellm): show the team-member budget as the personal budget
+41cf60fa8 fix(claude): create the watchdog child group at spawn and keep its exit status
+2e687c8ae feat(cli): describe provider authentication inputs in config providers JSON
+72543fc2f feat(plugins): declare a Usage Dashboard link in the manifest
+4aa40314c feat(cli): allow serve clients to request fresh usage measurements
+4d9400fb6 feat(plugins): use shared browser cookie imports
+c379ff588 fix(zai): show prepaid-only BigModel balances
+474a15590 fix(cursor): support Brave Origin for browser login and cookie imports
+12e9aa09a feat(providers): add OpenDesign subscription quotas
+ebc3cb8c9 fix(bedrock): show unavailable billing data instead of zero spend
+79438e435 fix(perplexity): show organization pool credits
+787188431 fix(menu-bar): stop repeating the window label next to Auto %
+d25834d07 fix(copilot): show monthly pace in the menu bar
+85607bbd4 fix(claude): show the CLI's rate-limited model breakdown notice
+500a7a6d5 fix(sync): re-send snapshots whose CloudKit save was dropped
+754e3fde6 Merge #4802: feat(plugins): snapshot branding, compact multi-quota summaries and selected-window refresh (#4787, #4801, #4802)
+7606d49c2 Merge remote-tracking branch 'origin/main' into HEAD
+365db9638 feat(notifications): warn before Codex weekly quota resets unused
+b1cac871c ci: make test cleanup and optional-request ordering deterministic
+76544a86f fix(deepseek): discover Platform sessions across Chromium-family browsers
+f1035ec50 fix(traecn): align credit summary precision
+565a24eb5 feat(menu-bar): add separator glyphs to the layout editor
+b8187b87a test: remove wall-clock deadline flakes
+f146a1e3d Merge remote-tracking branch 'origin/main' into HEAD
+1a170f8b1 feat(codex): add custom names for Codex accounts
+82ba6a2ed Merge remote-tracking branch 'origin/main' into HEAD
+d7a613291 fix(codex): keep cost history for rollouts archived as .jsonl.zst
+a47fccfa0 feat(hooks): expose Codex raw-plan provenance on usage_updated
+4f5bc00fc feat(workbuddy): show platform reward credits as their own window
+86c8efa21 Merge remote-tracking branch 'origin/main' into HEAD
+0179d0e11 fix(opencodego): reuse the active OpenCode API key for quotas
+daf94a2e6 fix(minimax): discover China web sessions and quotas
+5475e8202 fix(l10n): validate plural arguments after ordinary placeholders
+b60907bbf Merge remote-tracking branch 'origin/main' into HEAD
+140f0f202 build(deps): update Commander to 0.3.0
+c73027f59 fix(cost): keep Codex scan state per Codex home
+347978b69 chore(plugins): sync merged menu-bar defaults
+7cb9ab23a fix(plugins): integrate compact summaries with selected quota refresh
+4949263ed feat(menu-bar): make pace state bars the default
+277a08488 chore(plugins): sync summary branch with main
+d253dd113 fix(opencodex): stream usage log imports
+173960d26 fix(cursor): explain expired app sessions
+96225ba2c build(deps): update Sparkle, swift-crypto, swift-log and SweetCookieKit
+0fb9d4289 fix(plugins): preserve selected quota refresh with snapshot branding
+7381b2922 fix(plugins): keep selected quota percentages fresh
+0e949181c feat(plugins): show configurable multi-quota menu-bar summaries
+42a7f8efd fix(plugins): invalidate branded icons and captured switcher images
+aa7862abe feat(plugins): allow built-in provider branding per snapshot
+36b5f6c42 Fix plugin percentage refresh for selected windows
+5f93dc306 chore: start 0.82.1 development
+a3d8eae9c chore: publish v0.82.0 update feed
