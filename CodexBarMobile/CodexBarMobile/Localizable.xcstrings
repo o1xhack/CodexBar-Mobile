@@ -85,7 +85,7 @@
         }
       }
     },
-    "See OpenDesign usage, Perplexity organization credits, WorkBuddy rewards and updated MiniMax quotas synced from your Mac.": {
+    "See OpenDesign usage, organization credits, rewards and updated MiniMax quotas from your Mac. Cost history now keeps every day across daylight-saving changes.": {
       "localizations": {
         "en": {
           "stringUnit": {
@@ -96,19 +96,19 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "查看从 Mac 同步的 OpenDesign 用量、Perplexity 组织额度、WorkBuddy 奖励和更新的 MiniMax 额度。"
+            "value": "查看从 Mac 同步的 OpenDesign 用量、组织额度、奖励和更新的 MiniMax 额度。费用历史在夏令时切换时也会保留每一天。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "查看從 Mac 同步的 OpenDesign 用量、Perplexity 組織額度、WorkBuddy 獎勵和更新的 MiniMax 額度。"
+            "value": "查看從 Mac 同步的 OpenDesign 用量、組織額度、獎勵和更新的 MiniMax 額度。費用歷史在夏令時間切換時也會保留每一天。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac から同期した OpenDesign の使用状況、Perplexity の組織クレジット、WorkBuddy の報酬、更新された MiniMax のクォータを確認できます。"
+            "value": "Mac から OpenDesign の使用状況、組織クレジット、報酬、更新された MiniMax のクォータを確認できます。夏時間の切り替え時も費用履歴の日付が欠けなくなりました。"
           }
         }
       }

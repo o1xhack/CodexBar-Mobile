@@ -1201,7 +1201,9 @@ enum CostLedgerService {
 
     private static func logicalDayKeyFormatter() -> DateFormatter {
         let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        formatter.calendar = calendar
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .gmt
         formatter.dateFormat = "yyyy-MM-dd"

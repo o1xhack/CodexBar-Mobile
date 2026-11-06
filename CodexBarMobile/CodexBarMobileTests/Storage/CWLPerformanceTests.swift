@@ -29,7 +29,8 @@ struct CWLPerformanceTests {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
-        let now = Date()
+        // Include the November DST rollback even when this test runs in another season.
+        let now = Date(timeIntervalSince1970: 1_794_002_400)
         let providerCount = 40
         let dayCount = 365
 
@@ -95,6 +96,55 @@ struct CWLPerformanceTests {
 
         // Generous CI ceiling (device target ≤ 50ms is M-perf manual).
         #expect(elapsed < 2.0, "aggregate(365) at scale took \(elapsed)s")
+    }
+
+    @Test
+    func `UTC cost days remain distinct across the November daylight saving rollback`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let now = Date(timeIntervalSince1970: 1_793_620_800) // 2026-11-02T12:00:00Z
+        let days = ["2026-10-31", "2026-11-01", "2026-11-02"]
+        for day in days {
+            context.insert(DailyCostPoint(
+                deviceID: "calendar-mac",
+                providerID: "calendar-fixture",
+                accountEmail: nil,
+                dayKey: day,
+                costUSD: 1,
+                totalTokens: 100,
+                lastUpdated: now))
+        }
+        try context.save()
+        let provider = ProviderUsageSnapshot(
+            providerID: "calendar-fixture",
+            providerName: "Calendar fixture",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: .init(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: nil,
+                daily: [],
+                bucketTimeZoneIdentifier: "UTC"))
+        let result = try CostLedgerService.aggregate(
+            windowDays: 3,
+            in: context,
+            asOf: now,
+            sourceSnapshots: [.init(
+                providers: [provider],
+                syncTimestamp: now,
+                deviceName: "Calendar Mac",
+                deviceID: "calendar-mac")],
+            readerTimeZone: .gmt)
+        #expect(result.dailyPoints.map(\.dayKey).sorted() == days)
+        #expect(result.totalCostUSD == 3)
+        #expect(result.totalTokens == 300)
     }
 
     @Test

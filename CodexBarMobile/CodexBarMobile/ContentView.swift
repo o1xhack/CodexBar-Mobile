@@ -5107,7 +5107,7 @@ enum MobileReleaseNotesCatalog {
                     id: "upstream-083", symbol: "arrow.triangle.2.circlepath",
                     title: String(localized: "More services and clearer credits"),
                     detail: String(
-                        localized: "See OpenDesign usage, Perplexity organization credits, WorkBuddy rewards and updated MiniMax quotas synced from your Mac.")),
+                        localized: "See OpenDesign usage, organization credits, rewards and updated MiniMax quotas from your Mac. Cost history now keeps every day across daylight-saving changes.")),
                 .init(
                     id: "grok-history", symbol: "chart.xyaxis.line",
                     title: String(localized: "Grok usage history"),

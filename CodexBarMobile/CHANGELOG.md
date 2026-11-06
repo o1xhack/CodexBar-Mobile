@@ -5,6 +5,9 @@
 ### Added
 - OpenDesign session and weekly quotas and quota notification registration.
 
+### Fixed
+- Keep all UTC cost-history days across daylight-saving transitions.
+
 ### Changed
 - Support v0.83 synced Perplexity organization credits, WorkBuddy rewards, MiniMax quotas and corrected cost history through the existing compatible envelope.
 
