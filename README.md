@@ -26,7 +26,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
 [![Site](https://img.shields.io/badge/site-codexbar.app-16d3b4?style=flat-square)](https://codexbar.app)
 
-<a href="https://codexbar.app"><img src="docs/social.png?v=1436859e75bb3a24" alt="CodexBar — every AI coding limit in your menu bar. 111 providers." width="100%" /></a>
+<a href="https://codexbar.app"><img src="docs/social.png?v=34c94fe9dd95be54" alt="CodexBar — every AI coding limit in your menu bar. 111 providers." width="100%" /></a>
 
 Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and shows when each window resets. See the [supported providers](#providers) below. One status item per provider, or Merge Icons mode with a provider switcher. No Dock icon, minimal UI, dynamic bar icons.
 

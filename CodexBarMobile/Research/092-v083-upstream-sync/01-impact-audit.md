@@ -53,7 +53,7 @@
 
 ## fork保护与README审计
 
-merge提交逐字保持mobile-dev README。合并后单独审计并经独立审查，只适配provider数111、OpenDesign条目和WorkBuddy奖励三处产品事实；guard hash随本次有意修改一起审查，不接收上游README整体、不改fork身份或下载入口。上游Mac提醒与social图版本无安全/排错缺漏。CI策略、release脚本、签名与Production容器不变。
+merge提交逐字保持mobile-dev README。合并后单独审计并经独立审查，只适配provider数111、OpenDesign条目、WorkBuddy奖励以及已合并上游social.png的真实SHA256 cache token四处事实；guard hash随本次有意修改一起审查，不接收上游README整体、不改fork身份或下载入口。上游Mac提醒无安全/排错缺漏；social cache token从实际PNG内容计算，避免旧缓存与新图片不一致。CI策略、release脚本、签名与Production容器不变。
 
 ## Preview 与身份
 
