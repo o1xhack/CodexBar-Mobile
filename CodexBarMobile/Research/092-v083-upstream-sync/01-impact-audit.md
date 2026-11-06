@@ -1,6 +1,6 @@
 # 上游逐项影响追踪
 
-状态：in-progress；测试结果见03。完整380文件路径与提交在evidence。此表逐项覆盖冻结release notes，并结合实际diff审计。
+状态：done；测试结果见03。完整380文件路径与提交在evidence。此表逐项覆盖冻结release notes，并结合实际diff审计。
 
 | 项 | 上游变化 | Mac / Shared / iOS 决策 |
 |---:|---|---|
@@ -61,7 +61,7 @@ OpenDesign是已有通用session/weekly卡片类型，PreviewData已有Codex/Cla
 
 ## CloudKit代码审计
 
-最新公开v0.82.0.1-mobile.3.2.0 → candidate：Shared/iCloud与Scripts/cloudkit无diff，providerPayloadVersion=1；Shared只追加OpenDesign通知注册，不改record type/field/index/predicate。Mac fleet重试只改写入确认和重试，不新增schema。结论NO_DEPLOY（代码审计），未执行Production export/deploy/业务数据库读写。最终包Production entitlement待验。
+最新公开v0.82.0.1-mobile.3.2.0 → candidate：Shared/iCloud与Scripts/cloudkit无diff，providerPayloadVersion=1；Shared只追加OpenDesign通知注册，不改record type/field/index/predicate。Mac fleet重试只改写入确认和重试，不新增schema。结论NO_DEPLOY（代码审计），未执行Production export/deploy/业务数据库读写。最终Mac签名包和iOS本地Archive的Production entitlement均已核对，见04及evidence。
 
 ## 成本缓存与严格lint整合
 

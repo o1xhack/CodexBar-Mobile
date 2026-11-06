@@ -1,6 +1,6 @@
 # 本轮验证
 
-状态：in-progress；禁止把运行中的门禁写成通过。
+状态：done（本地门禁与允许的替代验证完成；远端审查单独记录于PR）。
 
 ## 环境
 
@@ -8,7 +8,7 @@ Xcode27.2(27B52)，macOS/iOS SDK27.2；StudioSSD挂载/UUID/逻辑入口及所�
 
 ## 本地门禁
 
-- Mac初次 `swift build --jobs 6` 通过；最终签名构建另记。
+- Mac `swift build --jobs 6` 和最终universal签名构建均通过；严格lint 3239 Swift文件零违规，四语言/parser版本/hash/CI/README等guards通过。最初worktree缺gitignored本机profile时门禁主动停止，复制主仓库现有profile后完整签名、公证、staple、分发策略与隔离启动smoke通过。
 - Python cleanup 工具最终103项（1项平台skip）通过；测试保留3秒grace、5秒drain上限，只补强本任务owned child的重复SIGKILL，未弱化身份校验。
 - Mac全量最终1869 selections / 89 groups通过，exit0；89组首轮全部通过，0失败/0timeout/0重试，总耗时775.2秒。首轮68组通过、1组失败后停止；架构检查准确发现新增OpenDesign在三个现有精确指纹中的变化，分别记录合成fixture、非Tier-A身份分组、device-scoped key的理由与引用，未修改scanner或放宽规则。
 - 独立multi-account focused命令通过：AccountIdentity/MultiAccount/DualZoneReader筛选覆盖137+11个Swift Testing用例及相关XCTest；1个需显式截图目录的opt-in截图用例skip。HOME/CFFIXED_USER_HOME隔离到本轮scratch，禁Keychain UI。
@@ -53,3 +53,7 @@ Xcode27.2(27B52)，macOS/iOS SDK27.2；StudioSSD挂载/UUID/逻辑入口及所�
 | 16 | new | new | new | new | substituted | wire-matrix-wire.json | 无实体CloudKit/APNs/独立缓存收敛证明 |
 
 源文件SHA清单、矩阵操作/结果在evidence/wire-source-manifest.json和wire-matrix-wire.*；测试工具在tools/。old/new为冻结版本角色，不是实机安装版本。
+
+## Mac候选打包
+
+最终source c8f491f90bc4720b73d9d7f22bd55b64eceb3379，双架构arm64/x86_64，App/CLI/Watchdog/Widget的Mach-O minimum均14.0；Developer ID Application签名、hardened runtime、App CloudKit Production与App/CLI/Widget实际runtime App Group一致。App/dSYM UUID双架构匹配，资源与隔离CLI/App smoke通过。Sparkle对实际ZIP的Ed25519签名同时用工具及包内SUPublicEDKey验证。GitHub draft两个uploaded asset的digest/size均与本地一致。完整结果见evidence/mac-artifacts-verified.json、mac-draft-verified.json和04；没有live provider测试或公开发布。

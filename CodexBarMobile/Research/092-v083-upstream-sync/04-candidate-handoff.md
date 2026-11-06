@@ -1,6 +1,6 @@
 # 候选产物与审查交接
 
-状态：in-progress；尚未达到PR决策交接点。
+状态：本地候选产物与门禁完成；PR审查交接阶段。未经用户另行授权不合并或正式发布。
 
 ## 版本与来源
 
@@ -18,7 +18,19 @@
 
 本地iOS产物：`CodexBarMobile/build/upstream-v083/CodexBarMobile-3.5.0-263.xcarchive`及同名`.xcarchive.zip`。四角色版本/签名及CloudKit Production验证在evidence/ios-reviewed-archive-verified.json；Apple Development签名，本轮未导出IPA/上传ASC。旧scratch Archive已被该最终产物取代，不作为交付候选。
 
-Mac签名、公证、app/dSYM ZIP与no-tag draft正在生成；完成后记录实际release ID/URL、占位target、附件大小/hash、双架构UUID与签名验证。
+## Mac no-tag draft
+
+[GitHub draft](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-63e998e5e7fd7aeec74e)，release ID `437184008`；draft=true / published_at=null。逻辑tag `v0.83.0.1-mobile.3.3.0` 没有对应远端Git ref。`target_commitish=mobile-dev`仅为占位目标，实际source为上述c8f491f90。
+
+| 附件 | Bytes | SHA-256 |
+|---|---:|---|
+| CodexBar-0.83.0.1-mobile.3.3.0.dSYM.zip | 74645383 | 4bfc96a54e531ce095ebf67f4abf4b640627089f97046937d777b527ee63f551 |
+| CodexBar-0.83.0.1-mobile.3.3.0.zip | 93697736 | 68b25748ca88838f260c031e6ac8b4e458fa0c31c9ab8a488c6e9ad60f895c6c |
+
+本地副本位于`CodexBarMobile/build/upstream-v083/`。双架构App/dSYM UUID：arm64 `8AFEECD8-6A40-3F92-B441-6CA02BB0B9F9`，x86_64 `57E5BC47-E461-3185-921C-024ABA22F3FE`。App、CLI、Watchdog、Widget均签名/hardened runtime且minimum14.0；公证staple/分发策略和隔离启动/资源/实际App Group验证通过。实际ZIP的Sparkle签名匹配包内公钥；GitHub附件digest/size匹配本地。
+
+详细来源与签名证据：`evidence/mac-draft-source-manifest.json`、`mac-artifacts-verified.json`、`mac-draft-verified.json`。后续仅文档差异不重打相同二进制；若review修复改变shipping输入，必须重建并更新该draft附件与证据。
+
 
 ## 授权边界
 
@@ -26,4 +38,4 @@ Mac签名、公证、app/dSYM ZIP与no-tag draft正在生成；完成后记录�
 
 16组合为独立进程wire/merger替代验证，不能冒充实体CloudKit/APNs/缓存收敛。真实provider/浏览器Cookie/Keychain读取探测未运行。合并后Final CI仍需在公开发布前确认；PR Fast Checks不会运行该重型矩阵。
 
-PR与当前head review/check/thread状态待最终门禁后记录。Todoist保持真实候选阶段，不提前标记Release或done。
+PR待创建；后续在本页添加链接。最终handoff必须以该PR当前head的clean Codex review、zero unresolved threads、PR Fast Checks及`Scripts/check_pr_review_gate.sh <pr>`为准，不能把本地review当远端通过。Todoist保持真实候选阶段，不提前标记Release或done。
