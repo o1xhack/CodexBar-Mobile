@@ -38,4 +38,4 @@
 
 16组合为独立进程wire/merger替代验证，不能冒充实体CloudKit/APNs/缓存收敛。真实provider/浏览器Cookie/Keychain读取探测未运行。合并后Final CI仍需在公开发布前确认；PR Fast Checks不会运行该重型矩阵。
 
-PR待创建；后续在本页添加链接。最终handoff必须以该PR当前head的clean Codex review、zero unresolved threads、PR Fast Checks及`Scripts/check_pr_review_gate.sh <pr>`为准，不能把本地review当远端通过。Todoist保持真实候选阶段，不提前标记Release或done。
+[PR #232](https://github.com/o1xhack/CodexBar-Mobile/pull/232)，base `mobile-dev`，head branch `upstream-sync/v0.83.0-mobile.3.3.0`；关联但不关闭#231。本地完整候选review覆盖 `66542a1d713016c26411c9bdd38a5522de4aff05`，结果clean / zero findings，实际报告已保留在项目build/upstream-v083/qa/final-local-review-66542a1d7.md，SHA256 `a863a5d411e3aed11cbe563dd1a30f148161ee387d29387494140e36c5157268`；此后只增加本PR对应记录，不改变shipping输入。最终handoff必须以该PR当前head的clean Codex review、zero unresolved threads、PR Fast Checks及`Scripts/check_pr_review_gate.sh <pr>`为准，不能把本地review当远端通过。Todoist保持真实候选阶段，不提前标记Release或done。
