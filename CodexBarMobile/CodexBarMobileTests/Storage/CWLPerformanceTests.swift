@@ -100,6 +100,9 @@ struct CWLPerformanceTests {
 
     @Test
     func `UTC cost days remain distinct across the November daylight saving rollback`() throws {
+        let originalZone = NSTimeZone.default
+        NSTimeZone.default = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        defer { NSTimeZone.default = originalZone }
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let now = Date(timeIntervalSince1970: 1_793_620_800) // 2026-11-02T12:00:00Z

@@ -199,8 +199,10 @@ struct CostUsageCodexSessionTierTests {
         #expect(parsed.rows.allSatisfy { $0.pricingMode == "priority" })
     }
 
-    @Test(arguments: [0, 6, 10])
-    func `resumed turn contexts refresh the tier without repricing earlier requests`(prefixCount: Int) throws {
+    @Test(arguments: [0, 6, 10], [12, 13])
+    func `resumed turn contexts refresh the tier without repricing earlier requests`(
+        prefixCount: Int, previousRevision: Int) throws
+    {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 10, day: 1)
@@ -256,7 +258,7 @@ struct CostUsageCodexSessionTierTests {
         #expect(try abs(#require(report.summary?.totalCostUSD) - 0.00592) < 1e-12)
 
         // Older parsers pinned each row to the tier observed at task_started.
-        cache.files[file.path]?.codexParserRevision = CostUsageFileUsage.currentCodexParserRevision - 1
+        cache.files[file.path]?.codexParserRevision = previousRevision
         for (index, mode) in ["standard", "standard", "priority"].enumerated() {
             cache.files[file.path]?.codexRows?[index].pricingMode = mode
         }

@@ -2,11 +2,11 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-/// Fork-only: a revision-12 store (0.74.1.1) adopts parser revision 13 by re-reading the leaf `session_meta`
-/// instead of reparsing every file from the start, so cached rows never disappear mid-migration.
+/// Old fork stores must take the upstream revision-14 reparse for resumed Fast tiers.
+/// Validate the scoped cache and final history rather than bypassing newer pricing semantics.
 struct CostUsageForkParserRevisionTests {
     @Test(arguments: [false, true])
-    func `revision 12 files adopt the creator account flag without dropping cached rows`(growing: Bool) throws {
+    func `revision 12 files reparse to current pricing without losing completed history`(growing: Bool) throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 10, day: 7)
@@ -51,7 +51,7 @@ struct CostUsageForkParserRevisionTests {
         #expect(clean.summary?.totalTokens == 250)
 
         // Age the store to the 0.74.1.1 shape: revision 12 rows that never recorded the creator account.
-        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let chatgptPath = try #require(legacy.files.keys.first { $0.hasSuffix("/chatgpt.jsonl") })
         let apikeyPath = try #require(legacy.files.keys.first { $0.hasSuffix("/apikey.jsonl") })
         for path in [chatgptPath, apikeyPath] {
@@ -60,7 +60,7 @@ struct CostUsageForkParserRevisionTests {
         }
         let cachedRows = try #require(legacy.files[chatgptPath]?.codexRows?.map(\.input))
         #expect(cachedRows == [100, 100])
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: legacy)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: legacy)
         if growing {
             let handle = try FileHandle(forWritingTo: URL(fileURLWithPath: chatgptPath))
             try handle.seekToEnd()
@@ -68,23 +68,13 @@ struct CostUsageForkParserRevisionTests {
             try handle.close()
         }
 
-        // A one-byte budget would leave an upstream from-the-start reparse with no rows at all.
+        // Revision 14 changes resumed Fast pricing. Revision 12 cannot use the old metadata-only
+        // adoption shortcut: a bounded scan remains incomplete until it can re-read the source.
         options.maxCodexScanBytesPerRefresh = 1
-        let budgeted = CostUsageScanner.loadDailyReport(
+        _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: day, until: day, now: day.addingTimeInterval(3), options: options)
-        let adopted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        let chatgpt = try #require(adopted.files[chatgptPath])
-        let apikey = try #require(adopted.files[apikeyPath])
-        #expect(chatgpt.hasCurrentCodexParser)
-        #expect(apikey.hasCurrentCodexParser)
-        #expect(chatgpt.codexSession?.hasCreatorAccount == true)
-        #expect(apikey.codexSession?.hasCreatorAccount == false)
-        #expect(apikey.codexRows?.map(\.input) == [50])
-        #expect(chatgpt.codexRows?.map(\.input).prefix(2) == [100, 100])
-        if !growing {
-            #expect(chatgpt.codexScanComplete != false)
-            #expect(budgeted.data == clean.data)
-        }
+        let pending = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+        #expect(pending.codexScanCatchUpPending == true)
 
         options.maxCodexScanBytesPerRefresh = 512 * 1024 * 1024
         let final = CostUsageScanner.loadDailyReport(
@@ -95,10 +85,11 @@ struct CostUsageForkParserRevisionTests {
             provider: .codex, since: day, until: day, now: day.addingTimeInterval(4), options: referenceOptions)
         #expect(final.data == expected.data)
         #expect(final.summary?.totalTokens == (growing ? 350 : 250))
-        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: .current)
         #expect(reopened.files[chatgptPath]?.codexRows?.map(\.input) == (growing ? [100, 100, 100] : [100, 100]))
         #expect(reopened.files[chatgptPath]?.codexSession?.hasCreatorAccount == true)
-        // The in-place adoption must keep the persisted token history that fork children resolve from.
+        // The completed migration must restore persisted token history for fork-child baselines.
         #expect(reopened.files[chatgptPath]?.codexTokenSnapshots?.compactMap { $0.total?.input }
             == (growing ? [100, 200, 300] : [100, 200]))
         #expect(reopened.files[chatgptPath]?.codexTokenCheckpoints?.isEmpty == false)
@@ -106,7 +97,7 @@ struct CostUsageForkParserRevisionTests {
     }
 
     @Test(arguments: [false, true])
-    func `an adopted parent still resolves a fork child that appears later`(parentGrows: Bool) throws {
+    func `a reparsed legacy parent still resolves a fork child that appears later`(parentGrows: Bool) throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 10, day: 7)
@@ -144,15 +135,15 @@ struct CostUsageForkParserRevisionTests {
         options.preferNewestCodexSessionsFirst = false
         _ = CostUsageScanner.loadDailyReport(provider: .codex, since: day, until: day, now: day, options: options)
 
-        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let parentKey = try #require(legacy.files.keys.first { $0.hasSuffix("/" + parentPath.lastPathComponent) })
         legacy.files[parentKey]?.codexParserRevision = CostUsageScanner.codexCreatorAccountParserRevision - 1
         legacy.files[parentKey]?.codexSession?.hasCreatorAccount = nil
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: legacy)
-        // Adopt the unchanged parent in place.
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: legacy)
+        // Reparse the unchanged parent to the current pricing revision.
         _ = CostUsageScanner.loadDailyReport(
             provider: .codex, since: day, until: day, now: day.addingTimeInterval(3), options: options)
-        let adopted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let adopted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(adopted.files[parentKey]?.hasCurrentCodexParser == true)
         #expect(adopted.files[parentKey]?.codexTokenSnapshots?.compactMap { $0.total?.input } == [100, 300])
         if parentGrows {
@@ -206,19 +197,14 @@ struct CostUsageForkParserRevisionTests {
         #expect(CostUsageScanner.codexFileUsageAdoptingCreatorAccountRevision(nil, fileURL: url) == nil)
         // A revision-12 file that cannot be read, or has no session_meta, is handed to the upstream path.
         usage.codexParserRevision = CostUsageScanner.codexCreatorAccountParserRevision - 1
-        #expect(CostUsageScanner.codexFileUsageNeedsCreatorAccountRevision(usage))
+        #expect(!CostUsageScanner.codexFileUsageNeedsCreatorAccountRevision(usage))
         #expect(CostUsageScanner.codexFileUsageAdoptingCreatorAccountRevision(usage, fileURL: url) == nil)
         let bare = env.root.appendingPathComponent("bare.jsonl")
         try Data("{\"type\":\"event_msg\"}\n".utf8).write(to: bare)
         #expect(CostUsageScanner.codexFileUsageAdoptingCreatorAccountRevision(usage, fileURL: bare) == nil)
-        // A readable leaf without a creator account adopts the revision with the flag set to false.
+        // A readable leaf must also take revision 14's semantic reparse, not just stamp metadata.
         let apiKey = env.root.appendingPathComponent("apikey.jsonl")
         try Data("{\"type\":\"session_meta\",\"payload\":{\"id\":\"api\"}}\n".utf8).write(to: apiKey)
-        let adopted = try #require(CostUsageScanner.codexFileUsageAdoptingCreatorAccountRevision(
-            usage,
-            fileURL: apiKey))
-        #expect(adopted.hasCurrentCodexParser)
-        #expect(adopted.codexSession?.hasCreatorAccount == false)
-        #expect(adopted.codexRows == usage.codexRows)
+        #expect(CostUsageScanner.codexFileUsageAdoptingCreatorAccountRevision(usage, fileURL: apiKey) == nil)
     }
 }

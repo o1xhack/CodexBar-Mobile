@@ -392,6 +392,12 @@ class TestProcessOwnership:
         started = time.monotonic()
         terminated: set[tuple[int, tuple[int, int]]] = set()
         while True:
+            # Native process enumeration can consume much of the cleanup window on a busy
+            # simulator host. Re-signal our unreaped direct child before that inspection;
+            # wait ownership anchors its PID even when Darwin hides its metadata.
+            root_killed = self.process is not None and time.monotonic() - started >= 3
+            if root_killed:
+                self.send(self.root, signal.SIGKILL)
             owned = self.refresh()
             if not owned:
                 process.wait(timeout=1)
@@ -401,6 +407,8 @@ class TestProcessOwnership:
                 # Never begin a retry while a known child is still running.
                 raise RuntimeError(f"Could not drain owned test processes within 5s: {sorted(owned)}")
             for info in owned.values():
+                if root_killed and info.pid == self.root.pid:
+                    continue
                 identity = (info.pid, info.birth)
                 if elapsed >= 3:
                     self.send(info, signal.SIGKILL)
