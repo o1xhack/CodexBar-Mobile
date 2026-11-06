@@ -1,0 +1,97 @@
+{
+  "checkedAt": "2026-11-06T23:30:04.604737+00:00",
+  "device": "Shared SE (3rd generation) iOS26.5",
+  "udid": "423B1FAB-7B97-44F4-A865-B0A49B4F3866",
+  "result": "manual native PASS",
+  "initialMode": "Overview",
+  "selectedMode": "Today Cost",
+  "readbackAfterDismissAndReopen": "Today Cost",
+  "homeWidgetRendered": "Today $19.42, 822.0K tokens (synthetic preview data)",
+  "configurationOptionsObserved": [
+    "Widget Type",
+    "Color Style",
+    "Provider selection",
+    "Quota display/window controls"
+  ],
+  "automatedAttempts": "Initial setup failed on non-hittable gallery StaticText; after manual placement, automated selection blocked waiting for SpringBoard idle and was cancelled. Neither automated attempt is marked passed. Native panel/mode/home/reopen screenshots independently verify actual behavior.",
+  "binaryChecks": [
+    {
+      "file": "CodexBarMobile",
+      "sha256": "fda23c03fed5679f93878f84d0adf9a8dbd034653540c8efae406b8acf497198",
+      "installedMatchesFinalTestProduct": true
+    },
+    {
+      "file": "CodexBarMobile.debug.dylib",
+      "sha256": "63cd23a0f902ba2a483706fbe695b3a742b53e923aef0c6ecf45cf3b0a62ea10",
+      "installedMatchesFinalTestProduct": true
+    },
+    {
+      "file": "PlugIns/CodexBarMobilePushExtension.appex/CodexBarMobilePushExtension",
+      "sha256": "780b16b6bf939b78900676303b569ff4c405ab9f69b9f2e81ed5957d23f2c5a9",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.pushextension"
+    },
+    {
+      "file": "PlugIns/CodexBarMobilePushExtension.appex/CodexBarMobilePushExtension.debug.dylib",
+      "sha256": "792404976b995a2dfdfe272db78de98f1facb9e890a77fc2b1c577689fd9e762",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.pushextension"
+    },
+    {
+      "file": "PlugIns/CodexBarMobileWidgetOptions.appex/CodexBarMobileWidgetOptions",
+      "sha256": "1acbc3bd21fbfd33ebd264edd936492332ae066abb6af1ff4cbaf4f52935cfb2",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgetoptions"
+    },
+    {
+      "file": "PlugIns/CodexBarMobileWidgetOptions.appex/CodexBarMobileWidgetOptions.debug.dylib",
+      "sha256": "8a1305e7e3e5ceee4aedc471588da03fc1cfe11874c6c24688669cbc973cb3dd",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgetoptions"
+    },
+    {
+      "file": "PlugIns/CodexBarMobileWidgets.appex/CodexBarMobileWidgets",
+      "sha256": "21139bfc1996da774fcbd6d67e11fa671b66a3f7be1450f5bd13622aeeb99346",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgets"
+    },
+    {
+      "file": "PlugIns/CodexBarMobileWidgets.appex/CodexBarMobileWidgets.debug.dylib",
+      "sha256": "16dd372a688b4c2277e64d26818a659631d2efb160ba2567503a14cfddf75233",
+      "installedMatchesFinalTestProduct": true,
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgets"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "widget-home.png",
+      "sha256": "543f633baf25707b03a98a7a709b05ea12d3cbf6b84fe341a84a98e3d6153e7d",
+      "bytes": 1115222
+    },
+    {
+      "file": "widget-editor-before.png",
+      "sha256": "3a58ac0a3fef8d41f47da7bb800ac764698bb7b81c40e91bff65d1e0ffc751d6",
+      "bytes": 634050
+    },
+    {
+      "file": "widget-mode-picker.png",
+      "sha256": "c273d76c3a60d37026c76e3a6bbdd6643e5ba5cd2766dd6dc0f73a51a1f1bb0e",
+      "bytes": 682429
+    },
+    {
+      "file": "widget-editor-selected-final.png",
+      "sha256": "4fe8210f7e1830d3f1732aa626d2934c089c12a497a775c466afb35d2cf9876c",
+      "bytes": 643677
+    },
+    {
+      "file": "widget-home-today-cost.png",
+      "sha256": "ff393c4309331b13a7038766213a15c909f281ee256a80d9488594e3b250b350",
+      "bytes": 1055708
+    },
+    {
+      "file": "widget-editor-reopened.png",
+      "sha256": "ba7c4b977328da7618f65ea139e640a7d2c88a95656d938535a0caaf0faa8360",
+      "bytes": 643439
+    }
+  ]
+}

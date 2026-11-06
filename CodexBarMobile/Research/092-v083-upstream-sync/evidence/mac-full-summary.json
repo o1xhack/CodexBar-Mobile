@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "c8f491f90bc4720b73d9d7f22bd55b64eceb3379",
+  "parserHash": "c546274ea6111fa7",
+  "exitCode": 0,
+  "stats": {
+    "Shard": "none",
+    "Execution mode": "direct",
+    "Workers": 4,
+    "Group size": 24,
+    "Discovered selections": 1869,
+    "Selected selections": 1869,
+    "Selected groups": 89,
+    "First-pass successful groups": 89,
+    "First-pass failed groups": 0,
+    "Full-group retries": 0,
+    "Recovered groups": 0,
+    "Timed out groups": 0,
+    "Isolated selection retries": 0,
+    "Discovery seconds": "165.7",
+    "Execution seconds": "606.1",
+    "Total seconds": "775.2"
+  },
+  "logSHA256": "b94d97e339ff667a295435d31b968f0eda1d06e89d7230af5ccc34af5bf16adb",
+  "logBytes": 14528344,
+  "command": "ci_swift_test_by_suite.py --group-size 24 --direct-workers 4 --no-retry-non-timeout-failures",
+  "keychainAndSourceIsolation": true
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "file": "duo-inner-landscape.png",
+    "testRun": "duo-inner-landscape",
+    "testIdentifier": "SummaryTabUITests/testSummaryExpandedLandscapeViewport()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "11D37C06-0C8E-4A5E-89F4-47E0CDC0D26A.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Summary Duo landscape full-width grid with native chrome screen 1_0_CAB1D68A-4A0F-4448-9B5D-D853CE5A48F6.png",
+      "timestamp": 1794006026.309
+    },
+    "sha256": "3c0c59bc32ddb14608c59f9ecdfa580d3e5cddda693484dbf170e159b0de1dcf",
+    "bytes": 832646
+  },
+  {
+    "file": "duo-inner-portrait.png",
+    "testRun": "duo-inner-portrait-final",
+    "testIdentifier": "SummaryTabUITests/testSummaryExpandedPortraitViewport()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "D6956B38-32DE-4BEF-ADE3-00B862C101A3.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Summary Duo portrait full-width grid with native chrome screen 1_0_E0A45C6C-FD39-441A-81B8-07AFEC50045A.png",
+      "timestamp": 1794006366.966
+    },
+    "sha256": "f40b7f1ea71e44a5ba57968dc5839eab92b036ad7517eca7cd06acbd2b149ec4",
+    "bytes": 543568
+  },
+  {
+    "file": "duo-outer-landscape.png",
+    "testRun": "duo-outer-landscape",
+    "testIdentifier": "SummaryTabUITests/testSummaryExpandedLandscapeViewport()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "83F6DCE4-B9B4-46F5-B1E7-D9C384940EE2.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Summary Duo landscape full-width grid with native chrome screen 0_0_A18029FB-428B-4A0B-80FA-3C41D23CC3C1.png",
+      "timestamp": 1794006514.769
+    },
+    "sha256": "edbb4f3e7d748c6c1a23987e40edd87204e65bbe82ba1259a06193a9a2f213ff",
+    "bytes": 698292
+  },
+  {
+    "file": "duo-outer-portrait.png",
+    "testRun": "duo-outer-portrait-final",
+    "testIdentifier": "SummaryTabUITests/testSummaryExpandedPortraitViewport()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "307B28E8-9D73-4B98-AE5F-F2F62E35548D.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Summary Duo portrait full-width grid with native chrome screen 0_0_DBE4A880-AAED-4E70-BFE8-2DC586AC634A.png",
+      "timestamp": 1794006622.916
+    },
+    "sha256": "85877e5f0928fcc2c18ed3a7416696df2c862c64a799670432de023590a2229b",
+    "bytes": 523457
+  },
+  {
+    "file": "duo-folded-draft.png",
+    "testRun": "duo-fold",
+    "testIdentifier": "DuoWorkspaceUITests/testAccountAndShareDraftSurviveNativeFoldAndUnfold()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "447C99C6-B427-41F1-9DED-01F4AAFD3368.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Native folded outer display retains reachable heatmap draft - screen 0_0_03252A73-A8DC-45EC-90DC-382803F6D7D8.png",
+      "timestamp": 1794005911.884
+    },
+    "sha256": "8959a16930c61c1343bf376a0b4cd3442cc3fb997521aaf0ba6e7054aa2bf7ed",
+    "bytes": 701930
+  },
+  {
+    "file": "duo-unfolded-draft.png",
+    "testRun": "duo-fold",
+    "testIdentifier": "DuoWorkspaceUITests/testAccountAndShareDraftSurviveNativeFoldAndUnfold()",
+    "attachment": {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "43EFCE31-CD88-4DA3-8CD6-C0134D6052D2",
+      "deviceName": "Shared \u00b7 iPhone Duo 2 \u00b7 27.2",
+      "exportedFileName": "6C83322E-9683-4CCD-AB86-ACA05EFB1D89.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Native unfolded display permits a fresh share draft - screen 1_0_5EF44244-B37A-4576-9E98-261B004B1BF8.png",
+      "timestamp": 1794005945.071
+    },
+    "sha256": "9ca2b9483bc09f345927f0c41a2da4a3f66434b625dc57c991e9a3e768406e4c",
+    "bytes": 1711544
+  }
+]

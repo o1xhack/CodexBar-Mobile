@@ -1,0 +1,287 @@
+mask=0 phone-a old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=0 phone-a old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=0 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=0 phone-b old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=0 phone-b old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=0 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=1 phone-a old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=1 phone-a old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=1 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=1 phone-b new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=1 phone-b new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=1 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=2 phone-a new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=2 phone-a new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=2 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=2 phone-b old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=2 phone-b old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=2 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=3 phone-a new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=3 phone-a new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=3 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=3 phone-b new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=3 phone-b new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=3 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=4 phone-a old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=4 phone-a old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=4 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=4 phone-b old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=4 phone-b old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=4 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=5 phone-a old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=5 phone-a old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=5 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=5 phone-b new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=5 phone-b new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=5 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=6 phone-a new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=6 phone-a new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=6 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=6 phone-b old-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=6 phone-b old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=6 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=7 phone-a new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=7 phone-a new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=7 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=7 phone-b new-reader <- old-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=7 phone-b new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=7 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=8 phone-a old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=8 phone-a old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=8 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=8 phone-b old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=8 phone-b old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=8 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=9 phone-a old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=9 phone-a old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=9 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=9 phone-b new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=9 phone-b new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=9 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=10 phone-a new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=10 phone-a new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=10 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=10 phone-b old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=10 phone-b old-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=10 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=11 phone-a new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=11 phone-a new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=11 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=11 phone-b new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=11 phone-b new-reader <- old-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=11 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=12 phone-a old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=12 phone-a old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=12 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=12 phone-b old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=12 phone-b old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=12 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=13 phone-a old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=13 phone-a old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=13 phone-a old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=13 phone-b new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=13 phone-b new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=13 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=14 phone-a new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=14 phone-a new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=14 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=14 phone-b old-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=14 phone-b old-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=14 phone-b old-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=15 phone-a new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=15 phone-a new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=15 phone-a new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts
+
+mask=15 phone-b new-reader <- new-mac-a: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=15 phone-b new-reader <- new-mac-b: exit=0
+PASS independent reader: quota, units, optional pace, identity and roundtrip
+
+mask=15 phone-b new-reader two-writer merge: exit=0
+PASS two-writer merge in both orders: stable existing account and isolated new provider accounts

@@ -1,0 +1,1772 @@
+{
+  "sourceCommit": "e41a7b363f6e33f5da0b096b3b646a7e1e61b458",
+  "archiveSourceCommit": "23ff6887da5ef996c47dcfc967d7b369e78b7cd7",
+  "files": [
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.13.0/en-US/release_notes.txt",
+      "sourceSHA256": "a61c7645ad30db785ff6784f648ac014c50b0961e4687d14da50097ac0ef5bc7",
+      "currentSHA256": "a61c7645ad30db785ff6784f648ac014c50b0961e4687d14da50097ac0ef5bc7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.13.0/ja/release_notes.txt",
+      "sourceSHA256": "26cbb16938b00b8d637b95dec855235b1c192d7df490c7836ed5419f45a4beaa",
+      "currentSHA256": "26cbb16938b00b8d637b95dec855235b1c192d7df490c7836ed5419f45a4beaa"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.13.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "19f3e73b09bbf089c467483accb29e4694ef46037888a124d43c0921690e3815",
+      "currentSHA256": "19f3e73b09bbf089c467483accb29e4694ef46037888a124d43c0921690e3815"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.13.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "ae15d17c904cebfebdf50bcf78d5502193f57cb9b1837d7def93930fbc1264ca",
+      "currentSHA256": "ae15d17c904cebfebdf50bcf78d5502193f57cb9b1837d7def93930fbc1264ca"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.14.0/en-US/release_notes.txt",
+      "sourceSHA256": "c1f2b5db5a8ea1c3d0725d009e3fafa0b60ca6411d2d251b59c0df6250686a2e",
+      "currentSHA256": "c1f2b5db5a8ea1c3d0725d009e3fafa0b60ca6411d2d251b59c0df6250686a2e"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.14.0/ja/release_notes.txt",
+      "sourceSHA256": "27d905cc7c30217869ff4dfabef01bad476dd6684dbd2c370835cc44a12b6b74",
+      "currentSHA256": "27d905cc7c30217869ff4dfabef01bad476dd6684dbd2c370835cc44a12b6b74"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.14.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "08fb9f01aedcf4a736b18d0bff78b327579127e1c0f6beab3422e329b379d0a7",
+      "currentSHA256": "08fb9f01aedcf4a736b18d0bff78b327579127e1c0f6beab3422e329b379d0a7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.14.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "e85f5ff06f2a331484c52d83e8b0a62bbbc1af7c395b54e9fd070deac7ce5f1b",
+      "currentSHA256": "e85f5ff06f2a331484c52d83e8b0a62bbbc1af7c395b54e9fd070deac7ce5f1b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.15.0/en-US/release_notes.txt",
+      "sourceSHA256": "a34191e80c5234aa1f256164e948cd199e8c09908ab500c103575ca72d1740c4",
+      "currentSHA256": "a34191e80c5234aa1f256164e948cd199e8c09908ab500c103575ca72d1740c4"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.15.0/ja/release_notes.txt",
+      "sourceSHA256": "1a533645aaee53731b8b0fcbda8eb2524f771b5204e92731e2e0f8d83e7e4e15",
+      "currentSHA256": "1a533645aaee53731b8b0fcbda8eb2524f771b5204e92731e2e0f8d83e7e4e15"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.15.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "352d7df47c5875aa7f542e61edc0e3047b8b0afcb9b9f795203bbf22884194ce",
+      "currentSHA256": "352d7df47c5875aa7f542e61edc0e3047b8b0afcb9b9f795203bbf22884194ce"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.15.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "9813e8f088b03eac8b3b372391c45f109aadea62a68952090c6894d7a8817085",
+      "currentSHA256": "9813e8f088b03eac8b3b372391c45f109aadea62a68952090c6894d7a8817085"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/en-US/release_notes.txt",
+      "sourceSHA256": "c01aaaccdac875ce342b1e53b8f8361b7bbac8c6fd2e592b33f1bff7569196a3",
+      "currentSHA256": "c01aaaccdac875ce342b1e53b8f8361b7bbac8c6fd2e592b33f1bff7569196a3"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/contact-cards.png",
+      "sourceSHA256": "9de28119cc0f78dfd6fcd4740599e860e3e184f76a8e135bdd48342019c2986d",
+      "currentSHA256": "9de28119cc0f78dfd6fcd4740599e860e3e184f76a8e135bdd48342019c2986d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/contact-details.png",
+      "sourceSHA256": "57eecb20c2318bc9bff0a51fd4b3cb421bf7f5e5fd1a63224cf49716bde19ce7",
+      "currentSHA256": "57eecb20c2318bc9bff0a51fd4b3cb421bf7f5e5fd1a63224cf49716bde19ce7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/en-US-event-card.png",
+      "sourceSHA256": "a503aea7275ef474295f583b52c348ad53054353d0584a6ec2b616debeef422d",
+      "currentSHA256": "a503aea7275ef474295f583b52c348ad53054353d0584a6ec2b616debeef422d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/en-US-event-detail.png",
+      "sourceSHA256": "9743d0f794c73f0764959d285aa25bb9b1af3199ef52ec4d6cf4769841426c78",
+      "currentSHA256": "9743d0f794c73f0764959d285aa25bb9b1af3199ef52ec4d6cf4769841426c78"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/event_metadata.json",
+      "sourceSHA256": "2c7b4df438390a5ab4fcd0ae4af4cc19159539eb2ca526c6ad5ac75c3c0d8b99",
+      "currentSHA256": "2c7b4df438390a5ab4fcd0ae4af4cc19159539eb2ca526c6ad5ac75c3c0d8b99"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/ja-event-card.png",
+      "sourceSHA256": "256311c6ee760cb4770737f8beaca2c2466157db449ace9784ea9e36b20b76c9",
+      "currentSHA256": "256311c6ee760cb4770737f8beaca2c2466157db449ace9784ea9e36b20b76c9"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/ja-event-detail.png",
+      "sourceSHA256": "34d010df29728daef92baaee890e6fa7f76f92eff862d4451c1166b241120c3b",
+      "currentSHA256": "34d010df29728daef92baaee890e6fa7f76f92eff862d4451c1166b241120c3b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/preview-en-US-event-card-composite.png",
+      "sourceSHA256": "c70760ffe61ca65c21ec9f6436c2d215a0ae15f7188d17a187f8ae54cff7a4b7",
+      "currentSHA256": "c70760ffe61ca65c21ec9f6436c2d215a0ae15f7188d17a187f8ae54cff7a4b7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hans-event-card.png",
+      "sourceSHA256": "335b354d17dea4987748bc69664dda3c2af6479b770c670f23c4cc139b0abda1",
+      "currentSHA256": "335b354d17dea4987748bc69664dda3c2af6479b770c670f23c4cc139b0abda1"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hans-event-detail.png",
+      "sourceSHA256": "a8fa57af1e05b4de7b02345a8b39b3cfa5447a25005d2a29697c9ecc0a355f20",
+      "currentSHA256": "a8fa57af1e05b4de7b02345a8b39b3cfa5447a25005d2a29697c9ecc0a355f20"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hant-event-card.png",
+      "sourceSHA256": "7e85aa0074aee51f7767095ba578c621ef25fa913c5632bf9d9dcf3b1593428b",
+      "currentSHA256": "7e85aa0074aee51f7767095ba578c621ef25fa913c5632bf9d9dcf3b1593428b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/in-app-event-assets/zh-Hant-event-detail.png",
+      "sourceSHA256": "0cebc69439732ab4cb01eefbedcfd109ce582b6f83aa82759f22d56bd2522e25",
+      "currentSHA256": "0cebc69439732ab4cb01eefbedcfd109ce582b6f83aa82759f22d56bd2522e25"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/ja/release_notes.txt",
+      "sourceSHA256": "4f2a97f4f55585e9435c5bf38a863fded60e20ac8d0f5a817c9c6f1953682261",
+      "currentSHA256": "4f2a97f4f55585e9435c5bf38a863fded60e20ac8d0f5a817c9c6f1953682261"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/nomination-assets/springboard-widget-dark.png",
+      "sourceSHA256": "8d71b015aeb2b05a7bd044b3eed2ced9c3a0990b832cb17a986f7fbd02a06c04",
+      "currentSHA256": "8d71b015aeb2b05a7bd044b3eed2ced9c3a0990b832cb17a986f7fbd02a06c04"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/nomination-assets/springboard-widget-light.png",
+      "sourceSHA256": "b86777e9159dcbf41b5070ff9d35ac4fe74d0724dbe21444a5b081f902142cad",
+      "currentSHA256": "b86777e9159dcbf41b5070ff9d35ac4fe74d0724dbe21444a5b081f902142cad"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/nomination-assets/springboard-widget-today-cost-selected.png",
+      "sourceSHA256": "c758871d7a78a77e68bc1e4c559b5da9cc045c5d83ca43b41a40e05e056d8e7d",
+      "currentSHA256": "c758871d7a78a77e68bc1e4c559b5da9cc045c5d83ca43b41a40e05e056d8e7d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "38280fe13c87d894ecceb86cc8a8b2fc61d49867a5e68b3bd38458821626addb",
+      "currentSHA256": "38280fe13c87d894ecceb86cc8a8b2fc61d49867a5e68b3bd38458821626addb"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.16.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "384a632cfa8490fa031e990443f64346e5ec2ce36d0c938b4ef19f29a28961a4",
+      "currentSHA256": "384a632cfa8490fa031e990443f64346e5ec2ce36d0c938b4ef19f29a28961a4"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/en-US/promotional_text.txt",
+      "sourceSHA256": "3db39e445e8573ac9e4ee5571e5eedfab6190d29feb17e1a3a416bcb874911c2",
+      "currentSHA256": "3db39e445e8573ac9e4ee5571e5eedfab6190d29feb17e1a3a416bcb874911c2"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/en-US/release_notes.txt",
+      "sourceSHA256": "13c0f05a00bd13b28698534f4a47dd1ee1516c0dd486a35b185f07a5705fca92",
+      "currentSHA256": "13c0f05a00bd13b28698534f4a47dd1ee1516c0dd486a35b185f07a5705fca92"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/ja/promotional_text.txt",
+      "sourceSHA256": "65ace8fc07cb48497abd5e6c645d602166d647667556db46edfb6307e5635670",
+      "currentSHA256": "65ace8fc07cb48497abd5e6c645d602166d647667556db46edfb6307e5635670"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/ja/release_notes.txt",
+      "sourceSHA256": "f325cb819e294634417aced790720e96a7c5d13f078ca8392d62381570dee163",
+      "currentSHA256": "f325cb819e294634417aced790720e96a7c5d13f078ca8392d62381570dee163"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/zh-Hans/promotional_text.txt",
+      "sourceSHA256": "d1c4a9401e7209ee24f0b566ef7cb0594766ac35bcc54422a1b533edda6ba445",
+      "currentSHA256": "d1c4a9401e7209ee24f0b566ef7cb0594766ac35bcc54422a1b533edda6ba445"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "a40219a561df0d8b22d9611174ce70d372f1ba51173d41a11d417178cb22e76f",
+      "currentSHA256": "a40219a561df0d8b22d9611174ce70d372f1ba51173d41a11d417178cb22e76f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/zh-Hant/promotional_text.txt",
+      "sourceSHA256": "8131e23e9b28051a70f869ad07e6f4c2a51c62891d66b0b3f8391b28709baca9",
+      "currentSHA256": "8131e23e9b28051a70f869ad07e6f4c2a51c62891d66b0b3f8391b28709baca9"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "e6d4cd5e0ee11c40fc68c56d843723e1a8ca34028be4726180d3d441ba91f4f6",
+      "currentSHA256": "e6d4cd5e0ee11c40fc68c56d843723e1a8ca34028be4726180d3d441ba91f4f6"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.1/en-US/release_notes.txt",
+      "sourceSHA256": "9632659860b07492943566b794d23d3f147c61d45dcb31aa62833618a2b627d7",
+      "currentSHA256": "9632659860b07492943566b794d23d3f147c61d45dcb31aa62833618a2b627d7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.1/ja/release_notes.txt",
+      "sourceSHA256": "f10e2b01488c1346cb8e5ed886b78e582c63381e2566a1f533a23f36e029844d",
+      "currentSHA256": "f10e2b01488c1346cb8e5ed886b78e582c63381e2566a1f533a23f36e029844d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.1/zh-Hans/release_notes.txt",
+      "sourceSHA256": "01477fefd3a2c6ae6ea008717368187bd23cfb24b1189da646b931734be015c1",
+      "currentSHA256": "01477fefd3a2c6ae6ea008717368187bd23cfb24b1189da646b931734be015c1"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.19.1/zh-Hant/release_notes.txt",
+      "sourceSHA256": "f796ac1a89d50acc525ddd55036660aa46e34c1d345df4d7c6a408e375803edb",
+      "currentSHA256": "f796ac1a89d50acc525ddd55036660aa46e34c1d345df4d7c6a408e375803edb"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.20.0/en-US/release_notes.txt",
+      "sourceSHA256": "816589d669998f1447426a41a9c7628c7f1c557d01765eea921d76ea1b80e799",
+      "currentSHA256": "816589d669998f1447426a41a9c7628c7f1c557d01765eea921d76ea1b80e799"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.20.0/ja/release_notes.txt",
+      "sourceSHA256": "37f17d57892f2c742255c9920938bc6e7a7ccfdfb20829ddfe0c3e45a973160d",
+      "currentSHA256": "37f17d57892f2c742255c9920938bc6e7a7ccfdfb20829ddfe0c3e45a973160d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.20.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "1a8343b149ec03d1948a6a048e067b82d95f1382c59d44e36707b308c883cc92",
+      "currentSHA256": "1a8343b149ec03d1948a6a048e067b82d95f1382c59d44e36707b308c883cc92"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.20.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "0acebaa1e5604be470e6effc4bdf643b4d8de4afa895081ddaf415ea3a9fc49e",
+      "currentSHA256": "0acebaa1e5604be470e6effc4bdf643b4d8de4afa895081ddaf415ea3a9fc49e"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.24.0/en-US/release_notes.txt",
+      "sourceSHA256": "0f66ab4e0e186a10803014311c6e73e4cc389f36c38f7adaa42abd7cae6b42c8",
+      "currentSHA256": "0f66ab4e0e186a10803014311c6e73e4cc389f36c38f7adaa42abd7cae6b42c8"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.24.0/ja/release_notes.txt",
+      "sourceSHA256": "b9e2023b1c98d10dbe3f55e03cad464d0ab1e6ea37d92eee515a8b3325319bee",
+      "currentSHA256": "b9e2023b1c98d10dbe3f55e03cad464d0ab1e6ea37d92eee515a8b3325319bee"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.24.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "746cc708562ac04f195155b91fe995c1b31bbe8f18bf35b42d97f9ef5c2bff27",
+      "currentSHA256": "746cc708562ac04f195155b91fe995c1b31bbe8f18bf35b42d97f9ef5c2bff27"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.24.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "25f896f3996aa0f78498f10f01378243b46709a6612f5005f94881eaa125f12e",
+      "currentSHA256": "25f896f3996aa0f78498f10f01378243b46709a6612f5005f94881eaa125f12e"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.5.3/en-US/release_notes.txt",
+      "sourceSHA256": "76f5152b2cb7fbcfd6b7b0c9bdee7b05f3cdb6a44428aeff736650e78d5a2387",
+      "currentSHA256": "76f5152b2cb7fbcfd6b7b0c9bdee7b05f3cdb6a44428aeff736650e78d5a2387"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.5.3/ja/release_notes.txt",
+      "sourceSHA256": "9336198e3c84c2d86050262a6d74a02031863f318a76650a56c38f9b9f1dbc81",
+      "currentSHA256": "9336198e3c84c2d86050262a6d74a02031863f318a76650a56c38f9b9f1dbc81"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.5.3/zh-Hans/release_notes.txt",
+      "sourceSHA256": "40fe38f884a7fd9610e176cb1840f347f0320c72bee09356e3c500e3f2f47b43",
+      "currentSHA256": "40fe38f884a7fd9610e176cb1840f347f0320c72bee09356e3c500e3f2f47b43"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.5.3/zh-Hant/release_notes.txt",
+      "sourceSHA256": "24bced8460fc53d99c6488e287db2880f381b93e59d87033c359daee2e390edc",
+      "currentSHA256": "24bced8460fc53d99c6488e287db2880f381b93e59d87033c359daee2e390edc"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.6.0/en-US/release_notes.txt",
+      "sourceSHA256": "8567acb610ca4cd8103011be40afde89b734c1229690150991f65537f20f0e6d",
+      "currentSHA256": "8567acb610ca4cd8103011be40afde89b734c1229690150991f65537f20f0e6d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.6.0/ja/release_notes.txt",
+      "sourceSHA256": "66a08cd8cec8adfbc42104a6620ec319a3775de41117d91aa18e1c7bdfd9b7f8",
+      "currentSHA256": "66a08cd8cec8adfbc42104a6620ec319a3775de41117d91aa18e1c7bdfd9b7f8"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.6.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "af2a092260d156eae13e1ee40a08701aba8d174cb8fb1b63a4b5a6157c7cd4ba",
+      "currentSHA256": "af2a092260d156eae13e1ee40a08701aba8d174cb8fb1b63a4b5a6157c7cd4ba"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/1.6.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "07763608dcd1682bbfa964788152d4c4f43f295cdce8073a16886ded9890d4cc",
+      "currentSHA256": "07763608dcd1682bbfa964788152d4c4f43f295cdce8073a16886ded9890d4cc"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.0.0/en-US/release_notes.txt",
+      "sourceSHA256": "0d550ee4613fc64ffac3a5eb9e0ec18bb60f04050ac1f1c5e5e3a64640d1456d",
+      "currentSHA256": "0d550ee4613fc64ffac3a5eb9e0ec18bb60f04050ac1f1c5e5e3a64640d1456d"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.0.0/ja/release_notes.txt",
+      "sourceSHA256": "f2a9b482ab035af8089fdbc916b79a2794c2fe26f71454a24b8b7d1b6ccd5eec",
+      "currentSHA256": "f2a9b482ab035af8089fdbc916b79a2794c2fe26f71454a24b8b7d1b6ccd5eec"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.0.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "94dac648e581f533efdfa495b3475848712e71bd789d8d888f3586a2a7d809a5",
+      "currentSHA256": "94dac648e581f533efdfa495b3475848712e71bd789d8d888f3586a2a7d809a5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.0.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "6c90a0515138a0a4de0cee1376b9c1b0412ece7c756ddf808a1849282b3da5e2",
+      "currentSHA256": "6c90a0515138a0a4de0cee1376b9c1b0412ece7c756ddf808a1849282b3da5e2"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.10.0/en-US/release_notes.txt",
+      "sourceSHA256": "916b81ae831c8765e75bd40be6a1b01b875fc115b9a1e95eeb6b8048594ce418",
+      "currentSHA256": "916b81ae831c8765e75bd40be6a1b01b875fc115b9a1e95eeb6b8048594ce418"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.10.0/ja/release_notes.txt",
+      "sourceSHA256": "7c83c8c99eab37ffccfb8f1d94d7234d7b13af0d84942578fc12f0fc383d3315",
+      "currentSHA256": "7c83c8c99eab37ffccfb8f1d94d7234d7b13af0d84942578fc12f0fc383d3315"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.10.0/review_notes.txt",
+      "sourceSHA256": "64f28bff0d3b69b32179d1c79979cdb2e6313dbfb9ec684ab52f44a6aaaffe5b",
+      "currentSHA256": "64f28bff0d3b69b32179d1c79979cdb2e6313dbfb9ec684ab52f44a6aaaffe5b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.10.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "43bbac69b2957f47b8d1f84c3ffdf671308fb800590e4907d04e81784458ffcc",
+      "currentSHA256": "43bbac69b2957f47b8d1f84c3ffdf671308fb800590e4907d04e81784458ffcc"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.10.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "77c17653caad179bde8a01625b8dc7d1f667c530a4f66c51dc26cfd4b9cf7853",
+      "currentSHA256": "77c17653caad179bde8a01625b8dc7d1f667c530a4f66c51dc26cfd4b9cf7853"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.2.0/en-US/release_notes.txt",
+      "sourceSHA256": "d792f8bc4ab9e03974a034d2fb07d9e5b853fcee580d0dfd6db37df995b4dec3",
+      "currentSHA256": "d792f8bc4ab9e03974a034d2fb07d9e5b853fcee580d0dfd6db37df995b4dec3"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.2.0/ja/release_notes.txt",
+      "sourceSHA256": "475b122d0c3b7d827a00e9c21e1821e7b15da7c087f50ec42d762889db4a9a8b",
+      "currentSHA256": "475b122d0c3b7d827a00e9c21e1821e7b15da7c087f50ec42d762889db4a9a8b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.2.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "9dc2e85911a1a38cef012c7fb060b9829aa7ffe07fb5400dd48fdc3fdfb071d5",
+      "currentSHA256": "9dc2e85911a1a38cef012c7fb060b9829aa7ffe07fb5400dd48fdc3fdfb071d5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.2.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "a26b2c63df2949202ceac2bd778c83cce18efa9df5d73a0e53c542b2aca4dc23",
+      "currentSHA256": "a26b2c63df2949202ceac2bd778c83cce18efa9df5d73a0e53c542b2aca4dc23"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/en-US/description.txt",
+      "sourceSHA256": "8a8468c5a2230fba2aa8eb981a5bd0dc5bed7ab84b4d9e90a5f333206ee21bad",
+      "currentSHA256": "8a8468c5a2230fba2aa8eb981a5bd0dc5bed7ab84b4d9e90a5f333206ee21bad"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/en-US/keywords.txt",
+      "sourceSHA256": "242f829d43fd45e438e399cdd2cff54568af090e5691b21e622f5908f5c61538",
+      "currentSHA256": "242f829d43fd45e438e399cdd2cff54568af090e5691b21e622f5908f5c61538"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/en-US/promotional_text.txt",
+      "sourceSHA256": "09f880cf409f0bef438e25ab3d42e9d5068173f00d05c40819f13ac68bae80e7",
+      "currentSHA256": "09f880cf409f0bef438e25ab3d42e9d5068173f00d05c40819f13ac68bae80e7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/en-US/release_notes.txt",
+      "sourceSHA256": "7df0bff97ec74f6f4186dc5e69e2bb2eae1eeae68e2347d2e7c1d8707d59859f",
+      "currentSHA256": "7df0bff97ec74f6f4186dc5e69e2bb2eae1eeae68e2347d2e7c1d8707d59859f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/ja/description.txt",
+      "sourceSHA256": "96772887f639770b3a62650475d63b37c326dfcd9150fea39fdf0ebfacdf885a",
+      "currentSHA256": "96772887f639770b3a62650475d63b37c326dfcd9150fea39fdf0ebfacdf885a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/ja/keywords.txt",
+      "sourceSHA256": "f0dba2b287dd7e90696960f960b63751f5211745f4059525cf5d27582909ef64",
+      "currentSHA256": "f0dba2b287dd7e90696960f960b63751f5211745f4059525cf5d27582909ef64"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/ja/promotional_text.txt",
+      "sourceSHA256": "8ddf47e7fb921fe8e99b66a3c05f2bce2b96d041a0147bd23f6c41c6ed2888d0",
+      "currentSHA256": "8ddf47e7fb921fe8e99b66a3c05f2bce2b96d041a0147bd23f6c41c6ed2888d0"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/ja/release_notes.txt",
+      "sourceSHA256": "02635314a6e89ba2619a12a5d3da956e140249823440c6a5cbb83b1083da2d8b",
+      "currentSHA256": "02635314a6e89ba2619a12a5d3da956e140249823440c6a5cbb83b1083da2d8b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hans/description.txt",
+      "sourceSHA256": "8e872f8d89f504985be8ee1d2d8bbdc4f11316685ce30f97f6aa44e59f7485a1",
+      "currentSHA256": "8e872f8d89f504985be8ee1d2d8bbdc4f11316685ce30f97f6aa44e59f7485a1"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hans/keywords.txt",
+      "sourceSHA256": "805b5d5c2efabf456661e88598aa28ae06bacc7f9ce460cebe0f0d7f1c0fe288",
+      "currentSHA256": "805b5d5c2efabf456661e88598aa28ae06bacc7f9ce460cebe0f0d7f1c0fe288"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hans/promotional_text.txt",
+      "sourceSHA256": "5c531b96407112f52897a2a76e0af987d8e3398623d89a9d0e4633851f091386",
+      "currentSHA256": "5c531b96407112f52897a2a76e0af987d8e3398623d89a9d0e4633851f091386"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "4dd91af719500e942d8e12a46cb7268af1db8b7e2ce3efc038ff1d40d53e524f",
+      "currentSHA256": "4dd91af719500e942d8e12a46cb7268af1db8b7e2ce3efc038ff1d40d53e524f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hant/description.txt",
+      "sourceSHA256": "5b2e68a5652de6d9a308b8ea7c837274d995adbfde54126883d3aff8f1640965",
+      "currentSHA256": "5b2e68a5652de6d9a308b8ea7c837274d995adbfde54126883d3aff8f1640965"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hant/keywords.txt",
+      "sourceSHA256": "ad2ff042e7e46bc91bf16d4dbcbafdbc1693f71c739e4f2e088a2111b5fdc2e6",
+      "currentSHA256": "ad2ff042e7e46bc91bf16d4dbcbafdbc1693f71c739e4f2e088a2111b5fdc2e6"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hant/promotional_text.txt",
+      "sourceSHA256": "d0b0667ce028e4558ceeaded22f875f5ffc790b57257454ecce04bc78b9e4b9c",
+      "currentSHA256": "d0b0667ce028e4558ceeaded22f875f5ffc790b57257454ecce04bc78b9e4b9c"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.3.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "5c5a02308499585781138275a5d72d4987ac90afdf002553849b357fb73cb334",
+      "currentSHA256": "5c5a02308499585781138275a5d72d4987ac90afdf002553849b357fb73cb334"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.4.0/en-US/release_notes.txt",
+      "sourceSHA256": "4823e20a306c572bb8465f531e15b29108e937379f8f3c70d98b658276538838",
+      "currentSHA256": "4823e20a306c572bb8465f531e15b29108e937379f8f3c70d98b658276538838"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.4.0/ja/release_notes.txt",
+      "sourceSHA256": "eae99db7d7baa0d8df67377e4c97f59471774acccb7776d8285496fc4e23ae93",
+      "currentSHA256": "eae99db7d7baa0d8df67377e4c97f59471774acccb7776d8285496fc4e23ae93"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.4.0/review_notes.txt",
+      "sourceSHA256": "63bc11bb6f6243517b73f47f9a5bb455c8bf22df077532d62d22dc83694269f0",
+      "currentSHA256": "63bc11bb6f6243517b73f47f9a5bb455c8bf22df077532d62d22dc83694269f0"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.4.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "bdac4bd3d920f628989b6aae414a4fa1d63837ca1556f078b17842b04fa3eb3c",
+      "currentSHA256": "bdac4bd3d920f628989b6aae414a4fa1d63837ca1556f078b17842b04fa3eb3c"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.4.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "17211622b9af0a85468807b3330d3f464ac4c5349a669f035350a9f1e29e06e0",
+      "currentSHA256": "17211622b9af0a85468807b3330d3f464ac4c5349a669f035350a9f1e29e06e0"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.5.0/en-US/release_notes.txt",
+      "sourceSHA256": "18bc2d94ce272e7f3b9fcbdca72a49454ea9341ae4f280830b38d2cf3bc26cac",
+      "currentSHA256": "18bc2d94ce272e7f3b9fcbdca72a49454ea9341ae4f280830b38d2cf3bc26cac"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.5.0/ja/release_notes.txt",
+      "sourceSHA256": "7942fe6a79b4a5451c4bb9186004aaad0edccd6234597bd4fcef80c46ba9d4f5",
+      "currentSHA256": "7942fe6a79b4a5451c4bb9186004aaad0edccd6234597bd4fcef80c46ba9d4f5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.5.0/review_notes.txt",
+      "sourceSHA256": "0f4e3d1804083c111eae7c856e0711227d3bf504f4609f22728d5c653a231e0a",
+      "currentSHA256": "0f4e3d1804083c111eae7c856e0711227d3bf504f4609f22728d5c653a231e0a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.5.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "587fcb0e326b693c61f42aaf9a83391728064ae5b642e31915880ca8a03b0879",
+      "currentSHA256": "587fcb0e326b693c61f42aaf9a83391728064ae5b642e31915880ca8a03b0879"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.5.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "0be72024f45ecc0364fbd850679ee02368b756b123fea9d18258747e8af4848b",
+      "currentSHA256": "0be72024f45ecc0364fbd850679ee02368b756b123fea9d18258747e8af4848b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.6.0/en-US/release_notes.txt",
+      "sourceSHA256": "eb147325569b3f0504717c1b8c644017ee355006a8e086cc3a13ed499a5bb3c5",
+      "currentSHA256": "eb147325569b3f0504717c1b8c644017ee355006a8e086cc3a13ed499a5bb3c5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.6.0/ja/release_notes.txt",
+      "sourceSHA256": "baa161feb6a21f6bdb8766c492aff8f8a5f793f96de6e21c9b5cfa8b0082a8e3",
+      "currentSHA256": "baa161feb6a21f6bdb8766c492aff8f8a5f793f96de6e21c9b5cfa8b0082a8e3"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.6.0/review_notes.txt",
+      "sourceSHA256": "5260befcb494a0db162e784673e72464a68c04c4936a1c24d18e3779e7630b09",
+      "currentSHA256": "5260befcb494a0db162e784673e72464a68c04c4936a1c24d18e3779e7630b09"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.6.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "867c4de0bdf3942e0c5bcdc337e33fd42eb06ebe44fe40033cd51e3ea9fc2155",
+      "currentSHA256": "867c4de0bdf3942e0c5bcdc337e33fd42eb06ebe44fe40033cd51e3ea9fc2155"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.6.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "e329abdb1660efe8095e8e4eaf3ebc4c8f095e0588ab149779a12271e465f593",
+      "currentSHA256": "e329abdb1660efe8095e8e4eaf3ebc4c8f095e0588ab149779a12271e465f593"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.7.0/en-US/release_notes.txt",
+      "sourceSHA256": "b1177e760482ceb2ac548042ceb58f6e752f3996ca3b949d258c15961f45b50f",
+      "currentSHA256": "b1177e760482ceb2ac548042ceb58f6e752f3996ca3b949d258c15961f45b50f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.7.0/ja/release_notes.txt",
+      "sourceSHA256": "ec303162623ecdfc9df9cd3ceff3b46d3b75fd32bc29ef4bccf8917cc8952b4b",
+      "currentSHA256": "ec303162623ecdfc9df9cd3ceff3b46d3b75fd32bc29ef4bccf8917cc8952b4b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.7.0/review_notes.txt",
+      "sourceSHA256": "95e5af15db2c570053d107487cc4ea80f64543bacc66ad8542af8b5d6c7cbb62",
+      "currentSHA256": "95e5af15db2c570053d107487cc4ea80f64543bacc66ad8542af8b5d6c7cbb62"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.7.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "8a95ad3cf080718eab16b515a0083faa744f79cb6961da9b1ce19b93189926f5",
+      "currentSHA256": "8a95ad3cf080718eab16b515a0083faa744f79cb6961da9b1ce19b93189926f5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.7.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "f9440dcfccdbbf2694e39aeaa80119db809702050a27b2d80da47a726a4f1563",
+      "currentSHA256": "f9440dcfccdbbf2694e39aeaa80119db809702050a27b2d80da47a726a4f1563"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.8.0/en-US/release_notes.txt",
+      "sourceSHA256": "031230f3b8f3430e4f0cfb168a237adcca059a165284b0bb79deeaea3bd54ec5",
+      "currentSHA256": "031230f3b8f3430e4f0cfb168a237adcca059a165284b0bb79deeaea3bd54ec5"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.8.0/ja/release_notes.txt",
+      "sourceSHA256": "3cc718c591738063ffed921c456a25c5a2eb72affa89d19d08cffaf8092ca504",
+      "currentSHA256": "3cc718c591738063ffed921c456a25c5a2eb72affa89d19d08cffaf8092ca504"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.8.0/review_notes.txt",
+      "sourceSHA256": "69ab7675cd1fb4e82b14a8d553aabc3c0fbd255dcc71d632cec22cb8f65d0ee2",
+      "currentSHA256": "69ab7675cd1fb4e82b14a8d553aabc3c0fbd255dcc71d632cec22cb8f65d0ee2"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.8.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "1361567e0f49e10919f69223660e5e53eb1f4c1f2ee319a314e0799a8321e703",
+      "currentSHA256": "1361567e0f49e10919f69223660e5e53eb1f4c1f2ee319a314e0799a8321e703"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.8.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "9844fed357c00cf3c6295d40dcfc9ed6cfe45b77c20b7c45aa6be8827479cbff",
+      "currentSHA256": "9844fed357c00cf3c6295d40dcfc9ed6cfe45b77c20b7c45aa6be8827479cbff"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.9.0/en-US/release_notes.txt",
+      "sourceSHA256": "94892e3ae65cf2c35cfcb5d7cb92b4a99bb4c93fd6bc3c91654df5adb8fdf40b",
+      "currentSHA256": "94892e3ae65cf2c35cfcb5d7cb92b4a99bb4c93fd6bc3c91654df5adb8fdf40b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.9.0/ja/release_notes.txt",
+      "sourceSHA256": "cc7624a1b247f223e710a7abf5cdba38fb6f8f4499f0482aa99132eac486b464",
+      "currentSHA256": "cc7624a1b247f223e710a7abf5cdba38fb6f8f4499f0482aa99132eac486b464"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.9.0/review_notes.txt",
+      "sourceSHA256": "a7c21e3bd099364fccd7f4add592ddba0d12e03c0d58011ef6d024dee357ca4a",
+      "currentSHA256": "a7c21e3bd099364fccd7f4add592ddba0d12e03c0d58011ef6d024dee357ca4a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.9.0/zh-Hans/release_notes.txt",
+      "sourceSHA256": "1c4f4f74a01d62092ac0f892be5defc8b341c89430478887cc01d43e4b96ab40",
+      "currentSHA256": "1c4f4f74a01d62092ac0f892be5defc8b341c89430478887cc01d43e4b96ab40"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreMetadata/2.9.0/zh-Hant/release_notes.txt",
+      "sourceSHA256": "0e998f80a7d9b848cf941b134e81bf873efb0e6d4329710c05206c872fe3eecb",
+      "currentSHA256": "0e998f80a7d9b848cf941b134e81bf873efb0e6d4329710c05206c872fe3eecb"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/generate_v1_styled.py",
+      "sourceSHA256": "207aaa9119227ff7e9bb1b0ae24d925301b666d6ad4e4cd8cab0f933e715c867",
+      "currentSHA256": "207aaa9119227ff7e9bb1b0ae24d925301b666d6ad4e4cd8cab0f933e715c867"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/ipad_1.png",
+      "sourceSHA256": "f62786106b57bd4eb220c654cbe1e002b56106894538286f3ce93ce38228837a",
+      "currentSHA256": "f62786106b57bd4eb220c654cbe1e002b56106894538286f3ce93ce38228837a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/ipad_2.png",
+      "sourceSHA256": "3d8388e564953d191d2c2cfeb69da842c0c210afecd24872b946b86739499803",
+      "currentSHA256": "3d8388e564953d191d2c2cfeb69da842c0c210afecd24872b946b86739499803"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/ipad_3.png",
+      "sourceSHA256": "432e488d59059fe4ebcf2b604222356264f7e7bd838830469b7ab7e44adf3c28",
+      "currentSHA256": "432e488d59059fe4ebcf2b604222356264f7e7bd838830469b7ab7e44adf3c28"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/screenshot_1_easy_setup.png",
+      "sourceSHA256": "771dc0fa6710884f60c54beaa1a13ea82c6ea582704023ce46b3a3ab224bd12e",
+      "currentSHA256": "771dc0fa6710884f60c54beaa1a13ea82c6ea582704023ce46b3a3ab224bd12e"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/screenshot_2_all_providers.png",
+      "sourceSHA256": "487e24b2acba614af3e834bacbc5eb16c72b06d31616c1182c8dfe5c754c17c2",
+      "currentSHA256": "487e24b2acba614af3e834bacbc5eb16c72b06d31616c1182c8dfe5c754c17c2"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v0/screenshot_3_detailed_stats.png",
+      "sourceSHA256": "532429586533104f44d7b77ff6fb0d49a1ce2da1729143f0a7131d795c8aa8b6",
+      "currentSHA256": "532429586533104f44d7b77ff6fb0d49a1ce2da1729143f0a7131d795c8aa8b6"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5510.HEIC",
+      "sourceSHA256": "1f13b4edba6b584537624d492ee53a57976e3632a42fd5b2b0dfdb6c061fdf0f",
+      "currentSHA256": "1f13b4edba6b584537624d492ee53a57976e3632a42fd5b2b0dfdb6c061fdf0f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5511.HEIC",
+      "sourceSHA256": "7e282972a50aea69aae9b93986a49973958a6c3db1e4d579ede00efa91d4b27f",
+      "currentSHA256": "7e282972a50aea69aae9b93986a49973958a6c3db1e4d579ede00efa91d4b27f"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5512.HEIC",
+      "sourceSHA256": "94523f6f19aee5c3893526c8756154ecab59d5e99704c462e9c6cf9a1ddf8c3a",
+      "currentSHA256": "94523f6f19aee5c3893526c8756154ecab59d5e99704c462e9c6cf9a1ddf8c3a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5513.HEIC",
+      "sourceSHA256": "868a33d1bca3595526cae561aa65119a77cbeba4fcc1ca4d73393ec2a2b547a7",
+      "currentSHA256": "868a33d1bca3595526cae561aa65119a77cbeba4fcc1ca4d73393ec2a2b547a7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5514.JPG",
+      "sourceSHA256": "6016733addca7350b9eccdaec80a983070ece7da4e30035e552e42c70c1e8d92",
+      "currentSHA256": "6016733addca7350b9eccdaec80a983070ece7da4e30035e552e42c70c1e8d92"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-screenshot/IMG_5515.JPG",
+      "sourceSHA256": "497f4261a92204fb68a2fd71670f71940dc9b7ba125f7478ac4d528bd4a5e37b",
+      "currentSHA256": "497f4261a92204fb68a2fd71670f71940dc9b7ba125f7478ac4d528bd4a5e37b"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png",
+      "sourceSHA256": "adcad9bfbc5864b5d8df4d0efcc965f69fde59704a3d8e76f964cf5f607c56c7",
+      "currentSHA256": "adcad9bfbc5864b5d8df4d0efcc965f69fde59704a3d8e76f964cf5f607c56c7"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png",
+      "sourceSHA256": "0b125bb62c2ea2b134bbfdf33fee756d7c2138d093ee8fc2f5393c825b0de1c8",
+      "currentSHA256": "0b125bb62c2ea2b134bbfdf33fee756d7c2138d093ee8fc2f5393c825b0de1c8"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png",
+      "sourceSHA256": "0c0768d619240f8d1453e2349800f6a9493b24a1f517253a1334b31d1bceb1e2",
+      "currentSHA256": "0c0768d619240f8d1453e2349800f6a9493b24a1f517253a1334b31d1bceb1e2"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png",
+      "sourceSHA256": "6e23194dda7f2b103d432c932aad4cfa2a21173680d3f0f7b60da9bde62c8bfb",
+      "currentSHA256": "6e23194dda7f2b103d432c932aad4cfa2a21173680d3f0f7b60da9bde62c8bfb"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png",
+      "sourceSHA256": "d6a2549806ce9dd1522c87e8e2e96168f932ba0fdbc863f274de4316072c8f37",
+      "currentSHA256": "d6a2549806ce9dd1522c87e8e2e96168f932ba0fdbc863f274de4316072c8f37"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled/01-overview.png",
+      "sourceSHA256": "abd0a6fc50e230a4772f9260be3c95a52e8dc433ccf66885781a0df6d8e80701",
+      "currentSHA256": "abd0a6fc50e230a4772f9260be3c95a52e8dc433ccf66885781a0df6d8e80701"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled/02-cost-overview.png",
+      "sourceSHA256": "b3684a79aeaf096b6a626b6256ef2ae4f0ae7139fa23280755e2dbedfff6f351",
+      "currentSHA256": "b3684a79aeaf096b6a626b6256ef2ae4f0ae7139fa23280755e2dbedfff6f351"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled/03-daily-spend.png",
+      "sourceSHA256": "4922624163587fbdc3d63d479c32cf9b36a0adda0f166d229fc605f7ac610a61",
+      "currentSHA256": "4922624163587fbdc3d63d479c32cf9b36a0adda0f166d229fc605f7ac610a61"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled/04-model-mix.png",
+      "sourceSHA256": "0aa30d327dd7c3ea5968d2eea636758bea215208cf3a1fb4214a77d5b6a4c90a",
+      "currentSHA256": "0aa30d327dd7c3ea5968d2eea636758bea215208cf3a1fb4214a77d5b6a4c90a"
+    },
+    {
+      "path": "CodexBarMobile/AppStoreScreenshots/v1-styled/05-share-cards.png",
+      "sourceSHA256": "0a89fe26bac0f336a8218dd2bc58418e39363bb4af1872112e486e65be9e5a87",
+      "currentSHA256": "0a89fe26bac0f336a8218dd2bc58418e39363bb4af1872112e486e65be9e5a87"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile.xcodeproj/project.pbxproj",
+      "sourceSHA256": "ee5bf21065c2f9d8832e5d43880545aceb487dfd2cfc4850f7561f0b0e991658",
+      "currentSHA256": "ee5bf21065c2f9d8832e5d43880545aceb487dfd2cfc4850f7561f0b0e991658"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+      "sourceSHA256": "7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f",
+      "currentSHA256": "7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile.xcodeproj/xcshareddata/xcschemes/CodexBarMobile.xcscheme",
+      "sourceSHA256": "cb2133482f92168cbc9c2e5f3c7a1bae71942a75c3fbcb587f7138353230d427",
+      "currentSHA256": "cb2133482f92168cbc9c2e5f3c7a1bae71942a75c3fbcb587f7138353230d427"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile.xcodeproj/xcshareddata/xcschemes/CodexBarMobileLiveQA.xcscheme",
+      "sourceSHA256": "59bb5ee5c435245636569cf305f2b4df764bbe7009b1b56f17c2d0397fb1235d",
+      "currentSHA256": "59bb5ee5c435245636569cf305f2b4df764bbe7009b1b56f17c2d0397fb1235d"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/AppIcon.appiconset/AppIcon-Dark.png",
+      "sourceSHA256": "c7b030d7ad7d0f3ecc49147b560a85c8a0ca62ee2b106da7168313c961b99b64",
+      "currentSHA256": "c7b030d7ad7d0f3ecc49147b560a85c8a0ca62ee2b106da7168313c961b99b64"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "sourceSHA256": "6b3f49cc4f722accd6fffa96549ab58e1d941579500bddcde226a190e220b751",
+      "currentSHA256": "6b3f49cc4f722accd6fffa96549ab58e1d941579500bddcde226a190e220b751"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sourceSHA256": "40724bfa5b059c2ce0e01a862ae94cb44bc58caef5c4354ad41231c43899b7b4",
+      "currentSHA256": "40724bfa5b059c2ce0e01a862ae94cb44bc58caef5c4354ad41231c43899b7b4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/Contents.json",
+      "sourceSHA256": "0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b",
+      "currentSHA256": "0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppCoffeeIt.imageset/Contents.json",
+      "sourceSHA256": "dd84d365896dee1893bd5d9aae647b7e511b0d5bc1ce0775f9105fc92b97e6df",
+      "currentSHA256": "dd84d365896dee1893bd5d9aae647b7e511b0d5bc1ce0775f9105fc92b97e6df"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppCoffeeIt.imageset/MoreAppCoffeeIt.png",
+      "sourceSHA256": "9a1d916adcf2fe50635762f3c36b3e5d9e44bb1bf696b52b59f22093da983943",
+      "currentSHA256": "9a1d916adcf2fe50635762f3c36b3e5d9e44bb1bf696b52b59f22093da983943"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppPhotoStatus.imageset/Contents.json",
+      "sourceSHA256": "3ef2ae3ccd230e40463dda23f013569da7c611c8c0dc10d3e6977e447a06864e",
+      "currentSHA256": "3ef2ae3ccd230e40463dda23f013569da7c611c8c0dc10d3e6977e447a06864e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppPhotoStatus.imageset/MoreAppPhotoStatus.png",
+      "sourceSHA256": "4d24f5288ba42ed2e2dc5d090c53128c370c0d0dc36f57c1f0eb962ae3e678f4",
+      "currentSHA256": "4d24f5288ba42ed2e2dc5d090c53128c370c0d0dc36f57c1f0eb962ae3e678f4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppScrobbleBridge.imageset/Contents.json",
+      "sourceSHA256": "13b12769d45898430f0d239444fdbf1fba3958db5a57bb987b3f1cfd912337e1",
+      "currentSHA256": "13b12769d45898430f0d239444fdbf1fba3958db5a57bb987b3f1cfd912337e1"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Assets.xcassets/MoreAppScrobbleBridge.imageset/MoreAppScrobbleBridge.png",
+      "sourceSHA256": "0877ef6d11581c062f65d022384c23c4385c47943c6bca2c245d9351c6388eff",
+      "currentSHA256": "0877ef6d11581c062f65d022384c23c4385c47943c6bca2c245d9351c6388eff"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Base.lproj/WidgetActivity.intentdefinition",
+      "sourceSHA256": "be9388d4fb774fb657efd10d39eae20410283a4b0bd3b973c31433ae9f559c78",
+      "currentSHA256": "be9388d4fb774fb657efd10d39eae20410283a4b0bd3b973c31433ae9f559c78"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/CodexBarMobile.entitlements",
+      "sourceSHA256": "bd755ffb21559e6171f564075c2ac6f8041f6f694e5432fb66972122871773a9",
+      "currentSHA256": "bd755ffb21559e6171f564075c2ac6f8041f6f694e5432fb66972122871773a9"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/CodexBarMobileApp.swift",
+      "sourceSHA256": "e45ad6972a9aa24b881a266b275ab1bf7f4a3c29ed4f80766df605d531466dd8",
+      "currentSHA256": "e45ad6972a9aa24b881a266b275ab1bf7f4a3c29ed4f80766df605d531466dd8"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/ContentView.swift",
+      "sourceSHA256": "3c115ec8bdc716ba53d036d6f0540c6439dc5fdbbf2e0bae7c3905d5e41021a6",
+      "currentSHA256": "3c115ec8bdc716ba53d036d6f0540c6439dc5fdbbf2e0bae7c3905d5e41021a6"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Info.plist",
+      "sourceSHA256": "72c85b6246afe3129455e8032bf6eea2a7d06be8ea808c6f20a1fe69ea1d1c3b",
+      "currentSHA256": "72c85b6246afe3129455e8032bf6eea2a7d06be8ea808c6f20a1fe69ea1d1c3b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/InfoPlist.xcstrings",
+      "sourceSHA256": "adaebb336fc442a40153f30304ae14837e7f12df9e24eaea384870b17ea0bb9c",
+      "currentSHA256": "adaebb336fc442a40153f30304ae14837e7f12df9e24eaea384870b17ea0bb9c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Localizable.xcstrings",
+      "sourceSHA256": "7c27e63fa18384beb5c2c5aeac5e829a65062e62b84aa6713274992af4a907f3",
+      "currentSHA256": "7c27e63fa18384beb5c2c5aeac5e829a65062e62b84aa6713274992af4a907f3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ClaudePeakHours.swift",
+      "sourceSHA256": "d45d03980631efd5d77b4591bf991474232a24999bc6d865fe02c5d212f6389c",
+      "currentSHA256": "d45d03980631efd5d77b4591bf991474232a24999bc6d865fe02c5d212f6389c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/CostDashboardPreferences.swift",
+      "sourceSHA256": "e58771ae75ca9e8302fa58f2052f993b5ef4fe7c326cc02315727876657d4a25",
+      "currentSHA256": "e58771ae75ca9e8302fa58f2052f993b5ef4fe7c326cc02315727876657d4a25"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/CostDiagnosticsReport.swift",
+      "sourceSHA256": "464c909de83b4b7df92526fec55efc6ff1c9f6e72cf0fe8709ff617d26fabaed",
+      "currentSHA256": "464c909de83b4b7df92526fec55efc6ff1c9f6e72cf0fe8709ff617d26fabaed"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/CostFormatting.swift",
+      "sourceSHA256": "fbdcc878c8aa8cae8c53c46f5f785310bc8de65c145ae87496f800b6f51526cf",
+      "currentSHA256": "fbdcc878c8aa8cae8c53c46f5f785310bc8de65c145ae87496f800b6f51526cf"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/CostShareService.swift",
+      "sourceSHA256": "3a310becf49f7063b7f30892e9abdc66ca25a24b0475eac29c9c21b213a93a3c",
+      "currentSHA256": "3a310becf49f7063b7f30892e9abdc66ca25a24b0475eac29c9c21b213a93a3c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/DailyAllowanceTarget.swift",
+      "sourceSHA256": "7313dcfdb6c3b806ecadee0cd3ca3b57f448c6d859e22ab0d9dcfa7687fbb7f3",
+      "currentSHA256": "7313dcfdb6c3b806ecadee0cd3ca3b57f448c6d859e22ab0d9dcfa7687fbb7f3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/MobileAdaptiveLayout.swift",
+      "sourceSHA256": "1b3708e2e4d3e21c198265e32b2f25664bd48bdf5536c83c1c75491b6791a96e",
+      "currentSHA256": "1b3708e2e4d3e21c198265e32b2f25664bd48bdf5536c83c1c75491b6791a96e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/MobileChartAxisFormatter.swift",
+      "sourceSHA256": "1f606c9d7ae8c71d5c9be6756bb54e3ec812cc9849d6589634a93040492c777d",
+      "currentSHA256": "1f606c9d7ae8c71d5c9be6756bb54e3ec812cc9849d6589634a93040492c777d"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/MobileDisplayPreferences.swift",
+      "sourceSHA256": "2fb9918d674c561d0378e91d3daa8e305e545eddde7c737f03bde528bb7306d1",
+      "currentSHA256": "2fb9918d674c561d0378e91d3daa8e305e545eddde7c737f03bde528bb7306d1"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/MockProviderDetector.swift",
+      "sourceSHA256": "56f4cba36aaee082ac67df21439956142a54ef0b40a1b1d67985d14ce5893dcc",
+      "currentSHA256": "56f4cba36aaee082ac67df21439956142a54ef0b40a1b1d67985d14ce5893dcc"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/MultiAccountLinkageCandidate.swift",
+      "sourceSHA256": "9ee082718209bb2708ccd80eea21a42a3b59270f4eabc7db37f08922dd4c70df",
+      "currentSHA256": "9ee082718209bb2708ccd80eea21a42a3b59270f4eabc7db37f08922dd4c70df"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/OthersRowPreview.swift",
+      "sourceSHA256": "cc8be86d673ff2af3fb0eeab710b6b477dc11c9d6cec8117490605fa6212bd49",
+      "currentSHA256": "cc8be86d673ff2af3fb0eeab710b6b477dc11c9d6cec8117490605fa6212bd49"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderAccountGroup.swift",
+      "sourceSHA256": "6584ec9493cbbb93a9a21f45d5eef26c3684b596d00ffef2ffd4fccf22bada31",
+      "currentSHA256": "6584ec9493cbbb93a9a21f45d5eef26c3684b596d00ffef2ffd4fccf22bada31"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderColorPalette.swift",
+      "sourceSHA256": "2c9a4c49084fd3c158ac974b687a66e3a6ce99e67d5ab8f6dd8ab1b46550959b",
+      "currentSHA256": "2c9a4c49084fd3c158ac974b687a66e3a6ce99e67d5ab8f6dd8ab1b46550959b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderDetailRowPresentation.swift",
+      "sourceSHA256": "22fb4305b98086ccd055f43f0069fc3b4cd9a8db75c87c282b18db0236612bba",
+      "currentSHA256": "22fb4305b98086ccd055f43f0069fc3b4cd9a8db75c87c282b18db0236612bba"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderSourceNoticePlacement.swift",
+      "sourceSHA256": "f3f0d813c6553dc94c2e66f9985990dda40b65b68271b61b24d1fd2d2e706329",
+      "currentSHA256": "f3f0d813c6553dc94c2e66f9985990dda40b65b68271b61b24d1fd2d2e706329"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderUsageSnapshot+Identity.swift",
+      "sourceSHA256": "4cd10727c4530335f56bb3e69fcc06e96701121a25829d9682d5dcd5e303aa99",
+      "currentSHA256": "4cd10727c4530335f56bb3e69fcc06e96701121a25829d9682d5dcd5e303aa99"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ProviderUsageSnapshot+QuotaWarnings.swift",
+      "sourceSHA256": "d604e56a5d17267d9d60e6683a077a1971b91b5c181b9b3a17fb433753d8205d",
+      "currentSHA256": "d604e56a5d17267d9d60e6683a077a1971b91b5c181b9b3a17fb433753d8205d"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ReportPanePlan.swift",
+      "sourceSHA256": "db172c0a54eb32c38cb8ae21c36db76a0ead036ec6269ba27ce0ebba887524c8",
+      "currentSHA256": "db172c0a54eb32c38cb8ae21c36db76a0ead036ec6269ba27ce0ebba887524c8"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ResetCreditCalendarPlanner.swift",
+      "sourceSHA256": "ebe693d0f0abea3fde23a899caca9280eae4e7c7bbd0d679b87d508b417422d4",
+      "currentSHA256": "ebe693d0f0abea3fde23a899caca9280eae4e7c7bbd0d679b87d508b417422d4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ResetCreditCalendarSync.swift",
+      "sourceSHA256": "32a88fa8f745687e5e0be3b7b96712d09cacf6a87d320ca8b29cc78ba0e8860c",
+      "currentSHA256": "32a88fa8f745687e5e0be3b7b96712d09cacf6a87d320ca8b29cc78ba0e8860c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/ResetCreditObservation.swift",
+      "sourceSHA256": "ef3a6321e4921a36348049ecadbad15cbc0839673402691ca2c53b6e09df5053",
+      "currentSHA256": "ef3a6321e4921a36348049ecadbad15cbc0839673402691ca2c53b6e09df5053"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SnapshotCache.swift",
+      "sourceSHA256": "2369564b246e985fe54b6cf2ca5d27dab7811789f44cbbe8e7d0040927acfad4",
+      "currentSHA256": "2369564b246e985fe54b6cf2ca5d27dab7811789f44cbbe8e7d0040927acfad4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SubscriptionDateTimeZone.swift",
+      "sourceSHA256": "1cf4f209031662e0e33651ce82f58177feb8e8b03e3fe816089ef9ddc90ee82f",
+      "currentSHA256": "1cf4f209031662e0e33651ce82f58177feb8e8b03e3fe816089ef9ddc90ee82f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SummaryCard.swift",
+      "sourceSHA256": "158b65d23a055451c925fbab4b87c1df5f0e6f1fec34be5fb3a2dc8103c37074",
+      "currentSHA256": "158b65d23a055451c925fbab4b87c1df5f0e6f1fec34be5fb3a2dc8103c37074"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SummaryCardResolver.swift",
+      "sourceSHA256": "a3667136a6e385987d17c8201a353d24269c08e547fc5c434e2a61405d6b824f",
+      "currentSHA256": "a3667136a6e385987d17c8201a353d24269c08e547fc5c434e2a61405d6b824f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SummaryPreferencesStore.swift",
+      "sourceSHA256": "d95c7dabd37385dd365ebcab3e2a4c068f1e6decb8fda2a92d1415bfe135ad76",
+      "currentSHA256": "d95c7dabd37385dd365ebcab3e2a4c068f1e6decb8fda2a92d1415bfe135ad76"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SyncCostSummary+Today.swift",
+      "sourceSHA256": "e85bafb77eca4f3bfa9107b52139c9de3010fcb107ab396c2c6330dd9c077c02",
+      "currentSHA256": "e85bafb77eca4f3bfa9107b52139c9de3010fcb107ab396c2c6330dd9c077c02"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/SyncedUsageData.swift",
+      "sourceSHA256": "a9372a396a51dfed27c9d272a0f4eeb4fc29107f2f694ec59465aabd9e91bc0f",
+      "currentSHA256": "a9372a396a51dfed27c9d272a0f4eeb4fc29107f2f694ec59465aabd9e91bc0f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/TokenActivity.swift",
+      "sourceSHA256": "5c8e2721c03ae326078a579ffb75e8c156f62232b5d31a984cfef09f023ea6ad",
+      "currentSHA256": "5c8e2721c03ae326078a579ffb75e8c156f62232b5d31a984cfef09f023ea6ad"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageCardOrdering.swift",
+      "sourceSHA256": "815a6ddd0460d714114754ebb85adb64a93f5039a3df06d9828ac967d8caee55",
+      "currentSHA256": "815a6ddd0460d714114754ebb85adb64a93f5039a3df06d9828ac967d8caee55"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageCardPreferences.swift",
+      "sourceSHA256": "d239fe36c4b06c718446154cc663d82f31886f35f33675c36b0c3778ef2ff773",
+      "currentSHA256": "d239fe36c4b06c718446154cc663d82f31886f35f33675c36b0c3778ef2ff773"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageCardPreferencesStore.swift",
+      "sourceSHA256": "c712ae6a8587550f0d350686b9ae8e1b676c1df8d52c121550e96bd2baaba184",
+      "currentSHA256": "c712ae6a8587550f0d350686b9ae8e1b676c1df8d52c121550e96bd2baaba184"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaDetailPresentation.swift",
+      "sourceSHA256": "0296d06401b771cd6c9f98155f0483fd33bb9225b2fd394be31b6ce77ae4cf30",
+      "currentSHA256": "0296d06401b771cd6c9f98155f0483fd33bb9225b2fd394be31b6ce77ae4cf30"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaOverview.swift",
+      "sourceSHA256": "fe4ca4081fcd97c7b63ec0dee52899f9e17a9181fa2e58d362ad8833f4205161",
+      "currentSHA256": "fe4ca4081fcd97c7b63ec0dee52899f9e17a9181fa2e58d362ad8833f4205161"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaOverviewStore.swift",
+      "sourceSHA256": "e654964dc39b007e06f9d7ad949587a1568d95197bf58f6dbccf12b2f5d26eb6",
+      "currentSHA256": "e654964dc39b007e06f9d7ad949587a1568d95197bf58f6dbccf12b2f5d26eb6"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaPresentation.swift",
+      "sourceSHA256": "78157c6b2741cbf3deabef0c828f60c8966bcfeab11ee02da1b6fc5457811021",
+      "currentSHA256": "78157c6b2741cbf3deabef0c828f60c8966bcfeab11ee02da1b6fc5457811021"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaProjection.swift",
+      "sourceSHA256": "ab155e280485144fdea2bfd5dba7aaf0108afa7b336d887c65072543429233c3",
+      "currentSHA256": "ab155e280485144fdea2bfd5dba7aaf0108afa7b336d887c65072543429233c3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageQuotaSourceResolver.swift",
+      "sourceSHA256": "90fd1ba4012c9112c511fe305fc54e96d63a747fe449e2f266b4b99785c3c345",
+      "currentSHA256": "90fd1ba4012c9112c511fe305fc54e96d63a747fe449e2f266b4b99785c3c345"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/UsageWindowPresentation.swift",
+      "sourceSHA256": "179aa1ed4de7711553a74e25763ecebe6a4c75cf4cc6e5f4d005a0ef90119a29",
+      "currentSHA256": "179aa1ed4de7711553a74e25763ecebe6a4c75cf4cc6e5f4d005a0ef90119a29"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/WidgetActivityProjectionBuilder.swift",
+      "sourceSHA256": "d5fd017cd8e8b63ed22a1f36ab00d36182d150c0ab51ca96ec64b47c4dbba6e4",
+      "currentSHA256": "d5fd017cd8e8b63ed22a1f36ab00d36182d150c0ab51ca96ec64b47c4dbba6e4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Models/WidgetActivityPublisher.swift",
+      "sourceSHA256": "2b170d97dedc299a9df9d81fc486a1f653a2f7aabc069c4941ff1c0c741ed757",
+      "currentSHA256": "2b170d97dedc299a9df9d81fc486a1f653a2f7aabc069c4941ff1c0c741ed757"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Notifications/DeviceProviderZoneSubscription.swift",
+      "sourceSHA256": "941d6f82ab79e10f910ea2fa2c521e6f72e4999bd4711db9c7a107e4b36a2eb1",
+      "currentSHA256": "941d6f82ab79e10f910ea2fa2c521e6f72e4999bd4711db9c7a107e4b36a2eb1"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Notifications/PushSetupDiagnostic.swift",
+      "sourceSHA256": "9e308bb8536b418c8a659f89885c1a57190efcc58ad294abc8f122728cf67c49",
+      "currentSHA256": "9e308bb8536b418c8a659f89885c1a57190efcc58ad294abc8f122728cf67c49"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Notifications/QuotaTransitionSubscriptions.swift",
+      "sourceSHA256": "6f40c5614624be326cd0ad2c8c7661d14a513d99d12930e8da4f2852dbeff53e",
+      "currentSHA256": "6f40c5614624be326cd0ad2c8c7661d14a513d99d12930e8da4f2852dbeff53e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Preview Content/PreviewData.swift",
+      "sourceSHA256": "6ae0e22c086e3aee8c5a6ff606cf8b7bc9ecb482bfd33e311121757ec47f3f59",
+      "currentSHA256": "6ae0e22c086e3aee8c5a6ff606cf8b7bc9ecb482bfd33e311121757ec47f3f59"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/PrivacyInfo.xcprivacy",
+      "sourceSHA256": "521eb6ef8430773e5c010e1838fe9dd8fa5d62b7b76d1cea8d7d8daadcb144e2",
+      "currentSHA256": "521eb6ef8430773e5c010e1838fe9dd8fa5d62b7b76d1cea8d7d8daadcb144e2"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/CostHistoryWorker.swift",
+      "sourceSHA256": "b2e7b17e5f87f1d4c699e9bf5beb21ddc644b25d120690ca708a378c72dc0bee",
+      "currentSHA256": "b2e7b17e5f87f1d4c699e9bf5beb21ddc644b25d120690ca708a378c72dc0bee"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/CostLedgerModels.swift",
+      "sourceSHA256": "9d86a56927bc22f76d5ac058a5e426e66d642b14bc4be5d5b962e14d02a8c979",
+      "currentSHA256": "9d86a56927bc22f76d5ac058a5e426e66d642b14bc4be5d5b962e14d02a8c979"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/CostLedgerService.swift",
+      "sourceSHA256": "9506e025ec4ea638e10a0c05417530c6660a904480143a5c7d679c6c09faa493",
+      "currentSHA256": "9506e025ec4ea638e10a0c05417530c6660a904480143a5c7d679c6c09faa493"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/ModelContainerFactory.swift",
+      "sourceSHA256": "64204f3fd123a6da8af8091e6563262e9df4c1d5bcf6e8642af7250c329a93a3",
+      "currentSHA256": "64204f3fd123a6da8af8091e6563262e9df4c1d5bcf6e8642af7250c329a93a3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/SwiftDataBridge.swift",
+      "sourceSHA256": "96580ae3825659f792aec5aedc44b1ce12dc5847a329d68ecd3ba0438be254a0",
+      "currentSHA256": "96580ae3825659f792aec5aedc44b1ce12dc5847a329d68ecd3ba0438be254a0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Storage/SwiftDataSchema.swift",
+      "sourceSHA256": "3f578fadeb97f852852935607cb7e195ee63de601368e8475427c0b38e54406e",
+      "currentSHA256": "3f578fadeb97f852852935607cb7e195ee63de601368e8475427c0b38e54406e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/AdaptiveReportPanes.swift",
+      "sourceSHA256": "d3e40497e849c4c21370e8b0c7df376ee52a48312bf7047d37334459cf0a8824",
+      "currentSHA256": "d3e40497e849c4c21370e8b0c7df376ee52a48312bf7047d37334459cf0a8824"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/AlibabaTokenPlanCard.swift",
+      "sourceSHA256": "4bb009ef092a8529836be6f50edddf8d44eec188895f7386e840baf5fba11761",
+      "currentSHA256": "4bb009ef092a8529836be6f50edddf8d44eec188895f7386e840baf5fba11761"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/AntigravityAccountSwitcher.swift",
+      "sourceSHA256": "f22d56edf86b6e33bff347fd06f9eb0f0ef0c8429dde681a0cd36588e50aa12c",
+      "currentSHA256": "f22d56edf86b6e33bff347fd06f9eb0f0ef0c8429dde681a0cd36588e50aa12c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/AzureOpenAIInfoCard.swift",
+      "sourceSHA256": "8b42b824c5a4f54b22c56955b104543495c309ae260236fdf7da066131cd8918",
+      "currentSHA256": "8b42b824c5a4f54b22c56955b104543495c309ae260236fdf7da066131cd8918"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/BedrockCostCard.swift",
+      "sourceSHA256": "7bb6045a0bd5525ca892381bd8279d33678daab7d06d0f29d486547c41904109",
+      "currentSHA256": "7bb6045a0bd5525ca892381bd8279d33678daab7d06d0f29d486547c41904109"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/BudgetProgressView.swift",
+      "sourceSHA256": "5aacbccb9d4e334eedce2fe1879cf54e067460e93887f26e26d6f9af937c44ce",
+      "currentSHA256": "5aacbccb9d4e334eedce2fe1879cf54e067460e93887f26e26d6f9af937c44ce"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ClaudeAdminUsageCard.swift",
+      "sourceSHA256": "47dbd2d0645252a396d8d6fef142310c583c8ddfe267d42ad169ac23276ec92b",
+      "currentSHA256": "47dbd2d0645252a396d8d6fef142310c583c8ddfe267d42ad169ac23276ec92b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ClaudeExtraUsageCard.swift",
+      "sourceSHA256": "eba6aa9e8563e081b25b732cd0cd2883b845556b659ea72e68bfaac5c1314714",
+      "currentSHA256": "eba6aa9e8563e081b25b732cd0cd2883b845556b659ea72e68bfaac5c1314714"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CodexServiceMixView.swift",
+      "sourceSHA256": "fae2728d15fb5fddb9b2319b5cd186145565a4e91bad7be3061a31e30c2e55fc",
+      "currentSHA256": "fae2728d15fb5fddb9b2319b5cd186145565a4e91bad7be3061a31e30c2e55fc"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CodexWorkspaceBadge.swift",
+      "sourceSHA256": "6a217a43115a018b3442068a04efd0b4e687d58173ae085654b9ede0119b09ab",
+      "currentSHA256": "6a217a43115a018b3442068a04efd0b4e687d58173ae085654b9ede0119b09ab"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CostGroupOrderEditor.swift",
+      "sourceSHA256": "ac44891bee9d0690c7f384fc5c35d49f63af2d6f1feec890956469c636e1e9a5",
+      "currentSHA256": "ac44891bee9d0690c7f384fc5c35d49f63af2d6f1feec890956469c636e1e9a5"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CostMetricCard.swift",
+      "sourceSHA256": "afec5b4140ec3dbb8651d3c1c6252cbc7ae6a9ecc8927cf0431b65fd6fd73354",
+      "currentSHA256": "afec5b4140ec3dbb8651d3c1c6252cbc7ae6a9ecc8927cf0431b65fd6fd73354"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CostShareCardView.swift",
+      "sourceSHA256": "b820ebf2cc65c1636a785d16ddd73331fc6a4ab2ef7cb2ede66cfcf953f5fd7e",
+      "currentSHA256": "b820ebf2cc65c1636a785d16ddd73331fc6a4ab2ef7cb2ede66cfcf953f5fd7e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CostShareSheet.swift",
+      "sourceSHA256": "4611a61cd6dbd5fa3d75e837fbc8e71e2313fe072355cb2202cb66ff0706d2f6",
+      "currentSHA256": "4611a61cd6dbd5fa3d75e837fbc8e71e2313fe072355cb2202cb66ff0706d2f6"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CrossModelUsageCard.swift",
+      "sourceSHA256": "ce59bc3deffbef9b8cf9ca7b78aebe1b3b713cab993734d1bc352ba1f5d455e8",
+      "currentSHA256": "ce59bc3deffbef9b8cf9ca7b78aebe1b3b713cab993734d1bc352ba1f5d455e8"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/CyberShareCardView.swift",
+      "sourceSHA256": "adbdd46f0bff129459094b21c05fe933f183fd921fe5e2d55793c233563269bb",
+      "currentSHA256": "adbdd46f0bff129459094b21c05fe933f183fd921fe5e2d55793c233563269bb"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/DeepSeekUsageCard.swift",
+      "sourceSHA256": "9209719c8e3d07b7f05dc6b18f19ace3991fba4f0cad69b865a4352fcfb79ee0",
+      "currentSHA256": "9209719c8e3d07b7f05dc6b18f19ace3991fba4f0cad69b865a4352fcfb79ee0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/DeepgramUsageCard.swift",
+      "sourceSHA256": "0e4cb41a5ec94c2941dda11d2609b7648321f134da524a6045cc1940d42f855c",
+      "currentSHA256": "0e4cb41a5ec94c2941dda11d2609b7648321f134da524a6045cc1940d42f855c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ElevenLabsCreditsCard.swift",
+      "sourceSHA256": "c9bd48d4a681c06e6696c6c8a848d85abf6fc5c9a6b7dddbbd608351cf2ff186",
+      "currentSHA256": "c9bd48d4a681c06e6696c6c8a848d85abf6fc5c9a6b7dddbbd608351cf2ff186"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/EmptyStateView.swift",
+      "sourceSHA256": "631c5398c98c80a276a647fcd0fc70535d74e1310f8ddfad88db515d470a8738",
+      "currentSHA256": "631c5398c98c80a276a647fcd0fc70535d74e1310f8ddfad88db515d470a8738"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/GrokBillingCard.swift",
+      "sourceSHA256": "55450a314ea76fca0f228a11146a405941696ce0917738aa6d4e784107a44af3",
+      "currentSHA256": "55450a314ea76fca0f228a11146a405941696ce0917738aa6d4e784107a44af3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/GroqMetricsCard.swift",
+      "sourceSHA256": "1eaaa1d988f3d51a321ff275db29cd5c211387ec49373f30d3503648880e10b0",
+      "currentSHA256": "1eaaa1d988f3d51a321ff275db29cd5c211387ec49373f30d3503648880e10b0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/HeatmapShareCardView.swift",
+      "sourceSHA256": "44a1d9cc260add32613a395514302a0ca3d4fcd37f8b4a17cb3f95928188ddfa",
+      "currentSHA256": "44a1d9cc260add32613a395514302a0ca3d4fcd37f8b4a17cb3f95928188ddfa"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/KiroCreditsCard.swift",
+      "sourceSHA256": "ec312cb939cc6c1b8b47aef4c522cbba5dd265f679ad77c76950a5521f6ef3fb",
+      "currentSHA256": "ec312cb939cc6c1b8b47aef4c522cbba5dd265f679ad77c76950a5521f6ef3fb"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/LLMProxyStatsCard.swift",
+      "sourceSHA256": "9d453f4a55f08c406ba670c7c94441516b5ce932061d3e8653e425b9fa22b040",
+      "currentSHA256": "9d453f4a55f08c406ba670c7c94441516b5ce932061d3e8653e425b9fa22b040"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MiniMaxBillingCard.swift",
+      "sourceSHA256": "889c6bd523caeac46c34adf1239ae24d8ae11f103f0bc5c6cc1a05961af17bb5",
+      "currentSHA256": "889c6bd523caeac46c34adf1239ae24d8ae11f103f0bc5c6cc1a05961af17bb5"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MobileSurfaceStyle.swift",
+      "sourceSHA256": "c1c6eee0eedf3cc161a50e8cc76721317fc9ff9c3aeb3c1f8057d12ab5aa97c0",
+      "currentSHA256": "c1c6eee0eedf3cc161a50e8cc76721317fc9ff9c3aeb3c1f8057d12ab5aa97c0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MockBadgeView.swift",
+      "sourceSHA256": "b0244257526a5f36e648b44a7b39085115ee3d670b1010daeecc564c5876eb42",
+      "currentSHA256": "b0244257526a5f36e648b44a7b39085115ee3d670b1010daeecc564c5876eb42"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MockProviderBanner.swift",
+      "sourceSHA256": "37f2cb09347bfff5454a0a858e1f03b3574b71951d95a56b83ec05b7840102e0",
+      "currentSHA256": "37f2cb09347bfff5454a0a858e1f03b3574b71951d95a56b83ec05b7840102e0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MoonshotBalanceCard.swift",
+      "sourceSHA256": "c48dbbf92571acf932b1a02bfbf5314a7767844730e09c3c98037a092bfd0777",
+      "currentSHA256": "c48dbbf92571acf932b1a02bfbf5314a7767844730e09c3c98037a092bfd0777"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/MoreAppsView.swift",
+      "sourceSHA256": "d28e9be0899ac696c2a7616166d76dec6a5a08b4abc0aaf0fa45570fd6380a53",
+      "currentSHA256": "d28e9be0899ac696c2a7616166d76dec6a5a08b4abc0aaf0fa45570fd6380a53"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/OnboardingView.swift",
+      "sourceSHA256": "5b6f36a80e2debb319b9257b25aaae023dde407bb9521d2abba476c4984e31b0",
+      "currentSHA256": "5b6f36a80e2debb319b9257b25aaae023dde407bb9521d2abba476c4984e31b0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/OpenAIDashboardSection.swift",
+      "sourceSHA256": "3eae0c744bc77c2077c32475f389092f41e0548f91f5083cf0cdd81cb33acc40",
+      "currentSHA256": "3eae0c744bc77c2077c32475f389092f41e0548f91f5083cf0cdd81cb33acc40"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/OpenCodeGoZenBalanceCard.swift",
+      "sourceSHA256": "c7d6d749272baf455a0edf827d9883cb707fe82028544058b9d650f071cc8a26",
+      "currentSHA256": "c7d6d749272baf455a0edf827d9883cb707fe82028544058b9d650f071cc8a26"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/OpenRouterStatsCard.swift",
+      "sourceSHA256": "88c16f136ce3055c5ac89f37b2e551c4066912db55ae8db92b3cf57714ce555a",
+      "currentSHA256": "88c16f136ce3055c5ac89f37b2e551c4066912db55ae8db92b3cf57714ce555a"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/PerplexityCreditsCard.swift",
+      "sourceSHA256": "a496f8d11998a9a738882311ad23b5d5888ccdd52eeb940f3b80b3cb3d366ed3",
+      "currentSHA256": "a496f8d11998a9a738882311ad23b5d5888ccdd52eeb940f3b80b3cb3d366ed3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ProviderDetailView.swift",
+      "sourceSHA256": "935f529184dbe78f2732998508a67d9c7edb8e960c421c5a47d819ade8fe8651",
+      "currentSHA256": "935f529184dbe78f2732998508a67d9c7edb8e960c421c5a47d819ade8fe8651"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ProviderDetailsView.swift",
+      "sourceSHA256": "1b88282f4a536ce409d240484d94abdc6adfaf3a67a0e8c8e661cf221fb01d29",
+      "currentSHA256": "1b88282f4a536ce409d240484d94abdc6adfaf3a67a0e8c8e661cf221fb01d29"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ProviderSourceNoticeView.swift",
+      "sourceSHA256": "4f226be5a5ee62f7d4399481aad2e56850901918d93898142206178e6dc4e9e2",
+      "currentSHA256": "4f226be5a5ee62f7d4399481aad2e56850901918d93898142206178e6dc4e9e2"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ProviderUsageView.swift",
+      "sourceSHA256": "3bfcbf1949b5a1b641ecfec63c60bf32ffc86559700df301ed4f5443fdab3f22",
+      "currentSHA256": "3bfcbf1949b5a1b641ecfec63c60bf32ffc86559700df301ed4f5443fdab3f22"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/QuotaBurndownSection.swift",
+      "sourceSHA256": "923fef2081feca3d55ef0075af235b17782aa474bfe5299a296033d1393ed305",
+      "currentSHA256": "923fef2081feca3d55ef0075af235b17782aa474bfe5299a296033d1393ed305"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ReleaseNotesView.swift",
+      "sourceSHA256": "2ecafe9eb3375475a7fd9e1eb3140d7fac4a0775f480f1b33baf611101ae1dcd",
+      "currentSHA256": "2ecafe9eb3375475a7fd9e1eb3140d7fac4a0775f480f1b33baf611101ae1dcd"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ResetCreditCalendarSettingsView.swift",
+      "sourceSHA256": "b5ca340f79e75283027a3ad341444180eccc5ca74727f560970334645127e80a",
+      "currentSHA256": "b5ca340f79e75283027a3ad341444180eccc5ca74727f560970334645127e80a"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ResetCreditsCard.swift",
+      "sourceSHA256": "c191979b4d1dc0be767be3e3202f0c8f1a95ad56c0514ddc8969495469183c37",
+      "currentSHA256": "c191979b4d1dc0be767be3e3202f0c8f1a95ad56c0514ddc8969495469183c37"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/SummaryCardEditor.swift",
+      "sourceSHA256": "989b4e7879ab5340760f5d15af6d641dd70cde2fbdd6c7688e7405daeb5e9c6b",
+      "currentSHA256": "989b4e7879ab5340760f5d15af6d641dd70cde2fbdd6c7688e7405daeb5e9c6b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/SummaryInfoView.swift",
+      "sourceSHA256": "eefed71d2daa0b6243afde14176df6820e374aae93a52de16289c3f5b3174fd3",
+      "currentSHA256": "eefed71d2daa0b6243afde14176df6820e374aae93a52de16289c3f5b3174fd3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/SummaryModuleGrid.swift",
+      "sourceSHA256": "478181f3adc330901c4b83a0b65a66cd5f71090b0cf9e7a4e82bb1be3f24cb23",
+      "currentSHA256": "478181f3adc330901c4b83a0b65a66cd5f71090b0cf9e7a4e82bb1be3f24cb23"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/SummaryTab.swift",
+      "sourceSHA256": "3bdc9b50078c9cccf1fa77bc6bc715f0432aff3c589b196ecb4588e1a0cdde70",
+      "currentSHA256": "3bdc9b50078c9cccf1fa77bc6bc715f0432aff3c589b196ecb4588e1a0cdde70"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/SyncedDailyActivityView.swift",
+      "sourceSHA256": "0038ce1fd2af0388b59a8503afaf23cbef2dcdb06eb77ccac0d02010709eae45",
+      "currentSHA256": "0038ce1fd2af0388b59a8503afaf23cbef2dcdb06eb77ccac0d02010709eae45"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/TokenActivityView.swift",
+      "sourceSHA256": "eb6cdb33e85cc3dca47b08e85a0a260fd8f5a08d33ff2dbf774c0fb37d571076",
+      "currentSHA256": "eb6cdb33e85cc3dca47b08e85a0a260fd8f5a08d33ff2dbf774c0fb37d571076"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageCardSettingsViews.swift",
+      "sourceSHA256": "27b7976e688a260733798b0664950444ca60d7511ee26151c947476868736ff3",
+      "currentSHA256": "27b7976e688a260733798b0664950444ca60d7511ee26151c947476868736ff3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageCardView.swift",
+      "sourceSHA256": "478f27c44f14a62f4a8e5e5de2df8b3c7f1aca2128657e32d09a0c7951c4d117",
+      "currentSHA256": "478f27c44f14a62f4a8e5e5de2df8b3c7f1aca2128657e32d09a0c7951c4d117"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageQuotaDetailView.swift",
+      "sourceSHA256": "5f39b6965f40910316dc71862e9d09b9fe3cda809d187f8fd9af77d5f11e0771",
+      "currentSHA256": "5f39b6965f40910316dc71862e9d09b9fe3cda809d187f8fd9af77d5f11e0771"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageQuotaEditor.swift",
+      "sourceSHA256": "a857513621141fdafe117d2d870e15f13992a91b10e6f20275fd9a863e799f01",
+      "currentSHA256": "a857513621141fdafe117d2d870e15f13992a91b10e6f20275fd9a863e799f01"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageQuotaHistoryChart.swift",
+      "sourceSHA256": "2b7cd440aaf34d6378394ba3e3536475fd83bf4af650543e7fd60729ef5643ac",
+      "currentSHA256": "2b7cd440aaf34d6378394ba3e3536475fd83bf4af650543e7fd60729ef5643ac"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageQuotaOverviewView.swift",
+      "sourceSHA256": "1a0d94c91b22de04327b3c78979da1771837783076f3116860f19add722c2b52",
+      "currentSHA256": "1a0d94c91b22de04327b3c78979da1771837783076f3116860f19add722c2b52"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UsageSidebarSummary.swift",
+      "sourceSHA256": "829892603ea073c003577c3281ab4a4221af2a62e1e1b8bcf8d4bd0796f4d4d4",
+      "currentSHA256": "829892603ea073c003577c3281ab4a4221af2a62e1e1b8bcf8d4bd0796f4d4d4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UtilizationAggregateView.swift",
+      "sourceSHA256": "908ce272adaf0cca76ccd5ce6c1940c3706dc1b47484c2a476d1c62162248959",
+      "currentSHA256": "908ce272adaf0cca76ccd5ce6c1940c3706dc1b47484c2a476d1c62162248959"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/UtilizationHistoryView.swift",
+      "sourceSHA256": "2ca03753be1d8780f4b5c18ad3bf131f6c7c5382dfef2fe784f9938020315fcf",
+      "currentSHA256": "2ca03753be1d8780f4b5c18ad3bf131f6c7c5382dfef2fe784f9938020315fcf"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/V045ProviderCards.swift",
+      "sourceSHA256": "89b84caf95671f7c79d3243b75d082472a9493cf1cd07958317141ff2289cf0c",
+      "currentSHA256": "89b84caf95671f7c79d3243b75d082472a9493cf1cd07958317141ff2289cf0c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ZaiHourlyChart.swift",
+      "sourceSHA256": "24ad00a39fb045190ef8b69de382333cc317ab2f1866587df662ac2d0c7ade20",
+      "currentSHA256": "24ad00a39fb045190ef8b69de382333cc317ab2f1866587df662ac2d0c7ade20"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/Views/ZoomMateCreditsCard.swift",
+      "sourceSHA256": "5536a905e41eacee0411a18a436acacb3552013c800b3564e77626edf1d06d40",
+      "currentSHA256": "5536a905e41eacee0411a18a436acacb3552013c800b3564e77626edf1d06d40"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/en.lproj/WidgetActivity.strings",
+      "sourceSHA256": "ed5990005a9e456f26b63f8b39d290599feca0ec19f3937c8befb33f31a45cab",
+      "currentSHA256": "ed5990005a9e456f26b63f8b39d290599feca0ec19f3937c8befb33f31a45cab"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/iCloud/CloudSyncReader.swift",
+      "sourceSHA256": "c0e088126c347dd4b2aa80efd42c4f10e9687fdc34c02c96c1277d113167cb73",
+      "currentSHA256": "c0e088126c347dd4b2aa80efd42c4f10e9687fdc34c02c96c1277d113167cb73"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/ja.lproj/WidgetActivity.strings",
+      "sourceSHA256": "8e3bfe0d14a994b3c3c99717bbbb290b8ddb0935208976535d02ba43bf8e65c3",
+      "currentSHA256": "8e3bfe0d14a994b3c3c99717bbbb290b8ddb0935208976535d02ba43bf8e65c3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/zh-Hans.lproj/WidgetActivity.strings",
+      "sourceSHA256": "444937eae2714b72e592c197a21b3e422c13329e13fce148f9613e7910f1b7b3",
+      "currentSHA256": "444937eae2714b72e592c197a21b3e422c13329e13fce148f9613e7910f1b7b3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobile/zh-Hant.lproj/WidgetActivity.strings",
+      "sourceSHA256": "b2f49fa6d631033d47498f3b6e84675679d575d9f76871a91689b5a4d61eae62",
+      "currentSHA256": "b2f49fa6d631033d47498f3b6e84675679d575d9f76871a91689b5a4d61eae62"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobilePushExtension/Info.plist",
+      "sourceSHA256": "cc74dd4959aed72a75c9a35894f7afb5bfe9abbe087289a770ae737b8092c64f",
+      "currentSHA256": "cc74dd4959aed72a75c9a35894f7afb5bfe9abbe087289a770ae737b8092c64f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobilePushExtension/NotificationService.swift",
+      "sourceSHA256": "c8577521bd8ed9f4162d513eca2724619d50020ecb4aece89ad7cc19df4ad196",
+      "currentSHA256": "c8577521bd8ed9f4162d513eca2724619d50020ecb4aece89ad7cc19df4ad196"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobilePushExtension/PushExtension.entitlements",
+      "sourceSHA256": "300263d66400b00b1e9e8f02c9e0fc00ab326646be01bd9850a4813ab3554110",
+      "currentSHA256": "300263d66400b00b1e9e8f02c9e0fc00ab326646be01bd9850a4813ab3554110"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgetOptions/Info.plist",
+      "sourceSHA256": "ac6786efcd60aab60ab7fe46835806f83bcad93a4d41005fd1607ac69412befd",
+      "currentSHA256": "ac6786efcd60aab60ab7fe46835806f83bcad93a4d41005fd1607ac69412befd"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgetOptions/IntentHandler.swift",
+      "sourceSHA256": "36d491975ecbccac378c80a1b6f57e5a2f124457081a349d98a3d146b52a164b",
+      "currentSHA256": "36d491975ecbccac378c80a1b6f57e5a2f124457081a349d98a3d146b52a164b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgetOptions/Localizable.xcstrings",
+      "sourceSHA256": "514116617087b92b9df3a11918db2efae50fc13e8591a7b815a34b835009a094",
+      "currentSHA256": "514116617087b92b9df3a11918db2efae50fc13e8591a7b815a34b835009a094"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgetOptions/WidgetOptions.entitlements",
+      "sourceSHA256": "c9e44d502d78682db23005162769456a0fec655998d448bc856c607b52d5edd0",
+      "currentSHA256": "c9e44d502d78682db23005162769456a0fec655998d448bc856c607b52d5edd0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/Base.lproj/WidgetActivity.intentdefinition",
+      "sourceSHA256": "be9388d4fb774fb657efd10d39eae20410283a4b0bd3b973c31433ae9f559c78",
+      "currentSHA256": "be9388d4fb774fb657efd10d39eae20410283a4b0bd3b973c31433ae9f559c78"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/CodexBarWidgetTimeline.swift",
+      "sourceSHA256": "9fd2c80a4056c71082b4688156816231341dc1bcf15c8b50742452efee210b81",
+      "currentSHA256": "9fd2c80a4056c71082b4688156816231341dc1bcf15c8b50742452efee210b81"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/CodexBarWidgets.swift",
+      "sourceSHA256": "1721ea76af9db25625afd96240a920a82a8c269775e0442a154e16b92b45e80f",
+      "currentSHA256": "1721ea76af9db25625afd96240a920a82a8c269775e0442a154e16b92b45e80f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/Info.plist",
+      "sourceSHA256": "74672f84665a19d137d559bb54eee9d625e4fffa1ff63396c6a14c07b1aebad6",
+      "currentSHA256": "74672f84665a19d137d559bb54eee9d625e4fffa1ff63396c6a14c07b1aebad6"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/StatusWidgetTimeline.swift",
+      "sourceSHA256": "31cae1149cb3399705937c29f18185c263b78cf3951ea1b3af4435fabf769eaa",
+      "currentSHA256": "31cae1149cb3399705937c29f18185c263b78cf3951ea1b3af4435fabf769eaa"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/WidgetActivityTimeline.swift",
+      "sourceSHA256": "3071e32da964a3716bc5118db83d1f76ca16d601cc566055b2f5e2e4cade94fc",
+      "currentSHA256": "3071e32da964a3716bc5118db83d1f76ca16d601cc566055b2f5e2e4cade94fc"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/WidgetExtension.entitlements",
+      "sourceSHA256": "42f9a40e91baa0eaf58cbb63669ce305ba28e6ef90cf5e949ae866fb39f5ae1d",
+      "currentSHA256": "42f9a40e91baa0eaf58cbb63669ce305ba28e6ef90cf5e949ae866fb39f5ae1d"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/en.lproj/WidgetActivity.strings",
+      "sourceSHA256": "ed5990005a9e456f26b63f8b39d290599feca0ec19f3937c8befb33f31a45cab",
+      "currentSHA256": "ed5990005a9e456f26b63f8b39d290599feca0ec19f3937c8befb33f31a45cab"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/ja.lproj/WidgetActivity.strings",
+      "sourceSHA256": "8e3bfe0d14a994b3c3c99717bbbb290b8ddb0935208976535d02ba43bf8e65c3",
+      "currentSHA256": "8e3bfe0d14a994b3c3c99717bbbb290b8ddb0935208976535d02ba43bf8e65c3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/zh-Hans.lproj/WidgetActivity.strings",
+      "sourceSHA256": "444937eae2714b72e592c197a21b3e422c13329e13fce148f9613e7910f1b7b3",
+      "currentSHA256": "444937eae2714b72e592c197a21b3e422c13329e13fce148f9613e7910f1b7b3"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarMobileWidgets/zh-Hant.lproj/WidgetActivity.strings",
+      "sourceSHA256": "b2f49fa6d631033d47498f3b6e84675679d575d9f76871a91689b5a4d61eae62",
+      "currentSHA256": "b2f49fa6d631033d47498f3b6e84675679d575d9f76871a91689b5a4d61eae62"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/Base.lproj/WidgetStatus.intentdefinition",
+      "sourceSHA256": "f9383e00f0ac112840a3a060a956ab9aba04a64c65b7ba925553d1cfbdd6821e",
+      "currentSHA256": "f9383e00f0ac112840a3a060a956ab9aba04a64c65b7ba925553d1cfbdd6821e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetEntry.swift",
+      "sourceSHA256": "f30692fcd92a99006056cce01837c1faea388b531858e9655ccabd80c8a7806e",
+      "currentSHA256": "f30692fcd92a99006056cce01837c1faea388b531858e9655ccabd80c8a7806e"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetIntent.swift",
+      "sourceSHA256": "b86da070633b675010f69dc30dc6df8ef9ae696f3be92741ecfa138b446074ed",
+      "currentSHA256": "b86da070633b675010f69dc30dc6df8ef9ae696f3be92741ecfa138b446074ed"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetSnapshot.swift",
+      "sourceSHA256": "2f308c92dea4ec99bcb8e7525442e18343560d1e9388ff4dfa00ba85002cc0a0",
+      "currentSHA256": "2f308c92dea4ec99bcb8e7525442e18343560d1e9388ff4dfa00ba85002cc0a0"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/CodexBarWidgetView.swift",
+      "sourceSHA256": "269122ca7af70ed4803b9b13ffb8412da7c7cb793622eae873a3b4190450a8c4",
+      "currentSHA256": "269122ca7af70ed4803b9b13ffb8412da7c7cb793622eae873a3b4190450a8c4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/DeviceSnapshotResolver.swift",
+      "sourceSHA256": "39c2d3d46115638f66313eaec416e573f181aee65fa6b8c5e4607c5536feb78d",
+      "currentSHA256": "39c2d3d46115638f66313eaec416e573f181aee65fa6b8c5e4607c5536feb78d"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/MobileLocalizedString.swift",
+      "sourceSHA256": "542d4f3aee77f9cadbeb4313579e2aaf9a88d8a47673ec7185d43e496ff28efd",
+      "currentSHA256": "542d4f3aee77f9cadbeb4313579e2aaf9a88d8a47673ec7185d43e496ff28efd"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/MobileQuotaBurndown.swift",
+      "sourceSHA256": "a1b9747cf28c497565c7e02edd0189d3584ddcc976b8a362f8c06cf6ca5d5e65",
+      "currentSHA256": "a1b9747cf28c497565c7e02edd0189d3584ddcc976b8a362f8c06cf6ca5d5e65"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ProviderDetailLocalization.swift",
+      "sourceSHA256": "7ff489194d0ef97c6c048e9e8b7797f5e3c2eef173bedb2635603983ebc04f2b",
+      "currentSHA256": "7ff489194d0ef97c6c048e9e8b7797f5e3c2eef173bedb2635603983ebc04f2b"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ProviderSnapshotMerger.swift",
+      "sourceSHA256": "77d3cfde6eed1dbfda0d3eec3925114a25404b37a37a934a95517b1365172e36",
+      "currentSHA256": "77d3cfde6eed1dbfda0d3eec3925114a25404b37a37a934a95517b1365172e36"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ProviderSourceStatus.swift",
+      "sourceSHA256": "e38d1dad31ffab6f878c5cb593dcbe9e62510806522065b1feb0ad0d4f6b5a41",
+      "currentSHA256": "e38d1dad31ffab6f878c5cb593dcbe9e62510806522065b1feb0ad0d4f6b5a41"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ProviderWindowLabel.swift",
+      "sourceSHA256": "7cb39f9759aaab48086c634023e5fe2bb5c75708451b7b545aa1289c5e1fdb21",
+      "currentSHA256": "7cb39f9759aaab48086c634023e5fe2bb5c75708451b7b545aa1289c5e1fdb21"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/QuotaPace.swift",
+      "sourceSHA256": "3b7cdebf75550395349da0c757e7e4ba8d85d522e7081a5f9744a6fc4a69504c",
+      "currentSHA256": "3b7cdebf75550395349da0c757e7e4ba8d85d522e7081a5f9744a6fc4a69504c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/QuotaPaceWindowSelection.swift",
+      "sourceSHA256": "4c6e1887336b38d6edc77961848edde4d62e72745599dd9130c45318a11d5310",
+      "currentSHA256": "4c6e1887336b38d6edc77961848edde4d62e72745599dd9130c45318a11d5310"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/QuotaResetDateText.swift",
+      "sourceSHA256": "01972557d81164d3ffe31bbbc8da14a0d9bf9f0971466c64ea808c6ba59943bf",
+      "currentSHA256": "01972557d81164d3ffe31bbbc8da14a0d9bf9f0971466c64ea808c6ba59943bf"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/StatusWidgetConfigurationAdapter.swift",
+      "sourceSHA256": "69fe41c5a001d1f35bdae1895c3e852a747dbbd228fc287b8b409c688a32313f",
+      "currentSHA256": "69fe41c5a001d1f35bdae1895c3e852a747dbbd228fc287b8b409c688a32313f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WeeklyResetWindow.swift",
+      "sourceSHA256": "72b50baae434a5cc8b1bfc0ec09a98567934f870f2d24efeff604616804bd875",
+      "currentSHA256": "72b50baae434a5cc8b1bfc0ec09a98567934f870f2d24efeff604616804bd875"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetActivityProjection.swift",
+      "sourceSHA256": "f8ee55bd41042a5262a2d7ccc6ccc1bf605fd01222914d16eeab4645f79bc0b4",
+      "currentSHA256": "f8ee55bd41042a5262a2d7ccc6ccc1bf605fd01222914d16eeab4645f79bc0b4"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetActivityView.swift",
+      "sourceSHA256": "5b8ef73bb133c293327fcf31a505a89795c49b89502aaf5220db823918ed7520",
+      "currentSHA256": "5b8ef73bb133c293327fcf31a505a89795c49b89502aaf5220db823918ed7520"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetConfiguration.xcstrings",
+      "sourceSHA256": "f08a6f6ec8f3e0fa0f48a895fa8a2ea1260211d7cb831fdc3f47e4093618f442",
+      "currentSHA256": "f08a6f6ec8f3e0fa0f48a895fa8a2ea1260211d7cb831fdc3f47e4093618f442"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetConfigurationAppIntents.swift",
+      "sourceSHA256": "23e2dffa150a79ef70d3b09d2a8ba221267c4f5fe258723afd77a4570395a913",
+      "currentSHA256": "23e2dffa150a79ef70d3b09d2a8ba221267c4f5fe258723afd77a4570395a913"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetLocalQuotaHistory.swift",
+      "sourceSHA256": "9649f218af03ac5eca62cfdd3fd5839acc068e137e178a973724929b1cbf3064",
+      "currentSHA256": "9649f218af03ac5eca62cfdd3fd5839acc068e137e178a973724929b1cbf3064"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetProviderCatalogue.swift",
+      "sourceSHA256": "a10a3719e9280af2f8434c0cf8148619f15e87511e32dbc39ae77131d6fc5a02",
+      "currentSHA256": "a10a3719e9280af2f8434c0cf8148619f15e87511e32dbc39ae77131d6fc5a02"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/WidgetProviderSelection.swift",
+      "sourceSHA256": "486b456e9060557b1034a6e6f495839846632dac344c3b04ca6eb8c12be2d32f",
+      "currentSHA256": "486b456e9060557b1034a6e6f495839846632dac344c3b04ca6eb8c12be2d32f"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/en.lproj/WidgetStatus.strings",
+      "sourceSHA256": "030a73a333ea5bdae10e14fc1e3a7792eeabcc3dc17bdf326785dbf79d8607ff",
+      "currentSHA256": "030a73a333ea5bdae10e14fc1e3a7792eeabcc3dc17bdf326785dbf79d8607ff"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ja.lproj/WidgetStatus.strings",
+      "sourceSHA256": "7ce422ad3a43c741545207988a3b384c298d3fe8122e333ee3725f8de7566bf9",
+      "currentSHA256": "7ce422ad3a43c741545207988a3b384c298d3fe8122e333ee3725f8de7566bf9"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/zh-Hans.lproj/WidgetStatus.strings",
+      "sourceSHA256": "fdecdb8f82689b78ecd46d5876af4edfa7b1b551998c9a414b09d0425955e06c",
+      "currentSHA256": "fdecdb8f82689b78ecd46d5876af4edfa7b1b551998c9a414b09d0425955e06c"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/zh-Hant.lproj/WidgetStatus.strings",
+      "sourceSHA256": "54e235130de1fa061272cde9898f056d5d6fca47d4cf9a31f8af35d6c25f9349",
+      "currentSHA256": "54e235130de1fa061272cde9898f056d5d6fca47d4cf9a31f8af35d6c25f9349"
+    },
+    {
+      "path": "CodexBarMobile/Package.swift",
+      "sourceSHA256": "bc40d4f4115c4098cd7c6c6f1d956b2e94cc724819cf309d88783a261f07d7c1",
+      "currentSHA256": "bc40d4f4115c4098cd7c6c6f1d956b2e94cc724819cf309d88783a261f07d7c1"
+    },
+    {
+      "path": "CodexBarMobile/project.yml",
+      "sourceSHA256": "ccbbf45222081a7457406fdb94f0008923889592b17db69754c468d76c24491c",
+      "currentSHA256": "ccbbf45222081a7457406fdb94f0008923889592b17db69754c468d76c24491c"
+    },
+    {
+      "path": "Shared/Models/DeviceLifecycleEvent.swift",
+      "sourceSHA256": "720428bc3764fcd160cd60184cccfdcadacedf823debace41811c1fca1c2db47",
+      "currentSHA256": "720428bc3764fcd160cd60184cccfdcadacedf823debace41811c1fca1c2db47"
+    },
+    {
+      "path": "Shared/Models/ProviderAccountLinkage.swift",
+      "sourceSHA256": "3c88e89e83a51455e027048e3e35fe122d08a1e9e67d518b77b383846b1dbdb4",
+      "currentSHA256": "3c88e89e83a51455e027048e3e35fe122d08a1e9e67d518b77b383846b1dbdb4"
+    },
+    {
+      "path": "Shared/Models/ProviderUsageEnvelope.swift",
+      "sourceSHA256": "38911efe06298fb5f2c1499d0a5afc5e94627eb0d333c39e4ef5e5405a14125a",
+      "currentSHA256": "38911efe06298fb5f2c1499d0a5afc5e94627eb0d333c39e4ef5e5405a14125a"
+    },
+    {
+      "path": "Shared/Models/SyncQuotaWarningConfig.swift",
+      "sourceSHA256": "da604993f5f2f86f33f0e060f65054ce29f692649b74cc2784eb3b68a324f13d",
+      "currentSHA256": "da604993f5f2f86f33f0e060f65054ce29f692649b74cc2784eb3b68a324f13d"
+    },
+    {
+      "path": "Shared/Models/UsageSnapshot.swift",
+      "sourceSHA256": "0a6656cd84c4a62c1d035742db818a9a7dd6701ee2a7401fae4a4ba2db8c5ab7",
+      "currentSHA256": "0a6656cd84c4a62c1d035742db818a9a7dd6701ee2a7401fae4a4ba2db8c5ab7"
+    },
+    {
+      "path": "Shared/Models/V026Snapshots.swift",
+      "sourceSHA256": "f8e0ab8d859deb8cb5bfab15e0943964e7ef46702fc1b07e941ffb288ca16173",
+      "currentSHA256": "f8e0ab8d859deb8cb5bfab15e0943964e7ef46702fc1b07e941ffb288ca16173"
+    },
+    {
+      "path": "Shared/Models/V027Snapshots.swift",
+      "sourceSHA256": "22612fd9ace921c4afad77f21f00ee7b8fd32123d0625b939178e316c8809c73",
+      "currentSHA256": "22612fd9ace921c4afad77f21f00ee7b8fd32123d0625b939178e316c8809c73"
+    },
+    {
+      "path": "Shared/Models/V029Snapshots.swift",
+      "sourceSHA256": "310d3d3977cd41821b45476e363118c37162c1680bf4b8d38509c5cc633b93b3",
+      "currentSHA256": "310d3d3977cd41821b45476e363118c37162c1680bf4b8d38509c5cc633b93b3"
+    },
+    {
+      "path": "Shared/Models/V030Snapshots.swift",
+      "sourceSHA256": "18646269d15ab40665e411b0dbcd0df1b49fdc93d06320f382e36db3c43ef68e",
+      "currentSHA256": "18646269d15ab40665e411b0dbcd0df1b49fdc93d06320f382e36db3c43ef68e"
+    },
+    {
+      "path": "Shared/Models/V037Snapshots.swift",
+      "sourceSHA256": "4b6b7432f0f7104258975644777d59f2461d953d1a2d18ca5ea8bce05c9cbd5d",
+      "currentSHA256": "4b6b7432f0f7104258975644777d59f2461d953d1a2d18ca5ea8bce05c9cbd5d"
+    },
+    {
+      "path": "Shared/Models/V039Snapshots.swift",
+      "sourceSHA256": "580325d2ba2f439caa0cba574d320cda995d7a6205e7fe267637d8989334be45",
+      "currentSHA256": "580325d2ba2f439caa0cba574d320cda995d7a6205e7fe267637d8989334be45"
+    },
+    {
+      "path": "Shared/Models/V045ProviderSnapshots.swift",
+      "sourceSHA256": "ba29e1c98c85d23a1430e3cb79dfce14b7645b082e64cb45b1c1a059538c4cb4",
+      "currentSHA256": "ba29e1c98c85d23a1430e3cb79dfce14b7645b082e64cb45b1c1a059538c4cb4"
+    },
+    {
+      "path": "Shared/Models/V047Snapshots.swift",
+      "sourceSHA256": "4ebd4566d9c880893da1e5318c72b8a061b4440a70ee0063ab60f03c424f6f3b",
+      "currentSHA256": "4ebd4566d9c880893da1e5318c72b8a061b4440a70ee0063ab60f03c424f6f3b"
+    },
+    {
+      "path": "Shared/Models/V077Snapshots.swift",
+      "sourceSHA256": "d900fd91fce69ab6328a488cb909010f09013a8b6936a83032e55a2bcdfa42ba",
+      "currentSHA256": "d900fd91fce69ab6328a488cb909010f09013a8b6936a83032e55a2bcdfa42ba"
+    },
+    {
+      "path": "Shared/Notifications/NSEInvocationLog.swift",
+      "sourceSHA256": "fa6d910750a0f362380d10b633c0381dc31aa93f19a300453e0b7882db24a294",
+      "currentSHA256": "fa6d910750a0f362380d10b633c0381dc31aa93f19a300453e0b7882db24a294"
+    },
+    {
+      "path": "Shared/Notifications/QuotaProviderList.swift",
+      "sourceSHA256": "1ac7fd846948f64487da9eac946acd57d9b129d94c75457ead46539a5d0a630e",
+      "currentSHA256": "1ac7fd846948f64487da9eac946acd57d9b129d94c75457ead46539a5d0a630e"
+    },
+    {
+      "path": "Shared/Notifications/QuotaZoneNotificationParser.swift",
+      "sourceSHA256": "ce85e35538c4bb4193031cad6afe9a38687e45c80ff1846d781f2827890d03ed",
+      "currentSHA256": "ce85e35538c4bb4193031cad6afe9a38687e45c80ff1846d781f2827890d03ed"
+    },
+    {
+      "path": "Shared/Utilities/EmailRedaction.swift",
+      "sourceSHA256": "5de98f5d6576d2839bea52bbdfc9388aa58caa771e85809d0af52bb2319f6c6d",
+      "currentSHA256": "5de98f5d6576d2839bea52bbdfc9388aa58caa771e85809d0af52bb2319f6c6d"
+    },
+    {
+      "path": "Shared/iCloud/AccountIdentityNormalize.swift",
+      "sourceSHA256": "9c43b103e34a0b5405a71212bb6b760f2070e27c34b84d4872bce20cbdfa754f",
+      "currentSHA256": "9c43b103e34a0b5405a71212bb6b760f2070e27c34b84d4872bce20cbdfa754f"
+    },
+    {
+      "path": "Shared/iCloud/CloudConstants.swift",
+      "sourceSHA256": "4cfec6571d99ed7bbb5db75b0994440c2d25ab61875d1bc7bb11483058fa9b46",
+      "currentSHA256": "4cfec6571d99ed7bbb5db75b0994440c2d25ab61875d1bc7bb11483058fa9b46"
+    },
+    {
+      "path": "Shared/iCloud/CloudOperationDeadline.swift",
+      "sourceSHA256": "da92dc83156199ff44f63af5f6a1c7213f9236567fa5e861bf68c3c971c951c2",
+      "currentSHA256": "da92dc83156199ff44f63af5f6a1c7213f9236567fa5e861bf68c3c971c951c2"
+    },
+    {
+      "path": "Shared/iCloud/CloudSyncManager.swift",
+      "sourceSHA256": "fc8516c7e6609b92802751775a2b04250e8f78c23fc49e2703e90c26ca970b53",
+      "currentSHA256": "fc8516c7e6609b92802751775a2b04250e8f78c23fc49e2703e90c26ca970b53"
+    },
+    {
+      "path": "Shared/iCloud/PayloadCompression.swift",
+      "sourceSHA256": "6d2e0f6ee5372a548f7ee55f6e655e186523eb4f35736df8ec17f928c0853ca3",
+      "currentSHA256": "6d2e0f6ee5372a548f7ee55f6e655e186523eb4f35736df8ec17f928c0853ca3"
+    }
+  ],
+  "mismatches": []
+}
