@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "c8f491f90bc4720b73d9d7f22bd55b64eceb3379",
+  "sourceCommit": "a6ab1035b56be911e64479feb3c90696ded4edcb",
   "parserHash": "c546274ea6111fa7",
   "exitCode": 0,
   "stats": {
@@ -16,12 +16,13 @@
     "Recovered groups": 0,
     "Timed out groups": 0,
     "Isolated selection retries": 0,
-    "Discovery seconds": "165.7",
-    "Execution seconds": "606.1",
-    "Total seconds": "775.2"
+    "Discovery seconds": "11.9",
+    "Execution seconds": "547.0",
+    "Total seconds": "562.1"
   },
-  "logSHA256": "b94d97e339ff667a295435d31b968f0eda1d06e89d7230af5ccc34af5bf16adb",
-  "logBytes": 14528344,
+  "logSHA256": "bdccf53fd18f710b04c02366bf1c8e99cf4c51305bf82104eb0bf698e260f06f",
+  "logBytes": 14529278,
   "command": "ci_swift_test_by_suite.py --group-size 24 --direct-workers 4 --no-retry-non-timeout-failures",
-  "keychainAndSourceIsolation": true
+  "keychainAndSourceIsolation": true,
+  "includesSaveConfirmationRegression": true
 }

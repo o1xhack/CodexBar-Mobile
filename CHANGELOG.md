@@ -4,7 +4,7 @@
 
 ### Highlights — Mobile 3.3.0
 - Sync upstream v0.83.0: OpenDesign quotas, plugin layouts and browser support, Codex account names and reminders, archived cost history, Sol Fast pricing, provider fixes and safer iCloud retries.
-- Preserve fork multi-account sync and cost history; compatible iPhones receive organization credits, rewards and updated quota details.
+- Preserve fork multi-account sync and cost history, including uploads with Claude/Grok reset credits; compatible iPhones receive organization credits, rewards and updated quota details.
 - Companion Mobile 3.3.0 is the verified public version; iOS 3.5.0 (263) is prepared separately as a local candidate.
 
 ## 0.83.0 — 2026-10-31

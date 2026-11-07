@@ -1,7 +1,7 @@
 import subprocess,plistlib,json,hashlib,os,zipfile,re,datetime
 from pathlib import Path
 r=Path('/Volumes/StudioSSD/Projects/working/apple/CodexBar');s=Path('/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v083');os.chdir(r)
-out=s/'mac-artifact-verification';out.mkdir()
+out=s/'mac-artifact-verification-a6ab1035b';out.mkdir()
 name='CodexBar-0.83.0.1-mobile.3.3.0'; assetRoot=r/'CodexBarMobile/build/upstream-v083'; files=[assetRoot/(name+'.zip'),assetRoot/(name+'.dSYM.zip')]
 def run(args): return subprocess.check_output(args,stderr=subprocess.STDOUT).decode().strip()
 def sha(p):

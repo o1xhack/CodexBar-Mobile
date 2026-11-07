@@ -1,33 +1,35 @@
 {
-  "verifiedAt": "2026-11-06T23:43:20.970970+00:00",
+  "verifiedAt": "2026-11-07T00:26:55.829699+00:00",
   "releaseID": 437184008,
   "url": "https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-63e998e5e7fd7aeec74e",
-  "tagName": "v0.83.0.1-mobile.3.3.0",
+  "tagName": "untagged-63e998e5e7fd7aeec74e",
+  "logicalTag": "v0.83.0.1-mobile.3.3.0",
   "draft": true,
   "publishedAt": null,
   "targetCommitish": "mobile-dev",
   "targetRole": "placeholder only; not the artifact source",
-  "artifactSourceCommit": "c8f491f90bc4720b73d9d7f22bd55b64eceb3379",
+  "artifactSourceCommit": "a6ab1035b56be911e64479feb3c90696ded4edcb",
   "remoteGitTagExists": false,
   "assets": [
     {
-      "id": 718964440,
+      "id": 719069982,
       "name": "CodexBar-0.83.0.1-mobile.3.3.0.dSYM.zip",
-      "size": 74645383,
-      "digest": "sha256:4bfc96a54e531ce095ebf67f4abf4b640627089f97046937d777b527ee63f551",
+      "size": 74666544,
+      "digest": "sha256:fd39aaabe3f6494402d09ee7d2b2645aeaee21a8772ac12bcc5fa08ad6b1ffa7",
       "state": "uploaded",
       "browser_download_url": "https://github.com/o1xhack/CodexBar-Mobile/releases/download/untagged-63e998e5e7fd7aeec74e/CodexBar-0.83.0.1-mobile.3.3.0.dSYM.zip"
     },
     {
-      "id": 718964439,
+      "id": 719069981,
       "name": "CodexBar-0.83.0.1-mobile.3.3.0.zip",
-      "size": 93697736,
-      "digest": "sha256:68b25748ca88838f260c031e6ac8b4e458fa0c31c9ab8a488c6e9ad60f895c6c",
+      "size": 93704893,
+      "digest": "sha256:5144b088ae5844d61ece3d6cfc0a32a50f2bd0e2b20701e4ad24382560533469",
       "state": "uploaded",
       "browser_download_url": "https://github.com/o1xhack/CodexBar-Mobile/releases/download/untagged-63e998e5e7fd7aeec74e/CodexBar-0.83.0.1-mobile.3.3.0.zip"
     }
   ],
   "remoteDigestsMatchLocal": true,
   "sparkleZIPSignatureVerifiedAgainstEmbeddedPublicKey": true,
-  "sparkleSignature": "pONfvnq5/Apbi5rhB3ZUlam8kOPQLrMEYuVkUIiXqQjlZzlQ++vmPSVDidRMO/XP1r/tluD9A3fEXUtKXrUGCQ=="
+  "sparkleSignature": "HRdydyrvvZgri0b86uDI7jykJqWYf33+3CL3zOepIByuXTCFMaXqsHuPyu2X0CuWZJckpSH1XKS98bMQSpjRCQ==",
+  "replacesSource": "c8f491f90bc4720b73d9d7f22bd55b64eceb3379"
 }

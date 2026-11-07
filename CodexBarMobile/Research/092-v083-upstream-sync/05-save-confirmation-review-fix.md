@@ -1,6 +1,6 @@
 # 追加远端审查：无损 save-result 确认
 
-状态：in-progress；最终Mac产物须替换，旧c8f候选不能作为本轮最终交付。
+状态：done（修复、本地验证与Mac重建完成；远端当前head审查/线程关闭以PR实时结果为准）。
 
 PR232的dfa3dc0b8先收到手动审查clean回执；标记ready触发同head追加自动审查，发现[P1](https://github.com/o1xhack/CodexBar-Mobile/pull/232#discussion_r4498894600)。旧回执及Fast Checks不是追加审查完成的替代；本轮交接同时核对实时Codex Review Summary、receipt、threads与checks。
 
@@ -14,4 +14,4 @@ Claude/Grok原生reset-credit行只允许live展示；UsageSnapshot.init(from:)�
 
 CloudSyncBatchRecordProviderTests专项6个方法（13个参数化执行）通过：Claude/Grok live-only decode确实改变旧hash、成功确认清pending并保留原hash、只改变reset库存的旧回执拒绝、全部metadata字段差异拒绝、missing pending/desired与duplicate拒绝、system-field rebase后原始内容确认、非snapshot行为保持。
 
-最终Mac全量门禁与签名公证重建进行中。iOS shipping输入未变，既有3.5.0(263) Archive与iOS/Duo/Widget验证继续适用。旧Mac draft437184008已明确标记superseded；新包使用同一draft更新，不新建tag或公开发布。最终source/hash与远端审查以04和PR当前head为准。
+最终Mac全量1869 selections/89 groups首轮全部通过，0失败/timeout/重试；新source a6ab1035b重新签名、公证、staple、隔离smoke、双架构UUID/Production/AppGroup与Sparkle签名验证全部通过，GitHub替换附件digest/size匹配。iOS shipping输入未变，既有3.5.0(263) Archive与iOS/Duo/Widget验证继续适用。旧Mac附件已保留为superseded历史副本；新包已更新同一draft437184008，不新建tag或公开发布。最终source/hash与远端审查以04和PR当前head为准。

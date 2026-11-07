@@ -10,7 +10,7 @@ Xcode27.2(27B52)，macOS/iOS SDK27.2；StudioSSD挂载/UUID/逻辑入口及所�
 
 - Mac `swift build --jobs 6` 和最终universal签名构建均通过；严格lint 3239 Swift文件零违规，四语言/parser版本/hash/CI/README等guards通过。最初worktree缺gitignored本机profile时门禁主动停止，复制主仓库现有profile后完整签名、公证、staple、分发策略与隔离启动smoke通过。
 - Python cleanup 工具最终103项（1项平台skip）通过；测试保留3秒grace、5秒drain上限，只补强本任务owned child的重复SIGKILL，未弱化身份校验。
-- Mac全量最终1869 selections / 89 groups通过，exit0；89组首轮全部通过，0失败/0timeout/0重试，总耗时775.2秒。首轮68组通过、1组失败后停止；架构检查准确发现新增OpenDesign在三个现有精确指纹中的变化，分别记录合成fixture、非Tier-A身份分组、device-scoped key的理由与引用，未修改scanner或放宽规则。
+- Mac全量最终1869 selections / 89 groups通过，exit0；89组首轮全部通过，0失败/0timeout/0重试，修复后source a6ab1035b总耗时562.1秒。首轮68组通过、1组失败后停止；架构检查准确发现新增OpenDesign在三个现有精确指纹中的变化，分别记录合成fixture、非Tier-A身份分组、device-scoped key的理由与引用，未修改scanner或放宽规则。
 - 独立multi-account focused命令通过：AccountIdentity/MultiAccount/DualZoneReader筛选覆盖137+11个Swift Testing用例及相关XCTest；1个需显式截图目录的opt-in截图用例skip。HOME/CFFIXED_USER_HOME隔离到本轮scratch，禁Keychain UI。
 - iOS最终普通17e单元门禁通过：1300 Swift Testing / 87 suites，75 XCTest（1 skip）；xcresult汇总1374 passed / 1 skipped。首次pixel inspection失败完整重跑已通过；旧的quota suffix断言和实际DST bug分别修正。
 - CWL DST：固定LA时区，覆盖2026-10-31/11-01/11-02和365天区间；GMT formatter使用相同GMT calendar，避免重复/遗漏日期。新增三日成本总计保持正确。
@@ -56,4 +56,6 @@ Xcode27.2(27B52)，macOS/iOS SDK27.2；StudioSSD挂载/UUID/逻辑入口及所�
 
 ## Mac候选打包
 
-最终source c8f491f90bc4720b73d9d7f22bd55b64eceb3379，双架构arm64/x86_64，App/CLI/Watchdog/Widget的Mach-O minimum均14.0；Developer ID Application签名、hardened runtime、App CloudKit Production与App/CLI/Widget实际runtime App Group一致。App/dSYM UUID双架构匹配，资源与隔离CLI/App smoke通过。Sparkle对实际ZIP的Ed25519签名同时用工具及包内SUPublicEDKey验证。GitHub draft两个uploaded asset的digest/size均与本地一致。完整结果见evidence/mac-artifacts-verified.json、mac-draft-verified.json和04；没有live provider测试或公开发布。
+最终source a6ab1035b56be911e64479feb3c90696ded4edcb，双架构arm64/x86_64，App/CLI/Watchdog/Widget的Mach-O minimum均14.0；Developer ID Application签名、hardened runtime、App CloudKit Production与App/CLI/Widget实际runtime App Group一致。App/dSYM UUID双架构匹配，资源与隔离CLI/App smoke通过。Sparkle对实际ZIP的Ed25519签名同时用工具及包内SUPublicEDKey验证。GitHub draft两个uploaded asset的digest/size均与本地一致。完整结果见evidence/mac-artifacts-verified.json、mac-draft-verified.json和04；没有live provider测试或公开发布。
+
+追加远端P1的修复、6方法/13执行专项与重新跑完的1869 selections/89 groups见05；新Mac包重新签名、公证、staple与验证，替换相同draft的两个附件，旧c8f仅保留superseded历史副本。Shared wire/merger以及全部353个iOS shipping输入未变化，既有16组合替代矩阵与iOS/Duo/Widget证据仍覆盖相同输入，不声称其覆盖真实CloudKit保存回执；该回执由新增原始CKRecord回归覆盖。

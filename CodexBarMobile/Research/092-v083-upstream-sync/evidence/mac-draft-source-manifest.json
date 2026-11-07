@@ -1,5 +1,5 @@
 {
-  "sourceCommit": "c8f491f90bc4720b73d9d7f22bd55b64eceb3379",
+  "sourceCommit": "a6ab1035b56be911e64479feb3c90696ded4edcb",
   "inputs": [
     {
       "path": "Icon.icns",
@@ -3488,7 +3488,7 @@
     },
     {
       "path": "Sources/CodexBar/Sync/CloudSyncEngine.swift",
-      "sha256": "ac5060b403d841523c356add8c8274f2f530f89046c7e9c8d45aa246a32bc449",
+      "sha256": "5e1fb737c85da2d6429b38363b835c746897063cf844c97f06de3c369f5edb5b",
       "symlink": false
     },
     {
