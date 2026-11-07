@@ -333,4 +333,27 @@ struct SyncQuotaWarningConfigTests {
         #expect(session.enabled == true)
         #expect(weekly.enabled == true)
     }
+
+    @Test
+    func `Perplexity organization selection keeps personal warning lanes attached to stable IDs`() {
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "perplexity",
+            providerName: "Perplexity",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            quotaWarnings: .init(
+                sessionThresholds: [70, 40],
+                weeklyThresholds: [55, 15]))
+        let organization = snapshot.quotaWarning(forWindowIndex: 0, windowID: "org-credits")
+        #expect(!organization.enabled)
+        #expect(organization.thresholds == nil)
+        #expect(snapshot.quotaWarning(forWindowIndex: 3, windowID: "primary").thresholds == [70, 40])
+        #expect(snapshot.quotaWarning(forWindowIndex: 2, windowID: "secondary").thresholds == [55, 15])
+        #expect(!snapshot.quotaWarning(forWindowIndex: 1, windowID: "tertiary").enabled)
+    }
 }

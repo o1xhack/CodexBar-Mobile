@@ -44,7 +44,7 @@ struct CostUsagePerformanceGateTests {
         options.codexScanWorkRecorderForTesting = firstRecorder
         _ = Self.report(day: day, now: day, options: options)
         let firstMetrics = firstRecorder.snapshot()
-        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         print(
             "[discovery-proof] first=\(firstCache.files.count), "
                 + "discovery=\(firstMetrics.codexDiscoveryVisits), "
@@ -60,7 +60,7 @@ struct CostUsagePerformanceGateTests {
         options.codexScanWorkRecorderForTesting = relaunchedRecorder
         _ = Self.report(day: day, now: day.addingTimeInterval(1), options: options)
         let relaunchedMetrics = relaunchedRecorder.snapshot()
-        let relaunchedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let relaunchedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         print(
             "[discovery-proof] relaunched=\(relaunchedCache.files.count), "
                 + "discovery=\(relaunchedMetrics.codexDiscoveryVisits), "
@@ -77,7 +77,7 @@ struct CostUsagePerformanceGateTests {
         options.codexScanWorkRecorderForTesting = secondRecorder
         _ = Self.report(day: day, now: day.addingTimeInterval(2), options: options)
         let secondMetrics = secondRecorder.snapshot()
-        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         print(
             "[discovery-proof] second=\(secondCache.files.count), "
                 + "discovery=\(secondMetrics.codexDiscoveryVisits), "
@@ -176,7 +176,7 @@ struct CostUsagePerformanceGateTests {
         let first = Self.report(day: day, now: day, options: options)
         #expect(first.data.count == 1)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let dbURL = store.databaseURL
         func fileSize(_ url: URL) -> Int64? {
             guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
@@ -212,7 +212,7 @@ struct CostUsagePerformanceGateTests {
         let recordsPerFile = 100
         let recordCount = fileCount * recordsPerFile
         var cache = Self.persistenceScaleCache(files: fileCount, recordsPerFile: recordsPerFile)
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let window = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
         _ = store.syncSaveCodexCache(cache, calendar: .current, requestedScanWindow: window)
         #expect(await store.setWALAutoCheckpointForTesting(0))
@@ -274,7 +274,7 @@ struct CostUsagePerformanceGateTests {
         let fullCountersAfter = await store.persistenceWriteMetricsForTesting(resetPageCounter: true)
         let fullRows = fullCountersAfter.rows - fullCountersBefore.rows
 
-        var unchanged = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var unchanged = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         unchanged.lastScanUnixMs += 1
         #expect(await store.truncateWALForTesting())
         _ = await store.persistenceWriteMetricsForTesting(resetPageCounter: true)
@@ -328,6 +328,7 @@ struct CostUsagePerformanceGateTests {
     }
 
     @Test(arguments: [
+        "5a57546c60494379", "e5909f60274b2c47",
         "0d8f9504f8e63d0f", "7ff985e81e281a11", "0d41437dcd95c17e",
         "43609cc56f76a003", "c6c46a376ba16304", "b77d4ec72e14ea63", "e3fca1e6d81137d6", "f043ae98075c8e4d",
         "9ca89383b9957b07",
@@ -341,9 +342,13 @@ struct CostUsagePerformanceGateTests {
         var coldOptions = Self.options(env: env, cacheRoot: coldCacheRoot)
         coldOptions.refreshMinIntervalSeconds = 0
         let cold = Self.report(day: day, now: day, options: coldOptions)
-        let cache = CostUsageStoreAccess.read(cacheRoot: coldCacheRoot, calendar: coldOptions.calendar)
+        let cache = CostUsageStoreAccess.read(
+            cacheRoot: coldCacheRoot,
+            home: env.codexStoreHome,
+            calendar: coldOptions.calendar)
         let predecessorStore = CostUsageStore(
             cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion,
                 parserHash: predecessorHash),
@@ -422,7 +427,7 @@ struct CostUsagePerformanceGateTests {
             now: windowDay,
             options: options)
 
-        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        let store = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let activeFile = { (files: [CostUsageStoreFile]) -> CostUsageStoreFile? in
             files.first { $0.sessionID == "stale-active-session" }
         }
@@ -532,7 +537,7 @@ struct CostUsagePerformanceGateTests {
         }
         """
         let catalog = try JSONDecoder().decode(ModelsDevCatalog.self, from: Data(catalogJSON.utf8))
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let cachedUsage = try #require(cache.files.values.first { !($0.codexRows?.isEmpty ?? true) })
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
         #expect(!CostUsageScanner.needsCodexPricingMetadata(cachedUsage, range: range))
@@ -561,7 +566,7 @@ struct CostUsagePerformanceGateTests {
         options.refreshMinIntervalSeconds = 0
         let scanned = Self.report(day: day, now: day, options: options)
 
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var catalogLoadCount = 0
         let cached = CostUsageScanner.buildCodexReportFromCache(
             cache: cache,
@@ -595,7 +600,7 @@ struct CostUsagePerformanceGateTests {
         options.refreshMinIntervalSeconds = 0
         let scanned = Self.report(day: day, now: day, options: options)
 
-        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var legacy = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         for path in legacy.files.keys {
             legacy.files[path]?.codexCostCacheComplete = nil
             legacy.files[path]?.codexCostNanos = nil
@@ -609,7 +614,7 @@ struct CostUsagePerformanceGateTests {
 
         #expect(abs((backfilled.summary?.totalCostUSD ?? 0) - (scanned.summary?.totalCostUSD ?? 0)) < 0.000000001)
 
-        var mixed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var mixed = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let mixedPaths = mixed.files.keys.sorted()
         let legacyPath = try #require(mixedPaths.first)
         let rowlessPath = try #require(mixedPaths.last)
@@ -699,7 +704,7 @@ struct CostUsagePerformanceGateTests {
         options.refreshMinIntervalSeconds = 0
         _ = Self.report(day: day, now: day, options: options)
 
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var catalogLoadCount = 0
         let projects = CostUsageScanner.buildCodexProjectBreakdownsFromCache(
             cache: cache,
@@ -742,7 +747,8 @@ struct CostUsagePerformanceGateTests {
         for _ in 0..<12 {
             report = Self.report(day: day, now: day, options: options)
             let cached = try #require(CostUsageStoreAccess.read(
-                cacheRoot: env.cacheRoot).files.values.first)
+                cacheRoot: env.cacheRoot,
+                home: env.codexStoreHome).files.values.first)
             offsets.append(cached.parsedBytes ?? 0)
             if cached.codexScanComplete == true {
                 break
@@ -773,7 +779,7 @@ struct CostUsagePerformanceGateTests {
         options.maxCodexScanBytesPerRefresh += Self.codexLookbackDiscoveryWork(options: options)
 
         _ = Self.report(day: day, now: day, options: options)
-        let roundTripped = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let roundTripped = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let first = try #require(roundTripped.files.values.first)
         let firstOffset = try #require(first.parsedBytes)
         #expect(first.codexScanFileId == metadata.fileId)
@@ -782,7 +788,8 @@ struct CostUsagePerformanceGateTests {
 
         _ = Self.report(day: day, now: day, options: options)
         let second = try #require(CostUsageStoreAccess.read(
-            cacheRoot: env.cacheRoot).files.values.first)
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome).files.values.first)
         #expect((second.parsedBytes ?? 0) > firstOffset)
         #expect(second.codexScanFileId == metadata.fileId)
         #expect(second.codexScanTargetSize == metadata.size)
@@ -806,7 +813,8 @@ struct CostUsagePerformanceGateTests {
 
         _ = Self.report(day: day, now: day, options: options)
         let first = try #require(CostUsageStoreAccess.read(
-            cacheRoot: env.cacheRoot).files.values.first)
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome).files.values.first)
         #expect(first.parsedBytes == slice)
         #expect(first.codexScanComplete == false)
 
@@ -823,7 +831,8 @@ struct CostUsagePerformanceGateTests {
 
         _ = Self.report(day: day, now: day, options: options)
         let resumed = try #require(CostUsageStoreAccess.read(
-            cacheRoot: env.cacheRoot).files.values.first)
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome).files.values.first)
         #expect((resumed.parsedBytes ?? 0) > (first.parsedBytes ?? 0))
         #expect(resumed.parsedBytes == min(originalMetadata.size, (first.parsedBytes ?? 0) + slice))
         #expect(resumed.codexScanTargetSize == originalMetadata.size)
@@ -857,7 +866,7 @@ struct CostUsagePerformanceGateTests {
         options.maxCodexScanBytesPerRefresh += Self.codexLookbackDiscoveryWork(options: options)
 
         _ = Self.report(day: day, now: day, options: options)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(cache.files.values.first)
         #expect(usage.codexScanComplete == false)
         #expect(usage.codexScanTargetSize == initialMetadata.size)
@@ -871,7 +880,7 @@ struct CostUsagePerformanceGateTests {
                 to: fileURL)
             nextTotal += 100
             frozenReport = Self.report(day: day, now: day, options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             usage = try #require(cache.files.values.first)
             #expect(usage.codexScanTargetSize == initialMetadata.size)
             #expect((usage.parsedBytes ?? 0) <= initialMetadata.size)
@@ -891,7 +900,7 @@ struct CostUsagePerformanceGateTests {
         var partialReport: CostUsageDailyReport?
         for _ in 0..<12 {
             partialReport = Self.report(day: day, now: day, options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             usage = try #require(cache.files.values.first)
             if usage.codexScanComplete == true {
                 break
@@ -913,7 +922,7 @@ struct CostUsagePerformanceGateTests {
         var boundedFinal: CostUsageDailyReport?
         for _ in 0..<12 {
             boundedFinal = Self.report(day: day, now: day, options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             usage = try #require(cache.files.values.first)
             if usage.codexScanComplete == true,
                usage.parsedBytes == CostUsageScanner.codexFileMetadata(fileURL: fileURL).size
@@ -982,7 +991,7 @@ struct CostUsagePerformanceGateTests {
         options.maxCodexScanBytesPerRefresh += Self.codexLookbackDiscoveryWork(options: options)
 
         _ = Self.report(day: day, now: day, options: options)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let partialParent = try #require(cache.files.values.first { $0.sessionId == "target-parent" })
         #expect(partialParent.codexScanComplete == false)
         #expect(partialParent.codexScanTargetSize == initialParentSize)
@@ -996,7 +1005,7 @@ struct CostUsagePerformanceGateTests {
         var bounded: CostUsageDailyReport?
         for pass in 1...40 {
             bounded = Self.report(day: day, now: day.addingTimeInterval(TimeInterval(pass)), options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
             if cache.codexScanCatchUpPending == false {
                 break
             }
@@ -1056,7 +1065,7 @@ struct CostUsagePerformanceGateTests {
             progressStates.append((pending: status.pending, key: status.progressKey))
         }
 
-        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let completedUsage = try #require(completedCache.files.values.first)
         let completedReport = CostUsageScanner.buildCodexReportFromCache(
             cache: completedCache,
@@ -1155,7 +1164,7 @@ struct CostUsagePerformanceGateTests {
             cache: priorCache,
             reportSinceKey: range.sinceKey,
             reportUntilKey: range.untilKey)
-        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: rebuildingCache)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: rebuildingCache)
         var report = Self.report(day: day, now: day, options: options)
         let fetcher = CostUsageFetcher(scannerOptions: options)
         var status = await fetcher.codexScanCatchUpStatus()
@@ -1165,7 +1174,8 @@ struct CostUsagePerformanceGateTests {
         #expect(report.data == priorReport.data)
         #expect(report.summary == priorReport.summary)
         #expect(CostUsageStoreAccess.read(
-            cacheRoot: env.cacheRoot).codexPreviousReport != nil)
+            cacheRoot: env.cacheRoot,
+            home: env.codexStoreHome).codexPreviousReport != nil)
 
         for pass in 1...16 where status.pending {
             report = Self.report(day: day, now: day.addingTimeInterval(TimeInterval(pass)), options: options)
@@ -1177,7 +1187,7 @@ struct CostUsagePerformanceGateTests {
             }
         }
 
-        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         #expect(!status.pending)
         #expect(status.staleSnapshotUpdatedAt == nil)
         #expect(completedCache.codexPreviousReport == nil)
@@ -1223,7 +1233,8 @@ struct CostUsagePerformanceGateTests {
         for _ in 0..<24 {
             report = Self.report(day: day, now: day, options: options)
             let cached = try #require(CostUsageStoreAccess.read(
-                cacheRoot: env.cacheRoot).files.values.first)
+                cacheRoot: env.cacheRoot,
+                home: env.codexStoreHome).files.values.first)
             offsets.append(cached.parsedBytes ?? 0)
             sawPartialRecord = sawPartialRecord || cached.codexJSONLResumeState != nil
             if cached.codexScanComplete == true {
@@ -1454,7 +1465,7 @@ extension CostUsagePerformanceGateTests {
         } operation: {
             Self.report(day: day, now: day, options: options)
         }
-        let coldCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let coldCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let coldChild = try #require(coldCache.files.values.first { $0.sessionId == "missing-child" })
         let coldDiscovery = try #require(coldCache.codexSessionDiscovery)
         #expect(coldCounter.value >= 250)
@@ -1480,13 +1491,13 @@ extension CostUsagePerformanceGateTests {
         _ = try env.writeCodexSessionFile(day: day, filename: "late-parent.jsonl", contents: parentBody)
 
         let resolved = Self.report(day: day, now: day.addingTimeInterval(2), options: options)
-        let resolvedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let resolvedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let resolvedChild = try #require(resolvedCache.files.values.first { $0.sessionId == "missing-child" })
         #expect(!resolvedChild.days.isEmpty)
         #expect(resolvedChild.forkBaselineDependencyKey?.hasPrefix("file|late-parent|") == true)
 
         let stable = Self.report(day: day, now: day.addingTimeInterval(3), options: options)
-        let stableCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let stableCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let stableChild = try #require(stableCache.files.values.first { $0.sessionId == "missing-child" })
         #expect(stableChild.days == resolvedChild.days)
         #expect(stable.summary?.totalTokens == resolved.summary?.totalTokens)
@@ -1516,7 +1527,7 @@ extension CostUsagePerformanceGateTests {
         var options = Self.options(env: env)
         options.refreshMinIntervalSeconds = 0
         _ = Self.report(day: day, now: day, options: options)
-        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let firstGeneration = try #require(firstCache.codexSessionDiscovery?.generation)
         #expect(firstCache.codexSessionDiscovery?.missingSessionIds.contains("inventory-missing") == true)
 
@@ -1534,7 +1545,7 @@ extension CostUsagePerformanceGateTests {
         } operation: {
             Self.report(day: day, now: day.addingTimeInterval(1), options: options)
         }
-        let changedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let changedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let changedGeneration = try #require(changedCache.codexSessionDiscovery?.generation)
         #expect(changedGeneration != firstGeneration)
         #expect(changedCache.codexSessionDiscovery?.missingSessionIds.contains("inventory-missing") == true)
@@ -1614,7 +1625,7 @@ extension CostUsagePerformanceGateTests {
         options.refreshMinIntervalSeconds = 0
 
         _ = Self.report(day: day, now: day, options: options)
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let cachedNames = Set(cache.files.keys.map { URL(fileURLWithPath: $0).lastPathComponent })
 
         #expect(cachedNames.contains(newer.lastPathComponent))
@@ -1693,7 +1704,7 @@ extension CostUsagePerformanceGateTests {
             maxCodexScanBytesPerRefresh: 64 * 1024 * 1024)
         options.refreshMinIntervalSeconds = 0
         _ = Self.report(day: day, now: day, options: options)
-        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let firstParent = try #require(firstCache.files.values.first { $0.sessionId == "parent-giant" })
         let firstChild = try #require(firstCache.files.values.first { $0.sessionId == "child-small" })
         let firstChildDay = try #require(
@@ -1715,7 +1726,7 @@ extension CostUsagePerformanceGateTests {
         #expect(firstParent.codexTokenIndexAnchor != nil)
 
         _ = Self.report(day: day, now: day.addingTimeInterval(1), options: options)
-        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let parent = try #require(secondCache.files.values.first { $0.sessionId == "parent-giant" })
         let child = try #require(secondCache.files.values.first { $0.sessionId == "child-small" })
         let childDay = try #require(child.days[CostUsageScanner.CostUsageDayRange.dayKey(from: day)])
@@ -1756,7 +1767,7 @@ extension CostUsagePerformanceGateTests {
         options.refreshMinIntervalSeconds = 0
         _ = Self.report(day: day, now: day, options: options)
 
-        let indexedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let indexedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let indexedParentEntry = try #require(
             indexedCache.files.first { $0.value.sessionId == "parent-append" })
         let parentCachePath = indexedParentEntry.key
@@ -1799,7 +1810,7 @@ extension CostUsagePerformanceGateTests {
         options.preferNewestCodexSessionsFirst = true
         _ = Self.report(day: day, now: day.addingTimeInterval(120), options: options)
 
-        let refreshedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let refreshedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let deferredParent = try #require(refreshedCache.files[parentCachePath])
         let child = try #require(
             refreshedCache.files.values.first { $0.sessionId == "child-append" })
@@ -1836,7 +1847,7 @@ extension CostUsagePerformanceGateTests {
             maxCodexScanBytesPerRefresh: 0)
         options.refreshMinIntervalSeconds = 0
         _ = Self.report(day: day, now: day, options: options)
-        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let usage = try #require(cache.files.values.first { $0.sessionId == "parent-rewrite" })
         let anchor = try #require(usage.codexTokenIndexAnchor)
 

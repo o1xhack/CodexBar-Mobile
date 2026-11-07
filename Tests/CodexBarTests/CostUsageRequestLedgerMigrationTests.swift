@@ -17,7 +17,7 @@ struct CostUsageRequestLedgerMigrationTests {
             filename: "tool-upgrade.jsonl",
             contents: Self.offsetLedgerLines(day: day, env: env, scenario: (ledgerFirst: true, offsetMs: 400)))
         _ = Self.report(day: day, options: Self.options(env: env))
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(cache.files[file.path])
         usage.codexRows = usage.codexRows?.map { row in
             var row = row
@@ -30,6 +30,7 @@ struct CostUsageRequestLedgerMigrationTests {
         let upgradeRoot = env.root.appendingPathComponent("upgrade-cache")
         let predecessor = CostUsageStore(
             cacheRoot: upgradeRoot,
+            home: env.codexStoreHome,
             schemaVersion: CostUsageStore.combinedSchemaVersion(
                 base: CostUsageStore.baseSchemaVersion, parserHash: parserHash),
             parserHash: parserHash)
@@ -43,7 +44,7 @@ struct CostUsageRequestLedgerMigrationTests {
         // History and saved pricing must survive even when the original log is no longer available.
         try FileManager.default.removeItem(at: file)
         for _ in 0..<2 {
-            let current = CostUsageStore(cacheRoot: upgradeRoot)
+            let current = CostUsageStore(cacheRoot: upgradeRoot, home: env.codexStoreHome)
             #expect(await current.readSnapshot() == before)
             #expect(await current.rebuildCount == 0)
             #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
@@ -105,7 +106,7 @@ struct CostUsageRequestLedgerMigrationTests {
             CostUsageScanner.loadDailyReport(provider: .codex, since: day, until: day, now: day, options: selected)
         }
         _ = report(options)
-        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(old.files[file.path])
         usage.codexParserRevision = revision
         // Older revisions may have only legacy rows; revision 7 retains its typed identities.
@@ -135,7 +136,8 @@ struct CostUsageRequestLedgerMigrationTests {
                 from: JSONSerialization.data(withJSONObject: object))
         }
         old.files[file.path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: old).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: old)
+            .catchUpRequired)
         let predecessorHash = switch revision {
         case 5: "4a4c4ef34ce6f037"
         case 6: "c61aebb9cf043a72"
@@ -144,7 +146,7 @@ struct CostUsageRequestLedgerMigrationTests {
         }
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion, parserHash: predecessorHash)
-        let adoptedStore = CostUsageStore(cacheRoot: env.cacheRoot)
+        let adoptedStore = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         let connection = try BaselineSQLiteConnection(url: adoptedStore.databaseURL)
         try connection.execute("UPDATE meta SET value = '\(predecessorHash)' WHERE key = 'parser_hash'")
         try connection.execute("PRAGMA user_version = \(predecessorVersion)")
@@ -164,14 +166,16 @@ struct CostUsageRequestLedgerMigrationTests {
         var observedPartial = false
         for _ in 0..<40 {
             _ = report(options)
-            let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+            let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .syncLoadCodexCache(calendar: .current)
             let current = try #require(reopened.files[file.path])
             observedPartial = observedPartial || current.codexScanComplete == false
             if current.codexScanComplete == true, current.hasCurrentCodexParser,
                try current.parsedBytes == Int64(Data(contentsOf: file).count) { break }
         }
         #expect(observedPartial)
-        let migrated = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+        let migrated = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: .current)
         let migratedFile = try #require(migrated.files[file.path])
         #expect(migratedFile.codexRows?.compactMap(\.responseID) == ["first", "second"])
         #expect(migratedFile.codexRows?.first?.pricingMode == (priority ? "priority" : "standard"))
@@ -182,14 +186,17 @@ struct CostUsageRequestLedgerMigrationTests {
         options.maxCodexSessionFileBytes = 512 * 1024 * 1024
         let appended = report(options)
         #expect(appended.summary?.totalTokens == 275_000)
-        let completed = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+        let completed = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+            .syncLoadCodexCache(calendar: .current)
         #expect(completed.files[file.path]?.codexRows?.compactMap(\.responseID) == ["first", "second", "third"])
         #expect(completed.files[file.path]?.codexRows?.first?.pricingMode == (priority ? "priority" : "standard"))
         #expect(completed.files[file.path]?.codexRows?.dropFirst().allSatisfy { $0.pricingMode == "standard" } == true)
         var coldOptions = options
         coldOptions.cacheRoot = env.root.appendingPathComponent("cold-cache")
         _ = report(coldOptions)
-        var cold = try CostUsageStoreAccess.read(cacheRoot: #require(coldOptions.cacheRoot))
+        var cold = try CostUsageStoreAccess.read(
+            cacheRoot: #require(coldOptions.cacheRoot),
+            home: env.codexStoreHome)
         let prices = try #require(completed.files[file.path]?.codexRows)
         var coldFile = try #require(cold.files[file.path])
         coldFile.codexRows = coldFile.codexRows?.enumerated().map { index, row in
@@ -198,8 +205,10 @@ struct CostUsageRequestLedgerMigrationTests {
             return row
         }
         cold.files[file.path] = coldFile
-        #expect(try !CostUsageStoreAccess.replace(cacheRoot: #require(coldOptions.cacheRoot), cache: cold)
-            .catchUpRequired)
+        #expect(try !CostUsageStoreAccess.replace(
+            cacheRoot: #require(coldOptions.cacheRoot),
+            home: env.codexStoreHome,
+            cache: cold).catchUpRequired)
         let expected = report(coldOptions)
         #expect(expected.data == appended.data)
         #expect(expected.summary == appended.summary)
@@ -230,7 +239,7 @@ struct CostUsageRequestLedgerMigrationTests {
         let standardCost = try #require(canonical.summary?.totalCostUSD)
 
         // Revision 5 saved token_count rows with their own timestamps and no response identity.
-        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(old.files[file.path])
         usage.codexParserRevision = 5
         usage.codexRequestLedgerState = nil
@@ -247,7 +256,8 @@ struct CostUsageRequestLedgerMigrationTests {
                 from: JSONSerialization.data(withJSONObject: object))
         }
         old.files[file.path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: old).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: old)
+            .catchUpRequired)
         try Self.markPredecessor(cacheRoot: env.cacheRoot, parserHash: "4a4c4ef34ce6f037")
         if scenario.bounded {
             // Each pass reads about one line, so some slices end between a ledger row and its mirror.
@@ -260,7 +270,8 @@ struct CostUsageRequestLedgerMigrationTests {
         let fileSize = try Int64(Data(contentsOf: file).count)
         for _ in 0..<60 {
             _ = Self.report(day: day, options: options)
-            migrated = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+            migrated = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .syncLoadCodexCache(calendar: .current)
                 .files[file.path]
             observedPartial = observedPartial || migrated?.codexScanComplete == false
             if migrated?.hasCurrentCodexParser == true, migrated?.codexScanComplete == true,
@@ -292,7 +303,7 @@ struct CostUsageRequestLedgerMigrationTests {
 
         // Invalidated source evidence leaves only fully marked ledger rows. Their pricing is unknown, so adoption
         // must not turn them into estimates; a cache rebuild is the explicit way to reprice from the logs.
-        var stored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var stored = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(stored.files[file.path])
         usage.codexRows = usage.codexRows?.map { row in
             var row = row
@@ -301,11 +312,13 @@ struct CostUsageRequestLedgerMigrationTests {
         }
         let markedRows = try #require(usage.codexRows)
         stored.files[file.path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: stored).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: stored)
+            .catchUpRequired)
         try Self.markPredecessor(cacheRoot: env.cacheRoot, parserHash: "ed735dc27ffa70d9")
 
         for _ in 0..<2 {
-            let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+            let reopened = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .syncLoadCodexCache(calendar: .current)
             #expect(reopened.files[file.path]?.codexRows == markedRows)
             #expect(Self.report(day: day, options: options).summary?.totalCostUSD == nil)
         }
@@ -336,7 +349,7 @@ struct CostUsageRequestLedgerMigrationTests {
         var options = Self.options(env: env)
         _ = Self.report(day: day, options: options)
 
-        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(old.files[file.path])
         usage.codexParserRevision = revision
         usage.codexRequestLedgerState = nil
@@ -357,7 +370,8 @@ struct CostUsageRequestLedgerMigrationTests {
         let legacyRows = try #require(usage.codexRows)
         #expect(Set(legacyRows.compactMap(CostUsageScanner.CodexSourcePricingKey.init)).count == 1)
         old.files[file.path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: old).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: old)
+            .catchUpRequired)
         try Self.markPredecessor(
             cacheRoot: env.cacheRoot,
             parserHash: revision < 8 ? "4a4c4ef34ce6f037" : "ed735dc27ffa70d9")
@@ -370,7 +384,8 @@ struct CostUsageRequestLedgerMigrationTests {
         let fileSize = try Int64(Data(contentsOf: file).count)
         for _ in 0..<60 {
             _ = Self.report(day: day, options: options)
-            migrated = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+            migrated = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .syncLoadCodexCache(calendar: .current)
                 .files[file.path]
             if migrated?.codexScanComplete == false {
                 #expect(migrated?.codexPendingSourcePricing == [:])
@@ -479,7 +494,7 @@ struct CostUsageRequestLedgerMigrationTests {
 
         // Revision 5 saved one legacy row per token_count: the original request with Priority evidence, and the
         // replay's observation with Standard evidence.
-        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var old = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
         var usage = try #require(old.files[file.path])
         usage.codexParserRevision = 5
         usage.codexRequestLedgerState = nil
@@ -502,7 +517,8 @@ struct CostUsageRequestLedgerMigrationTests {
                 pricingMode: observation.1)
         }
         old.files[file.path] = usage
-        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: old).catchUpRequired)
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, home: env.codexStoreHome, cache: old)
+            .catchUpRequired)
         try Self.markPredecessor(cacheRoot: env.cacheRoot, parserHash: "4a4c4ef34ce6f037")
         if scenario.bounded {
             options.maxCodexScanBytesPerRefresh = 256
@@ -513,7 +529,8 @@ struct CostUsageRequestLedgerMigrationTests {
         let fileSize = try Int64(Data(contentsOf: file).count)
         for _ in 0..<60 {
             _ = Self.report(day: day, options: options)
-            migrated = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+            migrated = CostUsageStore(cacheRoot: env.cacheRoot, home: env.codexStoreHome)
+                .syncLoadCodexCache(calendar: .current)
                 .files[file.path]
             if migrated?.hasCurrentCodexParser == true, migrated?.codexScanComplete == true,
                migrated?.parsedBytes == fileSize { break }

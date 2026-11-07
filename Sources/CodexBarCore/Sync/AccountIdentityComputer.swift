@@ -52,7 +52,7 @@ public enum AccountIdentityComputer {
             self.vertexAI(identity: identity)
         case .aixy:
             self.aixy(identity: identity)
-        case .soniox, .traecn, .abliteration, .chatbox,
+        case .opendesign, .soniox, .traecn, .abliteration, .chatbox,
              .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot, .devin,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,

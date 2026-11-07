@@ -1283,6 +1283,8 @@ final class SyncCoordinator {
             semanticWindows.secondary = annotated
         }
 
+        // Preserve native slot order on the wire: older iPhones bind warning lanes by index.
+        // Organization credits remain a separate extra window; Mac menu auto-selection is local.
         rateWindows = Self.projectingBlockingQuota(rateWindows, provider: provider, snapshot: snapshot)
 
         // Legacy primary/secondary for backward compat with older iOS builds.
@@ -1510,7 +1512,7 @@ final class SyncCoordinator {
                 return "organization-\(digest)"
             }
             return "device-\(deviceID.lowercased())"
-        case .futureagi, .soniox, .traecn, .abliteration, .chatbox:
+        case .opendesign, .futureagi, .soniox, .traecn, .abliteration, .chatbox:
             return requested ?? "device-\(deviceID.lowercased())"
         case .gemini:
             // The explicit Web source exposes no verified Google account identity. Keep its quotas

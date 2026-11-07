@@ -1,6 +1,118 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Rewards": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rewards"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "奖励额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "獎勵額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "報酬クレジット"
+          }
+        }
+      }
+    },
+    "Reward expiry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reward expiry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "奖励到期日"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "獎勵到期日"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "報酬の有効期限"
+          }
+        }
+      }
+    },
+    "More services and clearer credits": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More services and clearer credits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服务，更清晰的额度"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服務，更清晰的額度"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応サービスとクレジット表示を改善"
+          }
+        }
+      }
+    },
+    "See OpenDesign usage, organization credits, rewards and updated MiniMax quotas from your Mac. Cost history now keeps every day across daylight-saving changes.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See OpenDesign usage, organization credits, rewards and updated MiniMax quotas from your Mac. Cost history now keeps every day across daylight-saving changes."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看从 Mac 同步的 OpenDesign 用量、组织额度、奖励和更新的 MiniMax 额度。费用历史在夏令时切换时也会保留每一天。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看從 Mac 同步的 OpenDesign 用量、組織額度、獎勵和更新的 MiniMax 額度。費用歷史在夏令時間切換時也會保留每一天。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から OpenDesign の使用状況、組織クレジット、報酬、更新された MiniMax のクォータを確認できます。夏時間の切り替え時も費用履歴の日付が欠けなくなりました。"
+          }
+        }
+      }
+    },
     "Choose the limit each widget tile shows": {
       "extractionState": "manual",
       "localizations": {

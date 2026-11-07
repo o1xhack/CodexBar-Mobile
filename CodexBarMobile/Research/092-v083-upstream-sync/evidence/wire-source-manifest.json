@@ -1,0 +1,103 @@
+{
+  "oldRef": "v0.82.0.1-mobile.3.2.0",
+  "oldCommit": "c6cbe728b9161cac0f816071e270669efd1229c1",
+  "newCommit": "e4e07a09e0191e869114bd99bc1bde023bc2798d",
+  "files": [
+    {
+      "path": "Shared/Models/DeviceLifecycleEvent.swift",
+      "oldSHA256": "720428bc3764fcd160cd60184cccfdcadacedf823debace41811c1fca1c2db47",
+      "newSHA256": "720428bc3764fcd160cd60184cccfdcadacedf823debace41811c1fca1c2db47"
+    },
+    {
+      "path": "Shared/Models/ProviderAccountLinkage.swift",
+      "oldSHA256": "3c88e89e83a51455e027048e3e35fe122d08a1e9e67d518b77b383846b1dbdb4",
+      "newSHA256": "3c88e89e83a51455e027048e3e35fe122d08a1e9e67d518b77b383846b1dbdb4"
+    },
+    {
+      "path": "Shared/Models/ProviderUsageEnvelope.swift",
+      "oldSHA256": "38911efe06298fb5f2c1499d0a5afc5e94627eb0d333c39e4ef5e5405a14125a",
+      "newSHA256": "38911efe06298fb5f2c1499d0a5afc5e94627eb0d333c39e4ef5e5405a14125a"
+    },
+    {
+      "path": "Shared/Models/SyncQuotaWarningConfig.swift",
+      "oldSHA256": "da604993f5f2f86f33f0e060f65054ce29f692649b74cc2784eb3b68a324f13d",
+      "newSHA256": "da604993f5f2f86f33f0e060f65054ce29f692649b74cc2784eb3b68a324f13d"
+    },
+    {
+      "path": "Shared/Models/UsageSnapshot.swift",
+      "oldSHA256": "0a6656cd84c4a62c1d035742db818a9a7dd6701ee2a7401fae4a4ba2db8c5ab7",
+      "newSHA256": "0a6656cd84c4a62c1d035742db818a9a7dd6701ee2a7401fae4a4ba2db8c5ab7"
+    },
+    {
+      "path": "Shared/Models/V026Snapshots.swift",
+      "oldSHA256": "f8e0ab8d859deb8cb5bfab15e0943964e7ef46702fc1b07e941ffb288ca16173",
+      "newSHA256": "f8e0ab8d859deb8cb5bfab15e0943964e7ef46702fc1b07e941ffb288ca16173"
+    },
+    {
+      "path": "Shared/Models/V027Snapshots.swift",
+      "oldSHA256": "22612fd9ace921c4afad77f21f00ee7b8fd32123d0625b939178e316c8809c73",
+      "newSHA256": "22612fd9ace921c4afad77f21f00ee7b8fd32123d0625b939178e316c8809c73"
+    },
+    {
+      "path": "Shared/Models/V029Snapshots.swift",
+      "oldSHA256": "310d3d3977cd41821b45476e363118c37162c1680bf4b8d38509c5cc633b93b3",
+      "newSHA256": "310d3d3977cd41821b45476e363118c37162c1680bf4b8d38509c5cc633b93b3"
+    },
+    {
+      "path": "Shared/Models/V030Snapshots.swift",
+      "oldSHA256": "18646269d15ab40665e411b0dbcd0df1b49fdc93d06320f382e36db3c43ef68e",
+      "newSHA256": "18646269d15ab40665e411b0dbcd0df1b49fdc93d06320f382e36db3c43ef68e"
+    },
+    {
+      "path": "Shared/Models/V037Snapshots.swift",
+      "oldSHA256": "4b6b7432f0f7104258975644777d59f2461d953d1a2d18ca5ea8bce05c9cbd5d",
+      "newSHA256": "4b6b7432f0f7104258975644777d59f2461d953d1a2d18ca5ea8bce05c9cbd5d"
+    },
+    {
+      "path": "Shared/Models/V039Snapshots.swift",
+      "oldSHA256": "580325d2ba2f439caa0cba574d320cda995d7a6205e7fe267637d8989334be45",
+      "newSHA256": "580325d2ba2f439caa0cba574d320cda995d7a6205e7fe267637d8989334be45"
+    },
+    {
+      "path": "Shared/Models/V045ProviderSnapshots.swift",
+      "oldSHA256": "ba29e1c98c85d23a1430e3cb79dfce14b7645b082e64cb45b1c1a059538c4cb4",
+      "newSHA256": "ba29e1c98c85d23a1430e3cb79dfce14b7645b082e64cb45b1c1a059538c4cb4"
+    },
+    {
+      "path": "Shared/Models/V047Snapshots.swift",
+      "oldSHA256": "4ebd4566d9c880893da1e5318c72b8a061b4440a70ee0063ab60f03c424f6f3b",
+      "newSHA256": "4ebd4566d9c880893da1e5318c72b8a061b4440a70ee0063ab60f03c424f6f3b"
+    },
+    {
+      "path": "Shared/Models/V077Snapshots.swift",
+      "oldSHA256": "d900fd91fce69ab6328a488cb909010f09013a8b6936a83032e55a2bcdfa42ba",
+      "newSHA256": "d900fd91fce69ab6328a488cb909010f09013a8b6936a83032e55a2bcdfa42ba"
+    },
+    {
+      "path": "Shared/Notifications/QuotaProviderList.swift",
+      "oldSHA256": "1eed0e67a76acce9c7e62ef510d5bed7ed91fbba7083ba27a390cf15589aa6f7",
+      "newSHA256": "1ac7fd846948f64487da9eac946acd57d9b129d94c75457ead46539a5d0a630e"
+    },
+    {
+      "path": "Shared/Utilities/EmailRedaction.swift",
+      "oldSHA256": "5de98f5d6576d2839bea52bbdfc9388aa58caa771e85809d0af52bb2319f6c6d",
+      "newSHA256": "5de98f5d6576d2839bea52bbdfc9388aa58caa771e85809d0af52bb2319f6c6d"
+    },
+    {
+      "path": "Shared/iCloud/AccountIdentityNormalize.swift",
+      "oldSHA256": "9c43b103e34a0b5405a71212bb6b760f2070e27c34b84d4872bce20cbdfa754f",
+      "newSHA256": "9c43b103e34a0b5405a71212bb6b760f2070e27c34b84d4872bce20cbdfa754f"
+    },
+    {
+      "path": "Shared/iCloud/CloudConstants.swift",
+      "oldSHA256": "4cfec6571d99ed7bbb5db75b0994440c2d25ab61875d1bc7bb11483058fa9b46",
+      "newSHA256": "4cfec6571d99ed7bbb5db75b0994440c2d25ab61875d1bc7bb11483058fa9b46"
+    },
+    {
+      "path": "CodexBarMobile/CodexBarWidgetShared/ProviderSnapshotMerger.swift",
+      "oldSHA256": "d83c7e733937981586d61d4ceb17202c7a801afff0c3a8fd08726b1c2e9e19a4",
+      "newSHA256": "77d3cfde6eed1dbfda0d3eec3925114a25404b37a37a934a95517b1365172e36"
+    }
+  ],
+  "harnessSHA256": "93701dde4cb5aa0ac61676f8396de6e1c31b0b3110587908546681313d53a1f9"
+}

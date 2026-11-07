@@ -58,7 +58,7 @@ struct MenuBarLayoutRenderMetrics: Hashable {
 }
 
 struct MenuBarLayoutRenderData: Hashable {
-    let provider: UsageProvider
+    let provider: ProviderInstanceID
     var quotaIsEstimated = false
     let iconKey: String
     let providerName: String?
@@ -101,9 +101,14 @@ struct MenuBarLayoutRenderData: Hashable {
     var spendBudget: String?
     var spendCurrencySymbol = "$"
 
+    var descriptor: ProviderDescriptor? {
+        self.provider.firstPartyProvider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
+    }
+
     func extraTitle(_ id: String) -> String? {
-        ProviderDescriptorRegistry.descriptor(for: self.provider).menuBarMetrics.namedExtras[id].map { title in
-            self.extraRateWindows.first { $0.id == id }?.title ?? L(title)
+        guard let descriptor else { return self.extraRateWindows.first { $0.id == id }?.title }
+        return descriptor.menuBarMetrics.namedExtras[id].map { title in
+            L(self.extraRateWindows.first { $0.id == id }?.title ?? title)
         }
     }
 
@@ -224,10 +229,11 @@ struct MenuBarLayoutRenderKey: Hashable {
 struct MenuBarLayoutResetText: Hashable {
     let value: String?
 
-    init(window: MenuBarLayoutRenderWindow?, provider: UsageProvider, now: Date, absolute: Bool) {
-        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+    init(window: MenuBarLayoutRenderWindow?, provider: ProviderInstanceID, now: Date, absolute: Bool) {
+        let metadata = provider.firstPartyProvider.map { ProviderDescriptorRegistry.descriptor(for: $0).metadata }
         // Balance-only providers keep their documented legacy reset-token balance aliases.
-        let fallback = metadata.usesDetailBackedWindow && !metadata.balanceOnly ? nil : window?.resetDescription
+        let fallback = metadata?.usesDetailBackedWindow == true && metadata?.balanceOnly != true ? nil : window?
+            .resetDescription
         self.value = window?.resetsAt.map { date in
             absolute
                 ? UsageFormatter.resetDescription(from: date, now: now)
@@ -316,6 +322,7 @@ final class MenuBarLayoutRenderer {
     }
 
     private let cache: MenuBarLayoutTitleCache
+    let pluginSummary = PluginMenuBarSummaryRenderer()
 
     init(cache: MenuBarLayoutTitleCache = MenuBarLayoutTitleCache()) {
         self.cache = cache
@@ -344,7 +351,8 @@ final class MenuBarLayoutRenderer {
         let outcomes = Dictionary(
             options.conditionals.map { ($0.id, $0.evaluatesTrue(data: data, now: options.now)) },
             uniquingKeysWith: { first, _ in first })
-        let accentColor = options.colorByProvider ? ProviderAccentPalette.color(for: data.provider).hexString : nil
+        let accentColor = options.colorByProvider
+            ? data.provider.firstPartyProvider.map { ProviderAccentPalette.color(for: $0).hexString } : nil
         let key = MenuBarLayoutRenderKey(
             layout: layout,
             data: data,
@@ -376,6 +384,7 @@ final class MenuBarLayoutRenderer {
 
     func removeAll() {
         self.cache.removeAll()
+        self.pluginSummary.removeAll()
     }
 
     /// Joins two rows independently rendered for different providers (each with
@@ -454,7 +463,7 @@ final class MenuBarLayoutRenderer {
         let font = options.monospacedDigits
             ? NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: isStacked ? .medium : .regular)
             : NSFont.systemFont(ofSize: fontSize, weight: isStacked ? .medium : .regular)
-        let providerTintColor = Self.effectiveProviderTintColor(for: data.provider, options: options)
+        let providerTintColor = Self.effectiveProviderTintColor(for: data.provider.firstPartyProvider, options: options)
         let foregroundColor = providerTintColor ?? Self.neutralForegroundColor(options)
         let isTintActive = providerTintColor != nil
         let paragraphStyle = NSMutableParagraphStyle()
@@ -499,11 +508,13 @@ final class MenuBarLayoutRenderer {
             attributes[.baselineOffset] = Self.stackedBaselineOffset + 2 + CGFloat(options.verticalAdjustment)
         }
 
+        let automaticLabel = Self.automaticWindowLabel(data: data)
         for (lineIndex, renderedLine) in renderedLines.enumerated() {
             if lineIndex > 0 {
                 result.append(NSAttributedString(string: "\n", attributes: attributes))
             }
             var accessibilityParts: [String] = []
+            var lineWindowLabel: String?
             for (tokenIndex, token) in renderedLine.enumerated() {
                 // The leading icon is surfaced as `button.image` so AppKit applies the system's
                 // active/inactive display tinting; it is not repeated inside the attributed title,
@@ -526,8 +537,25 @@ final class MenuBarLayoutRenderer {
                         attributes: attributes),
                     options: options,
                     providerTintColor: providerTintColor)
-                renderedItem = Self.labelAutomaticItem(
-                    renderedItem, token: token, data: data, options: options, attributes: attributes)
+                switch token {
+                case .percent(window: .automatic), .pace(window: .automatic), .resetCountdown, .resetAbsolute,
+                     .windowResetCountdown(window: .automatic), .windowResetAbsolute(window: .automatic):
+                    if let label = automaticLabel {
+                        renderedItem.value = Self.prefixedValue(
+                            options.showWindowLabels && label.short != lineWindowLabel ? label.short : "",
+                            value: renderedItem.value,
+                            attributes: attributes)
+                        // VoiceOver names every window, even when the visible prefix is shared.
+                        renderedItem.accessibilityText = renderedItem.accessibilityText
+                            .map { L("%@: %@", label.full, $0) }
+                        lineWindowLabel = label.short
+                    }
+                case .space, .separatorDot: break
+                default:
+                    lineWindowLabel = renderedItem.value.length > 0
+                        ? renderedItem.value
+                        .attribute(Self.windowPrefixKey, at: 0, effectiveRange: nil) as? String : nil
+                }
                 result.append(renderedItem.value)
                 if let accessibilityText = renderedItem.accessibilityText {
                     accessibilityParts.append(accessibilityText)
@@ -571,38 +599,50 @@ final class MenuBarLayoutRenderer {
               lines.joined().contains(.percent(window: .automatic))
               || lines.joined().contains(.progressBar(window: .automatic))
         else { return }
-        let separators: Set<MenuBarLayoutToken> = [.separatorDot, .space]
+        func isSpacing(_ token: MenuBarLayoutToken) -> Bool {
+            token.isVisibleSeparator || token == .space
+        }
         lines = lines.map { line in
             guard line.contains(.resetCountdown) || line.contains(.resetAbsolute) else { return line }
             var tokens = line
             while let index = tokens.firstIndex(where: { $0 == .resetCountdown || $0 == .resetAbsolute }) {
                 tokens.remove(at: index)
-                if tokens.prefix(index).allSatisfy(separators.contains) {
-                    while let first = tokens.first, separators.contains(first) {
+                if tokens.prefix(index).allSatisfy(isSpacing) {
+                    while let first = tokens.first, isSpacing(first) {
                         tokens.removeFirst()
                     }
-                } else if tokens.dropFirst(index).allSatisfy(separators.contains) {
-                    while let last = tokens.last, separators.contains(last) {
+                } else if tokens.dropFirst(index).allSatisfy(isSpacing) {
+                    while let last = tokens.last, isSpacing(last) {
                         tokens.removeLast()
                     }
                 } else {
                     var left = index
                     var right = index
-                    while left > 0, separators.contains(tokens[left - 1]) {
+                    while left > 0, isSpacing(tokens[left - 1]) {
                         left -= 1
                     }
-                    while right < tokens.count, separators.contains(tokens[right]) {
+                    while right < tokens.count, isSpacing(tokens[right]) {
                         right += 1
                     }
                     if left < index, right > index {
-                        let keepRight = tokens[index..<right].contains(.separatorDot)
-                            || !tokens[left..<index].contains(.separatorDot)
+                        let keepRight = tokens[index..<right].contains(where: \.isVisibleSeparator)
+                            || !tokens[left..<index].contains(where: \.isVisibleSeparator)
                         tokens.removeSubrange(keepRight ? left..<index : index..<right)
                     }
                 }
             }
             return tokens
         }.filter { !$0.isEmpty }
+    }
+
+    static func pluginSummaryTitle(
+        _ title: NSAttributedString, accessibilityLabel: String, highContrast: Bool) -> MenuBarLayoutRenderedTitle
+    {
+        MenuBarLayoutRenderedTitle(
+            attributedTitle: title,
+            accessibilityLabel: accessibilityLabel,
+            leadingIcon: nil,
+            statusImage: highContrast ? nil : self.statusImage(title: title, foregroundColor: .labelColor))
     }
 
     private static func statusImage(title: NSAttributedString, foregroundColor: NSColor) -> NSImage? {
@@ -653,6 +693,16 @@ final class MenuBarLayoutRenderer {
         depth: Int = 0)
         -> MenuBarLayoutToken?
     {
+        if data.provider.firstPartyProvider == nil {
+            let missing: Bool = switch token {
+            case let .percent(window) where window == .session || window == .weekly:
+                self.window(window, data: data) == nil
+            case .lanePercent(lane: .tertiary): data.tertiary == nil
+            case let .extraPercent(id): data.extraWindow(id) == nil
+            default: false
+            }
+            if missing { return .percent(window: .automatic) }
+        }
         switch token {
         case .hidden: return nil
         case let .extraPercent(id): return data.extraTitle(id) == nil ? nil : token
@@ -670,28 +720,6 @@ final class MenuBarLayoutRenderer {
                 depth: depth + 1)
         default: return token
         }
-    }
-
-    private static func labelAutomaticItem(
-        _ rendered: (value: NSAttributedString, accessibilityText: String?),
-        token: MenuBarLayoutToken,
-        data: MenuBarLayoutRenderData,
-        options: MenuBarLayoutRenderOptions,
-        attributes: [NSAttributedString.Key: Any])
-        -> (value: NSAttributedString, accessibilityText: String?)
-    {
-        switch token {
-        case .percent(window: .automatic), .pace(window: .automatic), .resetCountdown, .resetAbsolute,
-             .windowResetCountdown(window: .automatic), .windowResetAbsolute(window: .automatic): break
-        default: return rendered
-        }
-        guard let label = self.automaticWindowLabel(data: data) else { return rendered }
-        return (
-            self.prefixedValue(
-                options.showWindowLabels ? label.short : "",
-                value: rendered.value,
-                attributes: attributes),
-            rendered.accessibilityText.map { L("%@: %@", label.full, $0) })
     }
 
     private static func automaticWindowLabel(data: MenuBarLayoutRenderData) -> (short: String, full: String)? {
@@ -716,11 +744,10 @@ final class MenuBarLayoutRenderer {
             let title = data.laneLabels.label(for: lane)
             return (self.laneShortLabel(lane, data: data) ?? String(title.prefix(1)).uppercased(), title)
         }
-        guard laneMatches.isEmpty else { return nil }
-        guard extraMatches.count == 1, let extra = extraMatches.first, let title = data.extraTitle(extra.id)
+        guard laneMatches.isEmpty, extraMatches.count == 1, let extra = extraMatches.first,
+              let title = data.extraTitle(extra.id)
         else { return nil }
-        let short = ProviderDescriptorRegistry.descriptor(for: data.provider).menuBarMetrics
-            .namedExtraShortLabels[extra.id] ?? title
+        let short = data.descriptor?.menuBarMetrics.namedExtraShortLabels[extra.id] ?? title
         return (short, title)
     }
 
@@ -777,20 +804,32 @@ final class MenuBarLayoutRenderer {
         case let .percent(window):
             return self.renderPercent(window, data: data, style: style, options: options)
         case let .pace(window):
-            let accessibilityPrefix = item.editorLabel(provider: data.provider)
+            let accessibilityPrefix = item.editorLabel(provider: data.provider.firstPartyProvider)
+            let pace = Self.pace(window, data: data)
+            let neutralColor = Self.neutralForegroundColor(options)
             var attributes = style.attributes
-            attributes[.foregroundColor] = Self.neutralForegroundColor(options)
-            if options.colorPace, let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0 {
-                // Use the same rounded numeric delta as the displayed text, never its localized sign.
-                let color: NSColor = delta < 0 ? .systemGreen : .systemRed
-                attributes[.foregroundColor] = options.isStale && !options.highContrast ? color
-                    .withAlphaComponent(0.5) : color
-            }
-            return self.optionalTextToken(
-                Self.pace(window, data: data),
+            attributes[.foregroundColor] = neutralColor
+            let rendered = self.optionalTextToken(
+                pace,
                 unavailableLabel: L("%@ unavailable", accessibilityPrefix),
                 accessibilityPrefix: accessibilityPrefix,
                 attributes: attributes)
+            guard options.colorPace, let pace, !pace.isEmpty else { return rendered }
+
+            var indicatorColor = neutralColor
+            var isMonochrome = true
+            if let delta = Self.paceDelta(window, data: data), delta.isFinite, delta != 0 {
+                // Use the same rounded numeric delta as the displayed text, never its localized sign.
+                let color: NSColor = delta < 0 ? .systemGreen : .systemRed
+                indicatorColor = options.isStale && !options.highContrast ? color
+                    .withAlphaComponent(0.5) : color
+                isMonochrome = false
+            }
+            let result = NSMutableAttributedString(attributedString: Self.paceIndicator(
+                color: indicatorColor, style: style, isMonochrome: isMonochrome))
+            result.append(NSAttributedString(string: "\u{2009}", attributes: attributes))
+            result.append(rendered.value)
+            return (result, rendered.accessibilityText)
         case .resetCountdown, .resetAbsolute, .windowResetCountdown, .windowResetAbsolute:
             let window = item.resetWindow ?? .automatic
             let qualified = item != .resetCountdown && item != .resetAbsolute
@@ -802,7 +841,9 @@ final class MenuBarLayoutRenderer {
                 absolute: item.resetIsAbsolute).value
             return self.optionalTextToken(
                 value,
-                unavailableLabel: qualified ? L("%@ unavailable", item.editorLabel(provider: data.provider))
+                unavailableLabel: qualified ? L(
+                    "%@ unavailable",
+                    item.editorLabel(provider: data.provider.firstPartyProvider))
                     : (item.resetIsAbsolute ? L("Reset time unavailable") : L("Reset countdown unavailable")),
                 accessibilityText: value.map { qualified ? L("%@: %@", label, $0) : "\(label) \($0)" },
                 attributes: style.attributes)
@@ -830,6 +871,8 @@ final class MenuBarLayoutRenderer {
                 attributes: style.attributes)
         case .separatorDot:
             return self.textToken("·", accessibilityText: nil, attributes: style.attributes)
+        case let .separator(separator):
+            return self.textToken(separator.glyph, accessibilityText: nil, attributes: style.attributes)
         case .space:
             return self.textToken(" ", accessibilityText: nil, attributes: style.attributes)
         case .hidden:
@@ -915,7 +958,7 @@ final class MenuBarLayoutRenderer {
     {
         guard !prefix.isEmpty else { return value }
         let result = NSMutableAttributedString(string: "\(prefix) ", attributes: attributes)
-        result.addAttribute(self.windowPrefixKey, value: true, range: NSRange(location: 0, length: result.length))
+        result.addAttribute(self.windowPrefixKey, value: prefix, range: NSRange(location: 0, length: result.length))
         result.append(value)
         return result
     }
@@ -962,10 +1005,12 @@ final class MenuBarLayoutRenderer {
             self.primaryLabel(data: data).flatMap(\.first).map { String($0).uppercased() }
                 ?? Self.sessionPrefix(self.window(window, data: data))
         case .weekly:
-            PercentWindow.weekly.providerLabel(provider: data.provider)
+            (data.provider.firstPartyProvider == nil ? data.laneLabels.secondary
+                : PercentWindow.weekly.providerLabel(provider: data.provider.firstPartyProvider))
                 .flatMap(\.first).map { String($0).uppercased() } ?? "W"
         case .scopedWeekly:
-            data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
+            data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() }
+                ?? (data.provider.firstPartyProvider == nil ? "" : "F")
         case .automatic:
             ""
         case .spend:
@@ -980,7 +1025,8 @@ final class MenuBarLayoutRenderer {
         }
         return switch window {
         case .session: self.primaryLabel(data: data) ?? L("Session")
-        case .weekly: PercentWindow.weekly.providerLabel(provider: data.provider) ?? L("Weekly")
+        case .weekly: data.provider.firstPartyProvider == nil ? data.laneLabels.secondary
+            : PercentWindow.weekly.providerLabel(provider: data.provider.firstPartyProvider) ?? L("Weekly")
         case .scopedWeekly: data.scopedWeeklyTitle ?? L("Scoped weekly")
         case .automatic: L("Usage")
         case .spend: L("Spend")
@@ -1021,7 +1067,7 @@ final class MenuBarLayoutRenderer {
         case .spendAmount, .spendBudget:
             self.optionalTextToken(
                 item == .spendBudget ? data.spendBudget : data.spendAmount,
-                unavailableLabel: L("%@ unavailable", item.editorLabel(provider: data.provider)),
+                unavailableLabel: L("%@ unavailable", item.editorLabel(provider: data.provider.firstPartyProvider)),
                 accessibilityPrefix: L("Spend"),
                 attributes: attributes)
         case .tokensPerMinute:
@@ -1076,8 +1122,7 @@ final class MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", title, resolvedValue.text)
             : L("%@ unavailable", title)
-        let shortLabel = ProviderDescriptorRegistry.descriptor(for: data.provider)
-            .menuBarMetrics.namedExtraShortLabels[id]
+        let shortLabel = data.descriptor?.menuBarMetrics.namedExtraShortLabels[id]
         return self.textToken(
             L("%@ %@", shortLabel ?? title, resolvedValue.text),
             accessibilityText: accessibility,
@@ -1170,10 +1215,10 @@ final class MenuBarLayoutRenderer {
 
     /// Provider color is decoration; native monochrome owns stale, selected and accessible states.
     static func effectiveProviderTintColor(
-        for provider: UsageProvider,
+        for provider: UsageProvider?,
         options: MenuBarLayoutRenderOptions) -> NSColor?
     {
-        guard options.colorByProvider, !options.isHighlighted, !options.isStale, !options.highContrast,
+        guard let provider, options.colorByProvider, !options.isHighlighted, !options.isStale, !options.highContrast,
               !options.appearanceName.localizedCaseInsensitiveContains("accessibility")
         else { return nil }
         let accent = ProviderAccentPalette.color(for: provider)
@@ -1226,7 +1271,7 @@ final class MenuBarLayoutRenderer {
         (NSAttributedString(string: value, attributes: attributes), accessibilityText)
     }
 
-    private static func window(
+    static func window(
         _ percentWindow: PercentWindow,
         data: MenuBarLayoutRenderData)
         -> MenuBarLayoutRenderWindow?
@@ -1280,12 +1325,13 @@ final class MenuBarLayoutRenderer {
     }
 
     private static func primaryLabel(data: MenuBarLayoutRenderData) -> String? {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: data.provider)
+        guard let provider = data.provider.firstPartyProvider, let descriptor = data.descriptor
+        else { return data.laneLabels.primary }
         if let label = descriptor.presentation.menuBarLayoutPrimaryLabel { return L(label) }
         let lane: MenuBarLayoutLane = descriptor.presentation.primarySemanticWindow == .session ? .primary : .secondary
         let label = data.laneLabels.label(for: lane)
         let renamedTaggedLane = !descriptor.menuBarMetrics.laneShortLabels.isEmpty
-            && label != MenuBarLayoutLaneLabels(provider: data.provider, snapshot: nil).label(for: lane)
+            && label != MenuBarLayoutLaneLabels(provider: provider, snapshot: nil).label(for: lane)
         guard (descriptor.metadata.usesDetailBackedWindow && data.session?.windowMinutes == nil) || renamedTaggedLane
         else { return nil }
         return label
@@ -1343,9 +1389,10 @@ extension MenuBarLayoutRenderer {
     /// Provider-declared menu bar tag for a lane; nil keeps the lane's percentage bare. A snapshot-dependent
     /// lane label (Cursor's X Subscription "Weekly" pool) means the static tag no longer names that lane.
     private static func laneShortLabel(_ lane: MenuBarLayoutLane, data: MenuBarLayoutRenderData) -> String? {
-        let labels = ProviderDescriptorRegistry.descriptor(for: data.provider).menuBarMetrics.laneShortLabels
+        guard let provider = data.provider.firstPartyProvider, let descriptor = data.descriptor else { return nil }
+        let labels = descriptor.menuBarMetrics.laneShortLabels
         guard !labels.isEmpty else { return nil }
-        let staticLabels = MenuBarLayoutLaneLabels(provider: data.provider, snapshot: nil)
+        let staticLabels = MenuBarLayoutLaneLabels(provider: provider, snapshot: nil)
         guard data.laneLabels.label(for: lane) == staticLabels.label(for: lane) else { return nil }
         return switch lane {
         case .primary: labels[.primary]
@@ -1360,7 +1407,7 @@ extension MenuBarLayoutRenderer {
         _ window: PercentWindow,
         data: MenuBarLayoutRenderData) -> MenuBarLayoutLane?
     {
-        let presentation = ProviderDescriptorRegistry.descriptor(for: data.provider).presentation
+        guard let presentation = data.descriptor?.presentation else { return nil }
         let primaryWindow = PercentWindow.forSemanticWindow(presentation.primarySemanticWindow)
         let lane: MenuBarLayoutLane? = if window == primaryWindow {
             .primary
@@ -1431,6 +1478,27 @@ extension MenuBarLayoutRenderer {
             showUsed: options.showUsed).text
         let accessibility = L("%@ %@", accessibilityPrefix, percentText)
         return (result, accessibility)
+    }
+
+    private static func paceIndicator(color: NSColor, style: TokenStyle, isMonochrome: Bool) -> NSAttributedString {
+        let height = style.font.capHeight
+        let size = NSSize(width: height / 2, height: height)
+        let image = NSImage(size: size, flipped: false) { rect in
+            color.setFill()
+            NSBezierPath(rect: rect).fill()
+            return true
+        }
+        image.isTemplate = isMonochrome
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = NSRect(
+            x: 0,
+            y: Self.attachmentYOrigin(height: size.height, style: style),
+            width: size.width,
+            height: size.height)
+        let value = NSMutableAttributedString(attributedString: Self.attachmentText(attachment, style: style))
+        value.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: value.length))
+        return value
     }
 
     private static func progressBarSize(size: MenuBarLayoutSize, font: NSFont) -> NSSize {

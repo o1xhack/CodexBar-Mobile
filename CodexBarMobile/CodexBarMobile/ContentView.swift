@@ -5104,6 +5104,11 @@ enum MobileReleaseNotesCatalog {
                     detail: String(
                         localized: "In the CodexBar widget’s overview, choose Session or Weekly for each provider, show used or remaining quota, and see which limit every tile shows.")),
                 .init(
+                    id: "upstream-083", symbol: "arrow.triangle.2.circlepath",
+                    title: String(localized: "More services and clearer credits"),
+                    detail: String(
+                        localized: "See OpenDesign usage, organization credits, rewards and updated MiniMax quotas from your Mac. Cost history now keeps every day across daylight-saving changes.")),
+                .init(
                     id: "grok-history", symbol: "chart.xyaxis.line",
                     title: String(localized: "Grok usage history"),
                     detail: String(

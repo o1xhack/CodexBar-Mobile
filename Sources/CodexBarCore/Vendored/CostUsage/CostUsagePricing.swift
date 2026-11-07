@@ -537,7 +537,8 @@ enum CostUsagePricing {
     /// stores rebuild instead of adopting rows corrupted by the 0.72 request-ledger migration.
     /// Version 21: v0.74.0-v0.74.1 merged Codex turn-performance timing, cached-input coverage, and shared
     /// turn identifiers; published 0.73.0.1 stores adopt like upstream 0.73.0 stores.
-    static let parserLogicVersion = 24
+    /// Version 25: v0.83.0 archived rollouts, home scoping, resumed tiers and Sol Fast pricing.
+    static let parserLogicVersion = 25
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -823,7 +824,7 @@ enum CostUsagePricing {
         pricingResolver: CodexResolver? = nil) -> Double?
     {
         guard let multiplier = self.codexAPIFastMultiplier(model: model) else { return nil }
-        // Keep older models' established cutoff; Astra explicitly publishes long-context Fast rates.
+        // Keep older models' established cutoff; Astra and GPT-6.1 Sol publish long-context Fast rates.
         if max(0, inputTokens) > self.codexPriorityInputTokenLimit,
            !self.codexAPIFastAllowsLongContext(model: model)
         {
@@ -848,14 +849,17 @@ enum CostUsagePricing {
     /// distinct from ChatGPT/Codex Fast credit multipliers, which do not represent a USD charge.
     static func codexAPIFastMultiplier(model: String) -> Double? {
         switch self.normalizeCodexModel(model) {
-        case "gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra": 2
+        case "gpt-5.4", "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6.1-sol": 2
         case "gpt-5.5": 2.5
         default: nil
         }
     }
 
     private static func codexAPIFastAllowsLongContext(model: String) -> Bool {
-        self.normalizeCodexModel(model) == "gpt-6-astra"
+        switch self.normalizeCodexModel(model) {
+        case "gpt-6-astra", "gpt-6.1-sol": true
+        default: false
+        }
     }
 
     static func codexCostUSD(

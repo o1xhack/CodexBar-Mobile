@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (94 after v0.82 catch-up)`() {
+    func `Provider list has expected count (95 after v0.82 catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -32,11 +32,11 @@ struct QuotaProviderListTests {
         // iOS 2.1.0 (providers through Mac v0.66) → 81 in iOS 2.3.0 → 83 in iOS 2.6.0 → 84 with Langdock (Mac v0.73)
         // → 87 with Aerostack, Cosmic AI, and Tavily (Mac v0.74)
         // → 88 with Claude Platform (Mac v0.76), 90 with Future AGI/Munito,
-        // and 94 with Soniox, Trae CN, abliteration.ai, and Chatbox AI (Mac v0.80-v0.81).
+        // and 95 with Soniox, Trae CN, abliteration.ai, and Chatbox AI (Mac v0.80-v0.81).
         // (xKiro, Raycast, and Aixy from Mac v0.67).
         // Must stay synced with
         // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 94)
+        #expect(QuotaProviderList.providers.count == 95)
     }
 
     @Test
@@ -100,7 +100,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 94 × 3 = 282 (depleted + restored + warning)`() {
+    func `iOS subscription count is 95 × 3 = 285 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -121,14 +121,14 @@ struct QuotaProviderListTests {
         // (83 × 3 after adding Muse (muse.ai) and WorkBuddy) → 252 (84 × 3 with Langdock)
         // → 261 (87 × 3 with Aerostack, Cosmic AI, and Tavily).
         // → 264 (88 × 3 with Claude Platform), 270 with Future AGI/Munito,
-        // and 282 (94 × 3) with the four Mac v0.80-v0.81 providers.
+        // and 285 (95 × 3) with the four Mac v0.80-v0.81 providers.
         // If this fails,
         // someone either dropped a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 282)
+        #expect(subscriptionCount == 285)
     }
 
     @Test

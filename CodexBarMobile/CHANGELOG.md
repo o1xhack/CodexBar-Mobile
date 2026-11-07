@@ -1,5 +1,16 @@
 # Changelog — CodexBar Mobile (iOS)
 
+## 3.5.0 (263) — 2026-11-06
+
+### Added
+- OpenDesign session and weekly quotas and quota notification registration.
+
+### Fixed
+- Keep all UTC cost-history days across daylight-saving transitions.
+
+### Changed
+- Support v0.83 synced Perplexity organization credits and WorkBuddy rewards with distinct localized labels, MiniMax quotas and corrected cost history through the existing compatible envelope.
+
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
 ## [3.5.0 (262)] — Unreleased

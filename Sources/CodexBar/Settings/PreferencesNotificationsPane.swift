@@ -37,6 +37,18 @@ struct NotificationsPane: View {
                         subtitle: L("limit_reset_notifications_subtitle"))
                 }
 
+                Toggle(isOn: self.$settings.codexResetCreditExpiryNotificationsEnabled) {
+                    SettingsRowLabel(
+                        L("codex_reset_credit_expiry_notifications_title"),
+                        subtitle: L("codex_reset_credit_expiry_notifications_subtitle"))
+                }
+
+                Toggle(isOn: self.$settings.upcomingResetNotificationsEnabled) {
+                    SettingsRowLabel(
+                        L("upcoming_reset_notifications_title"),
+                        subtitle: L("upcoming_reset_notifications_subtitle"))
+                }
+
                 let warningSettingsVisibility = QuotaWarningSettingsVisibility(
                     thresholdWarningsEnabled: self.settings.quotaWarningNotificationsEnabled,
                     predictiveWarningsEnabled: self.settings.predictivePaceWarningNotificationsEnabled)

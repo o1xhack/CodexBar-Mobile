@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -391,6 +392,12 @@ class TestProcessOwnership:
         started = time.monotonic()
         terminated: set[tuple[int, tuple[int, int]]] = set()
         while True:
+            # Native process enumeration can consume much of the cleanup window on a busy
+            # simulator host. Re-signal our unreaped direct child before that inspection;
+            # wait ownership anchors its PID even when Darwin hides its metadata.
+            root_killed = self.process is not None and time.monotonic() - started >= 3
+            if root_killed:
+                self.send(self.root, signal.SIGKILL)
             owned = self.refresh()
             if not owned:
                 process.wait(timeout=1)
@@ -400,6 +407,8 @@ class TestProcessOwnership:
                 # Never begin a retry while a known child is still running.
                 raise RuntimeError(f"Could not drain owned test processes within 5s: {sorted(owned)}")
             for info in owned.values():
+                if root_killed and info.pid == self.root.pid:
+                    continue
                 identity = (info.pid, info.birth)
                 if elapsed >= 3:
                     self.send(info, signal.SIGKILL)
@@ -578,6 +587,22 @@ def repair_sparkle_test_runtime(swift_command: list[str], environment: dict[str,
         return sparkle_runtime_matches_source(destination, source)
 
 
+def cleanup_discovery_home(home: str) -> None:
+    if sys.platform == "darwin":
+        def raise_walk_error(error: OSError) -> None:
+            raise error
+
+        # Xcode can mount a read-only Metal toolchain inside the isolated home.
+        # Unmount only volumes rooted here; never descend into them or follow symlinks.
+        for directory, children, _ in os.walk(home, onerror=raise_walk_error):
+            for child in children[:]:
+                path = Path(directory) / child
+                if not path.is_symlink() and os.path.ismount(path):
+                    subprocess.run(["/usr/sbin/diskutil", "unmount", str(path)], check=True, timeout=60)
+                    children.remove(child)
+    shutil.rmtree(home)
+
+
 def parse_swift_test_list(output: str) -> list[TestSelection]:
     selections: set[TestSelection] = set()
     unknown: list[str] = []
@@ -619,9 +644,12 @@ def parse_swift_test_list(output: str) -> list[TestSelection]:
 
 
 def swift_test_list(swift_command: list[str], inventory: list[str] | None = None) -> list[TestSelection]:
-    with tempfile.TemporaryDirectory(prefix="codexbar-test-discovery-") as home:
+    home = tempfile.mkdtemp(prefix="codexbar-test-discovery-")
+    try:
         environment = os.environ | {"HOME": home, "CFFIXED_USER_HOME": home}
         return isolated_swift_test_list(swift_command, inventory, environment)
+    finally:
+        cleanup_discovery_home(home)
 
 
 def isolated_swift_test_list(swift_command, inventory, environment) -> list[TestSelection]:

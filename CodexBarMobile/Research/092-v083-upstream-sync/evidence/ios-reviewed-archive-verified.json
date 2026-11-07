@@ -1,0 +1,60 @@
+{
+  "sourceCommit": "c5227b588a71a23dacd123bd2e2d3f9df6b3d782",
+  "archivePath": "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v083/CodexBarMobile-label-fix.xcarchive",
+  "archiveState": "local development-signed archive only; not uploaded or exported",
+  "englishReleaseNotesVerified": true,
+  "localizedWindowCatalogVerified": true,
+  "roles": [
+    {
+      "bundle": "CodexBarMobile.app",
+      "id": "com.o1xhack.codexbar.mobile",
+      "version": "3.5.0",
+      "build": "263",
+      "team": "3TUERHN53E",
+      "cloudEnvironment": "Production",
+      "appGroups": [
+        "group.com.o1xhack.codexbar"
+      ],
+      "getTaskAllow": true,
+      "binarySHA256": "b586f49aa66cd657a346b7d1950bb8d0026d04e9acb155ca7d1afe91ee4c8a42"
+    },
+    {
+      "bundle": "CodexBarMobilePushExtension.appex",
+      "id": "com.o1xhack.codexbar.mobile.pushextension",
+      "version": "3.5.0",
+      "build": "263",
+      "team": "3TUERHN53E",
+      "cloudEnvironment": "Production",
+      "appGroups": null,
+      "getTaskAllow": true,
+      "binarySHA256": "db1fd868383c4f8359e0e21e2278f9b18f5bbf62ee4d9c71b55047c9f1232743"
+    },
+    {
+      "bundle": "CodexBarMobileWidgetOptions.appex",
+      "id": "com.o1xhack.codexbar.mobile.widgetoptions",
+      "version": "3.5.0",
+      "build": "263",
+      "team": "3TUERHN53E",
+      "cloudEnvironment": null,
+      "appGroups": [
+        "group.com.o1xhack.codexbar"
+      ],
+      "getTaskAllow": true,
+      "binarySHA256": "12c06693d25c337f7cc0438dd9e34ef7b53966dd98c70951cdbda62dbfc3d4c0"
+    },
+    {
+      "bundle": "CodexBarMobileWidgets.appex",
+      "id": "com.o1xhack.codexbar.mobile.widgets",
+      "version": "3.5.0",
+      "build": "263",
+      "team": "3TUERHN53E",
+      "cloudEnvironment": "Production",
+      "appGroups": [
+        "group.com.o1xhack.codexbar"
+      ],
+      "getTaskAllow": true,
+      "binarySHA256": "f0d373fcd7dd78650b282b9abc8f764848963c769e2bcc4dc124ce703cfa7627"
+    }
+  ],
+  "supersedesSourceCommit": "23ff6887da5ef996c47dcfc967d7b369e78b7cd7"
+}

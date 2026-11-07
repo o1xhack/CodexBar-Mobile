@@ -16,8 +16,8 @@ import Foundation
 ///
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
-/// snapshots. The full catalog now has 125 snapshots: 120 using current
-/// provider IDs (110 distinct), three legacy-ID compatibility fixtures,
+/// snapshots. The full catalog now has 126 snapshots: 121 using current
+/// provider IDs (111 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
 /// the iOS app does not yet know about. All values and accounts remain
@@ -246,7 +246,7 @@ enum MockProviderInjector {
         "sailresearch", "sofya", "xapi",
         // Provider-specific by design: upstream v0.75.0–v0.76.0 bundled-plugin providers borrowed by mocks.
         "fal", "flora", "parallel", "claudeplatform", "futureagi", "munito",
-        "soniox", "traecn", "abliteration", "chatbox",
+        "soniox", "traecn", "abliteration", "chatbox", "opendesign",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -2034,6 +2034,15 @@ enum MockProviderInjector {
             primaryUsage: 25, primaryLabel: "Usage",
             primaryWindowMinutes: 43200, primaryResetsInSeconds: 604_800,
             primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "opendesign", providerName: "OpenDesign",
+            accountLocal: "fixture", loginMethod: "Browser session",
+            primaryUsage: 25, primaryLabel: "Session",
+            primaryWindowMinutes: 300, primaryResetsInSeconds: 3600,
+            primaryResetDescription: "", secondary: .init(
+                label: "Weekly", usedPercent: 40, windowMinutes: 10080,
+                resetsInSeconds: 604_800, resetDescription: ""),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal

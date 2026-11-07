@@ -288,7 +288,8 @@ class ProcessCleanupTests(unittest.TestCase):
                         ready_roots = [child_root]
                         if mode == "success-session-tree":
                             ready_roots.append(child_root / "grandchild")
-                        wait_until(lambda: all((path / "ready").exists() for path in ready_roots), timeout=10)
+                        wait_until(lambda: all((path / "ready").exists() for path in ready_roots),
+                                   timeout=NESTED_FIXTURE_TIMEOUT)
                     owned = original_refresh(ownership, **kwargs)
                     if not acknowledged and not draining:
                         acknowledged = release_observed_fixture(
@@ -659,7 +660,7 @@ class DarwinNativeSignalTests(unittest.TestCase):
                 process = subprocess.Popen([sys.executable, __file__, "--fixture", mode, str(path)],
                                            start_new_session=True)
                 processes.append(process)
-                wait_until(lambda: (path / "pid").exists())
+                wait_until(lambda: (path / "pid").exists(), timeout=NESTED_FIXTURE_TIMEOUT)
                 return process
             def identity(pid):
                 info = runner.darwin_pidinfo(pid, 18, runner.ProcBSDInfoWithUniqueID())
@@ -792,6 +793,40 @@ class ProcessInventoryTests(unittest.TestCase):
 
 
 class ReviewRegressionTests(unittest.TestCase):
+    def test_slow_metadata_enumeration_does_not_delay_direct_child_kill_retries(self):
+        clock = 0.0
+        killed = 0
+        sent = []
+        root = runner.TestProcess(10, 1, 10, (1, 1), False)
+        process = Mock(pid=10)
+        process.returncode = None
+        ownership = runner.TestProcessOwnership(root, process)
+
+        def refresh():
+            nonlocal clock
+            clock += 1.0
+            return {} if killed >= 3 else {10: root}
+
+        def send(info, sig):
+            nonlocal killed
+            sent.append((sig, clock))
+            if sig == signal.SIGKILL:
+                killed += 1
+
+        def sleep(seconds):
+            nonlocal clock
+            clock += seconds
+
+        with patch.object(ownership, "refresh", side_effect=refresh), \
+                patch.object(ownership, "send", side_effect=send), \
+                patch.object(runner.time, "monotonic", side_effect=lambda: clock), \
+                patch.object(runner.time, "sleep", side_effect=sleep):
+            ownership._drain(process)
+        self.assertEqual([sig for sig, _ in sent], [signal.SIGTERM] + [signal.SIGKILL] * 3)
+        self.assertGreaterEqual(sent[1][1], 3)
+        self.assertLess(sent[-1][1], 5)
+        process.wait.assert_called_once_with(timeout=1)
+
     def test_recycled_sid_without_replacement_leader_is_not_adopted(self):
         root = runner.TestProcess(10, 1, 10, (100, 0))
         peer = runner.TestProcess(30, 1, 10, (201, 0))

@@ -153,3 +153,7 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 ## 2026-10-29：v0.82.0.1 正式发布前最终复核
 
 published `v0.79.0.1-mobile.3.1.0` → release `c6cbe728b9161cac0f816071e270669efd1229c1` 复核仍为 **NO_DEPLOY（代码审计）**。Shared/iCloud、Scripts/cloudkit、CloudSyncEngine、SyncModels 无 diff，providerPayloadVersion=1；两个包含 CK API 的变更文件已分别归类：QuotaProviderList 仅 append 四个 provider，复用既有 QuotaTransition schema 的运行时 zone/subscription；SyncCoordinator 仅改 optional JSON 映射，无新增 CK field/type/index/query/predicate。真实 Mac/iOS 分发签名的相关角色均为 Production；未执行 schema export/deploy 或 Production 数据读写，也未声称实体多设备收敛已验证。实际发布/送审、可选 payload decoder 与替代矩阵边界见 [Research090 正式交付](https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CodexBarMobile/Research/090-v082-upstream-sync/08-public-release.md)。
+
+## 2026-11-06：v0.83.0.1-mobile.3.3.0 候选代码审计
+
+相对 published `v0.82.0.1-mobile.3.2.0`，Shared/iCloud、Scripts/cloudkit和SyncModels无diff，providerPayloadVersion仍1。QuotaProviderList只追加OpenDesign，复用既有QuotaTransition运行时zone/subscription；SyncCoordinator的OpenDesign来源隔离及原有optional JSON额度映射不引入CKRecord type/field/index/predicate。上游fleet重试仅改变写入确认/重试时序。结论 **NO_DEPLOY（代码审计）**。iOS本地Archive相关角色Production entitlement已验证，Mac最终签名包另见Research092证据。未执行Production export/deploy或业务数据库读写；16组合均为独立进程wire/merger替代验证，未声称真实CloudKit/APNs/多设备缓存收敛。

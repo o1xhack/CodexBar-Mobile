@@ -64,6 +64,9 @@ the app, without opening a browser or prompting for Keychain access. See [CLI co
      for the tested individual account.
 
 ## Snapshot mapping
+- An explicit `access_type_sku: "subscription_ended"` response reports **Copilot subscription ended**
+  instead of the generic Foundation decoding error. Missing quotas alone do not imply an ended
+  subscription; unknown payloads and real transport failures retain their errors.
 - Primary: `quotaSnapshots.premiumInteractions` percent remaining → used percent.
 - Secondary: `quotaSnapshots.chat` percent remaining → used percent.
 - Extra: positive Copilot billing budgets from the GitHub web endpoint → `extraRateWindows`, only when "Budget extras"
@@ -75,7 +78,8 @@ the app, without opening a browser or prompting for Keychain access. See [CLI co
   configured seat entitlement) so a metered Pro/Individual seat never grows a permanent "0 credits used" row.
   Deliberately not summed with `chat`/`completions` credits — GitHub can report the same pool under multiple
   snapshot keys, and summing would double-count.
-- Reset dates are not provided by the API.
+- Reset dates come from the optional `quota_reset_date` field (ISO 8601 or `YYYY-MM-DD`).
+- Menu-bar pace uses the same calendar-month window as the menu card and CLI when a reset date is available.
 - Plan label from `copilotPlan`.
 
 ## AI credit entitlements

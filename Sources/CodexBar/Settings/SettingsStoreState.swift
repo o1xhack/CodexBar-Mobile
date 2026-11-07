@@ -19,6 +19,8 @@ struct SettingsDefaultsState {
     var quotaWarningNotificationsEnabled: Bool
     var predictivePaceWarningNotificationsEnabled: Bool
     var limitResetNotificationsEnabled: Bool
+    var codexResetCreditExpiryNotificationsEnabled: Bool
+    var upcomingResetNotificationsEnabled: Bool
     var quotaWarningThresholdsRaw: [Int]
     var quotaWarningSessionThresholdsRaw: [Int]
     var quotaWarningWeeklyThresholdsRaw: [Int]

@@ -108,6 +108,7 @@ enum ProviderColorPalette {
     /// same color.
     static func color(for providerIdentifier: String) -> Color {
         switch providerIdentifier.lowercased().replacingOccurrences(of: " ", with: "") {
+        case "opendesign": return self.readable(Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255))
         case "soniox": return self.readable(Color(red: 37 / 255, green: 55 / 255, blue: 114 / 255))
         case "traecn": return self.readable(Color(red: 77 / 255, green: 124 / 255, blue: 254 / 255))
         case "abliteration": return self.readable(Color(red: 27 / 255, green: 27 / 255, blue: 27 / 255))

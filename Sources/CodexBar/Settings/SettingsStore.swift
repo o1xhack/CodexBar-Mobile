@@ -474,6 +474,7 @@ extension SettingsStore {
         let sessionQuotaNotificationsEnabled: Bool
         let predictivePaceWarningNotificationsEnabled: Bool
         let limitResetNotificationsEnabled: Bool
+        let upcomingResetNotificationsEnabled: Bool
     }
 
     private static func scheduleAppGroupMigration() {
@@ -599,6 +600,9 @@ extension SettingsStore {
             quotaWarningNotificationsEnabled: quotaWarnings.notificationsEnabled,
             predictivePaceWarningNotificationsEnabled: notificationDefaults.predictivePaceWarningNotificationsEnabled,
             limitResetNotificationsEnabled: notificationDefaults.limitResetNotificationsEnabled,
+            codexResetCreditExpiryNotificationsEnabled: userDefaults.bool(
+                forKey: "codexResetCreditExpiryNotificationsEnabled"),
+            upcomingResetNotificationsEnabled: notificationDefaults.upcomingResetNotificationsEnabled,
             quotaWarningThresholdsRaw: quotaWarnings.thresholdsRaw,
             quotaWarningSessionThresholdsRaw: quotaWarnings.sessionThresholdsRaw,
             quotaWarningWeeklyThresholdsRaw: quotaWarnings.weeklyThresholdsRaw,
@@ -625,7 +629,7 @@ extension SettingsStore {
             menuBarShowsBrandIconWithPercent: userDefaults.object(
                 forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false,
             menuBarHidesCritters: userDefaults.object(forKey: "menuBarHidesCritters") as? Bool ?? false,
-            menuBarColorPace: userDefaults.bool(forKey: "menuBarColorPace"),
+            menuBarColorPace: userDefaults.object(forKey: "menuBarColorPace") as? Bool ?? true,
             menuBarPaceReservePositive: userDefaults.bool(forKey: "menuBarPaceReservePositive"),
             menuBarColorByProvider: userDefaults.bool(forKey: "menuBarColorByProvider"),
             menuBarHighContrastOnInactiveDisplays: userDefaults.object(
@@ -802,7 +806,9 @@ extension SettingsStore {
             predictivePaceWarningNotificationsEnabled: userDefaults.object(
                 forKey: "predictivePaceWarningNotificationsEnabled") as? Bool ?? false,
             limitResetNotificationsEnabled: userDefaults.object(
-                forKey: "limitResetNotificationsEnabled") as? Bool ?? false)
+                forKey: "limitResetNotificationsEnabled") as? Bool ?? false,
+            upcomingResetNotificationsEnabled: userDefaults.object(
+                forKey: "upcomingResetNotificationsEnabled") as? Bool ?? false)
     }
 
     private static func loadCostSummaryDisplayStyleRaw(
@@ -880,6 +886,7 @@ extension SettingsStore {
     private static func loadMenuBarLayout(userDefaults: UserDefaults) -> MenuBarLayout? {
         MenuBarLayoutPersistence.loadLayout(
             current: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)),
+            v6: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV6)),
             v5: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV5)),
             v4: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV4)),
             v3: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV3)),
@@ -895,6 +902,8 @@ extension SettingsStore {
         MenuBarLayoutPersistence.loadLibrary(
             current: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)),
+            v6: self.decodeMenuBarLayoutConditionals(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV6)),
             v5: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV5)),
             v4: self
@@ -922,6 +931,8 @@ extension SettingsStore {
         MenuBarLayoutPersistence.loadOverrides(
             current: self.decodeMenuBarLayoutOverrides(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)),
+            v6: self.decodeMenuBarLayoutOverrides(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV6)),
             v5: self.decodeMenuBarLayoutOverrides(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV5)),
             v4: self.decodeMenuBarLayoutOverrides(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV4)),

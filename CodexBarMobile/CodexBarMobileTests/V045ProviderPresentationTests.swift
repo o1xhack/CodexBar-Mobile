@@ -26,6 +26,24 @@ struct V045ProviderPresentationTests {
     }
 
     @Test
+    func `organization and reward windows retain their localized distinctions`() {
+        let expectations: [(locale: String, organization: String, rewards: String)] = [
+            ("en", "Organization", "Rewards"),
+            ("zh-Hans", "组织", "奖励额度"),
+            ("zh-Hant", "組織", "獎勵額度"),
+            ("ja", "組織", "報酬クレジット"),
+        ]
+        for expectation in expectations {
+            let locale = Locale(identifier: expectation.locale)
+            #expect(ProviderWindowLabel.localized(
+                "Organization", fallback: "Limit", providerID: "perplexity", locale: locale) == expectation
+                .organization)
+            #expect(ProviderWindowLabel.localized(
+                "Rewards", fallback: "Limit", providerID: "workbuddy", locale: locale) == expectation.rewards)
+        }
+    }
+
+    @Test
     func `v052 provider labels localize in all four languages`() {
         let expectations: [(locale: String, total: String, thirdParty: String, onDemand: String)] = [
             ("en", "Total", "Third Party", "On-demand"),

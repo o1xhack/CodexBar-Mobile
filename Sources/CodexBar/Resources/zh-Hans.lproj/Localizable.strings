@@ -1,4 +1,5 @@
 /* Chinese (Simplified) localization for CodexBar */
+"Copilot subscription ended" = "Copilot 订阅已结束";
 
 /* iCloud Sync */
 "+ %d more" = "还有 %d 个";
@@ -180,6 +181,7 @@
 "Individual credits" = "个人额度";
 "Workspace" = "工作区";
 "Credits history" = "额度记录";
+"Cursor app session expired — open Cursor to sign in again, or sign in to cursor.com in your browser." = "Cursor 应用会话已过期 — 请打开 Cursor 重新登录，或在浏览器中登录 cursor.com。";
 "Cursor login failed" = "Cursor 登录失败";
 "Custom" = "自定义";
 "Custom Path" = "自定义路径";
@@ -1329,11 +1331,8 @@
 "Share Stats…" = "分享统计数据…";
 "Stats copied" = "统计数据已复制";
 "DeepSeek this month token usage trend" = "DeepSeek 本月 token 用量趋势";
-"Chrome profile" = "Chrome 配置文件";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "选择要提供详细用量的已登录 DeepSeek Platform 会话。";
 "Detailed usage unavailable." = "详细用量不可用。";
-"Sign in to DeepSeek Platform in Chrome for detailed usage." = "请在 Chrome 中登录 DeepSeek Platform 以查看详细用量。";
-"Select a DeepSeek Chrome profile in Settings." = "请在“设置”中选择 DeepSeek Chrome 配置文件。";
 "Select profile…" = "选择配置文件…";
 
 "%@: %@" = "%@：%@";
@@ -1534,7 +1533,7 @@
 "mobile_toggle_push_subtitle" = "当 session 配额耗尽或恢复时，通过 iCloud 向 iOS 伴侣 app 发送可见的提醒推送。这与 Mac 本地通知独立 —— 可以让 Mac 保持安静的同时让 iPhone 收到提醒。";
 "mobile_section_mock_data" = "调试 · Mock provider 数据";
 "mobile_toggle_mock_title" = "注入 mock provider 数据";
-"mobile_toggle_mock_subtitle" = "每次同步会推送 125 个稳定的模拟快照，覆盖 115 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
+"mobile_toggle_mock_subtitle" = "每次同步会推送 126 个稳定的模拟快照，覆盖 116 个 provider ID，包括多账号、sub2api、Wayfinder 和未知 provider 回退场景。模拟邮箱使用 `.test` TLD，因此 iPhone 会显示 MOCK 徽章。关闭后，CloudKit 会在大约一个同步周期内移除模拟记录。默认关闭。";
 "mobile_mock_reference_header" = "参考 — 最常测试的 8 个 mock（35 个简单 mock 省略）：";
 "mobile_mock_cost_note" = "Mock 数据启用时会在 30 天费用面板上增加约 $85。关闭后恢复真实数字。";
 "mobile_section_dev_test" = "DEV — iOS 推送测试";
@@ -2840,3 +2839,37 @@
 "Show this Mac's recorded OpenCode usage in Codex history. Off by default; scoped or alternate CODEX_HOME locations always stay excluded." = "在 Codex 历史记录中显示此 Mac 上记录的 OpenCode 用量。默认关闭；始终排除限定范围或其他 CODEX_HOME 位置。";
 "Auto uses the active saved session, otherwise an API key or browser cookies." = "自动使用当前启用的已保存会话，否则使用 API 密钥或浏览器 Cookie。";
 "Store multiple Command Code subscription sessions." = "存储多个 Command Code 订阅会话。";
+
+"codex_reset_credit_expiry_notifications_title" = "Codex 重置卡到期提醒";
+
+"codex_reset_credit_expiry_notifications_subtitle" = "刷新用量时，在到期前 1 天和 1 小时发送提醒。";
+/* OpenDesign */
+"OpenDesign" = "OpenDesign";
+"Show OpenDesign usage" = "显示 OpenDesign 用量";
+"Sign in to OpenDesign, then refresh CodexBar." = "登录 OpenDesign，然后刷新 CodexBar。";
+"OpenDesign usage response format changed." = "OpenDesign 用量响应格式已更改。";
+"OpenDesign billing access was denied." = "OpenDesign 账单访问被拒绝。";
+"OpenDesign request failed. Try again later." = "OpenDesign 请求失败。请稍后重试。";
+"OpenDesign subscription usage is unavailable for this workspace." = "此工作区的 OpenDesign 订阅用量不可用。";
+"upcoming_reset_notifications_title" = "额度重置前提醒";
+"upcoming_reset_notifications_subtitle" = "在 Codex 每周额度重置前，若额度仍有剩余则发出提醒。";
+"upcoming_reset_notification_title" = "%1$@ %2$@额度即将重置";
+"upcoming_reset_notification_body" = "还有 %1$@ 的额度未使用。额度将在 %2$@ 后重置，未使用的额度将失效。";
+"upcoming_reset_notification_body_with_account" = "账户 %1$@。还有 %2$@ 的额度未使用。额度将在 %3$@ 后重置，未使用的额度将失效。";
+"Sign in to DeepSeek Platform in a Chromium-based browser for detailed usage." = "请在基于 Chromium 的浏览器中登录 DeepSeek Platform 以查看详细用量。";
+"Select a DeepSeek browser profile in Settings." = "请在“设置”中选择 DeepSeek 浏览器配置文件。";
+"menu_bar_layout_token_separator_glyph_accessibility" = "分隔符 %@";
+"menu_bar_layout_separator_pipe" = "竖线";
+"menu_bar_layout_separator_slash" = "斜杠";
+"menu_bar_layout_separator_hyphen" = "连字符";
+"menu_bar_layout_separator_bullet" = "项目符号";
+"menu_bar_layout_separator_diamond" = "实心菱形";
+"menu_bar_layout_separator_hollowDiamond" = "空心菱形";
+"menu_bar_layout_separator_tilde" = "波浪号";
+"menu_bar_layout_separator_doubleBar" = "双竖线";
+"Rename" = "重命名";
+"Rename account" = "重命名账户";
+"Account name" = "账户名称";
+"Leave blank to use the default name." = "留空以使用默认名称。";
+"Rewards" = "奖励";
+"Reward expiry" = "奖励到期日期";
