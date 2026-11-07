@@ -253,4 +253,63 @@ for variation in draft closed truncated-reviews truncated-inline; do
   expect_fail "independent-$variation"
 done
 
+# Newer connector summary comment: edited in place, state in an HTML comment,
+# completion time in the Code Review row.
+summary_comment() {
+  local sha=$1 status=$2 any=$3 unresolved=$4 done_at=$5 created_at=${6:-2026-08-17T00:00:01Z}
+  jq -nc --arg sha "$sha" --arg status "$status" --argjson any "$any" \
+    --argjson unresolved "$unresolved" --arg doneAt "$done_at" --arg createdAt "$created_at" '{
+    author:{login:"chatgpt-codex-connector"},
+    createdAt:$createdAt,
+    lastEditedAt:$doneAt,
+    body:("<!-- codex-pull-request-review-summary -->\n<!-- codex-review-state:v1 "
+      + ({code_review:{commit_sha:$sha,has_any_findings:$any,has_unresolved_findings:$unresolved,status:$status},
+          security_review:{commit_sha:null,has_any_findings:null,has_unresolved_findings:null,status:null}} | tojson)
+      + " -->\n\n| Review | Status | Commit | Review trigger |\n| --- | --- | --- | --- |\n"
+      + "| 📝 **Code Review** | ✅ **Completed** <relative-time datetime=\"" + $doneAt + "\">x</relative-time> | `"
+      + ($sha[0:7]) + "` | PR opened |")
+  }'
+}
+head_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+write_fixture summary-clean '[]' "[$(summary_comment "$head_sha" completed false false 2026-08-17T00:00:05.123456Z)]" '[]'
+expect_pass summary-clean
+
+write_fixture summary-findings '[]' "[$(summary_comment "$head_sha" completed true true 2026-08-17T00:00:05.123456Z)]" '[]'
+expect_fail summary-findings
+
+write_fixture summary-resolved-findings '[]' "[$(summary_comment "$head_sha" completed true false 2026-08-17T00:00:05.123456Z)]" '[]'
+expect_fail summary-resolved-findings
+
+write_fixture summary-failed '[]' "[$(summary_comment "$head_sha" failed true true 2026-08-17T00:00:05.123456Z)]" '[]'
+expect_fail summary-failed
+
+write_fixture summary-running '[]' "[$(summary_comment "$head_sha" in_progress false false 2026-08-17T00:00:05.123456Z)]" '[]'
+expect_fail summary-running
+
+write_fixture summary-stale-head '[]' \
+  "[$(summary_comment bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb completed false false 2026-08-17T00:00:05Z)]" '[]'
+expect_fail summary-stale-head
+
+# A re-request after the summary completed is in flight until the summary is
+# edited with a newer completion time, even though the comment was created
+# before the request.
+summary_then_request=$(jq -nc \
+  --argjson summary "$(summary_comment "$head_sha" completed false false 2026-08-17T00:00:05Z)" \
+  '[$summary, {author:{login:"o1xhack"},body:"@codex review",createdAt:"2026-08-17T00:00:07Z"}]')
+write_fixture summary-request-in-flight '[]' "$summary_then_request" '[]'
+expect_fail summary-request-in-flight
+
+summary_rereviewed=$(jq -nc \
+  --argjson summary "$(summary_comment "$head_sha" completed false false 2026-08-17T00:00:09.5Z)" \
+  '[$summary, {author:{login:"o1xhack"},body:"@codex review",createdAt:"2026-08-17T00:00:07Z"}]')
+write_fixture summary-rereviewed-after-request '[]' "$summary_rereviewed" '[]'
+expect_pass summary-rereviewed-after-request
+
+# A legacy clean receipt does not outweigh a later failed summary on the same head.
+legacy_then_failed=$(jq -nc --argjson legacy "$(jq -c '.[0]' <<< "$clean_comment")" \
+  --argjson summary "$(summary_comment "$head_sha" failed true true 2026-08-17T00:00:09Z)" '[$legacy, $summary]')
+write_fixture summary-failed-after-legacy-clean '[]' "$legacy_then_failed" '[]'
+expect_fail summary-failed-after-legacy-clean
+
 echo "PR review gate tests passed."
