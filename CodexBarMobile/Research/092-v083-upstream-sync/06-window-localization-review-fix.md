@@ -1,0 +1,7 @@
+# 追加远端审查：额度名称本地化分发
+
+状态：in-progress。
+
+当前head 5b79c3a61的远端审查发现P2：ProviderWindowLabel.localizationKey已识别Organization/Rewards，localized后续switch没有分发这两个key，导致落入Extra usage。修复为复用现有英文catalog key分支，四语言翻译无需变更；测试直接断言两个provider最终localized输出的全部四语言，防止仅检查key映射漏检。
+
+影响App及Widget共享展示代码；不改变数据、布局或CloudKit schema。需重跑iOS单元/相关呈现回归，重建本地Archive，更新shipping来源与hash。Mac 1835项构建输入不受影响，既有a6候选继续适用。
