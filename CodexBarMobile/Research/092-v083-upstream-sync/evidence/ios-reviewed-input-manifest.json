@@ -1,6 +1,6 @@
 {
-  "sourceCommit": "e41a7b363f6e33f5da0b096b3b646a7e1e61b458",
-  "archiveSourceCommit": "23ff6887da5ef996c47dcfc967d7b369e78b7cd7",
+  "sourceCommit": "c5227b588a71a23dacd123bd2e2d3f9df6b3d782",
+  "archiveSourceCommit": "c5227b588a71a23dacd123bd2e2d3f9df6b3d782",
   "files": [
     {
       "path": "CodexBarMobile/AppStoreMetadata/1.13.0/en-US/release_notes.txt",
@@ -1559,8 +1559,8 @@
     },
     {
       "path": "CodexBarMobile/CodexBarWidgetShared/ProviderWindowLabel.swift",
-      "sourceSHA256": "7cb39f9759aaab48086c634023e5fe2bb5c75708451b7b545aa1289c5e1fdb21",
-      "currentSHA256": "7cb39f9759aaab48086c634023e5fe2bb5c75708451b7b545aa1289c5e1fdb21"
+      "sourceSHA256": "6ccd01996a9f926624254af565c5b940afa62ea382170a4e9a73879e612cdcaf",
+      "currentSHA256": "6ccd01996a9f926624254af565c5b940afa62ea382170a4e9a73879e612cdcaf"
     },
     {
       "path": "CodexBarMobile/CodexBarWidgetShared/QuotaPace.swift",

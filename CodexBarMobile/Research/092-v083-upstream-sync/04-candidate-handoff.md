@@ -12,11 +12,11 @@
 | Mac shipping输入 | evidence/mac-draft-source-manifest.json，1835项 |
 | 配套已交付iOS | ASC本轮确认3.3.0 READY_FOR_DISTRIBUTION，MOBILE_VERSION=3.3.0 |
 | iOS本地候选 | 3.5.0 (263)，不代表已上传或发布 |
-| iOS Archive实际source | 23ff6887da5ef996c47dcfc967d7b369e78b7cd7 |
+| iOS Archive实际source | c5227b588a71a23dacd123bd2e2d3f9df6b3d782 |
 | iOS shipping输入 | evidence/ios-reviewed-input-manifest.json，353项与最终源码一致 |
-| iOS Archive ZIP SHA256 | 10945e62216b4902fcdcc19fe1fab2249bb812e16349c522c5d23f08eced8ed2 |
+| iOS Archive ZIP SHA256 | c473659b006cd198bf880ebe1f21165d0943c4a1b008838b60346045d89e51fd |
 
-本地iOS产物：`CodexBarMobile/build/upstream-v083/CodexBarMobile-3.5.0-263.xcarchive`及同名`.xcarchive.zip`。四角色版本/签名及CloudKit Production验证在evidence/ios-reviewed-archive-verified.json；Apple Development签名，本轮未导出IPA/上传ASC。Review P1只改变Mac确认路径，iOS输入未变。
+本地iOS产物：`CodexBarMobile/build/upstream-v083/CodexBarMobile-3.5.0-263.xcarchive`及同名`.xcarchive.zip`。四角色版本/签名及CloudKit Production验证在evidence/ios-reviewed-archive-verified.json；Apple Development签名，本轮未导出IPA/上传ASC。Review P2补齐App/Widget的Organization/Rewards本地化分发后已重建Archive；旧23ff候选保存在superseded-ios-23ff6887/，不可作为最终候选。
 
 ## Mac no-tag draft
 

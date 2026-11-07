@@ -1,8 +1,9 @@
 {
-  "sourceCommit": "23ff6887da5ef996c47dcfc967d7b369e78b7cd7",
-  "archivePath": "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v083/CodexBarMobile-reviewed.xcarchive",
+  "sourceCommit": "c5227b588a71a23dacd123bd2e2d3f9df6b3d782",
+  "archivePath": "/Volumes/StudioSSD/Developer/BuildScratch/CodexBar/v083/CodexBarMobile-label-fix.xcarchive",
   "archiveState": "local development-signed archive only; not uploaded or exported",
   "englishReleaseNotesVerified": true,
+  "localizedWindowCatalogVerified": true,
   "roles": [
     {
       "bundle": "CodexBarMobile.app",
@@ -15,7 +16,7 @@
         "group.com.o1xhack.codexbar"
       ],
       "getTaskAllow": true,
-      "binarySHA256": "cabd66d52a5982a5e48464a0009aa73b296e67e68540f17fe25f724dd6f68345"
+      "binarySHA256": "b586f49aa66cd657a346b7d1950bb8d0026d04e9acb155ca7d1afe91ee4c8a42"
     },
     {
       "bundle": "CodexBarMobilePushExtension.appex",
@@ -26,7 +27,7 @@
       "cloudEnvironment": "Production",
       "appGroups": null,
       "getTaskAllow": true,
-      "binarySHA256": "491a1591f0714dd431a90a5641aa049e744463cbfa4c8d9b642746d1f8ad9a5c"
+      "binarySHA256": "db1fd868383c4f8359e0e21e2278f9b18f5bbf62ee4d9c71b55047c9f1232743"
     },
     {
       "bundle": "CodexBarMobileWidgetOptions.appex",
@@ -39,7 +40,7 @@
         "group.com.o1xhack.codexbar"
       ],
       "getTaskAllow": true,
-      "binarySHA256": "60ce5349321329824d92392204a4671b32fdf8d0d103b200bb12d49ef1644164"
+      "binarySHA256": "12c06693d25c337f7cc0438dd9e34ef7b53966dd98c70951cdbda62dbfc3d4c0"
     },
     {
       "bundle": "CodexBarMobileWidgets.appex",
@@ -52,7 +53,8 @@
         "group.com.o1xhack.codexbar"
       ],
       "getTaskAllow": true,
-      "binarySHA256": "e6ecb8e2951c1dff921c9246c6761fc5a920b2ef5d8c57133fdc0717e9a4a084"
+      "binarySHA256": "f0d373fcd7dd78650b282b9abc8f764848963c769e2bcc4dc124ce703cfa7627"
     }
-  ]
+  ],
+  "supersedesSourceCommit": "23ff6887da5ef996c47dcfc967d7b369e78b7cd7"
 }

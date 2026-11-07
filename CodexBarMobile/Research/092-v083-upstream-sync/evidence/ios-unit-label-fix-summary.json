@@ -1,0 +1,48 @@
+{
+  "devicesAndConfigurations": [
+    {
+      "device": {
+        "architecture": "arm64",
+        "deviceId": "4479ACE5-24B7-4209-ACE3-74764793DB58",
+        "deviceName": "Shared \u00b7 iPhone 17e \u00b7 27.2",
+        "modelName": "iPhone 17e",
+        "osBuildNumber": "24B8117",
+        "osVersion": "27.2",
+        "platform": "iOS Simulator"
+      },
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 1581,
+      "skippedTests": 1,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription": "CodexBarMobile \u00b7 Built with macOS 27.2",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1794012055.137,
+  "passedTests": 1375,
+  "result": "Passed",
+  "runtimeWarnings": [],
+  "skippedTests": 1,
+  "startTime": 1794011834.57,
+  "statistics": [
+    {
+      "subtitle": "241 test runs",
+      "title": "35 tests ran with dynamic parameters"
+    }
+  ],
+  "testFailures": [],
+  "title": "Test - CodexBarMobile",
+  "topInsights": [
+    {
+      "category": "Longest Test Runs",
+      "impact": "82% of duration",
+      "text": "4 longest test runs with outlier durations exceeding 7.60s (three standard deviations)"
+    }
+  ],
+  "totalTestCount": 1376
+}

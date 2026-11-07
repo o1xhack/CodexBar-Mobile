@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "c5227b588a71a23dacd123bd2e2d3f9df6b3d782",
+  "fullUnitGate": {
+    "passed": 1375,
+    "skipped": 1,
+    "failed": 0,
+    "swiftTestingTests": 1301,
+    "swiftTestingSuites": 87,
+    "logSHA256": "c709ec414ae0d1de2981e7e2cf0557f508331b16148d15c806aa21faf5c65abd"
+  },
+  "focusedOutputCoverage": "Organization/Rewards final localized output in en, zh-Hans, zh-Hant, ja",
+  "swiftFormat": "pass",
+  "explicitMobileSwiftLint": {
+    "introduced": 0,
+    "preExistingViolations": 3,
+    "baseline": "5b79c3a61; root config excludes mobile by default"
+  },
+  "priorNativeUIEvidence": "Retained with original provenance; label-only dispatch does not change navigation/layout/widget editing. Old screenshots are not new-binary interaction proof. New full unit/render gate and archive use fixed source.",
+  "macShippingInputsUnchanged": 1835
+}

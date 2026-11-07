@@ -9,7 +9,7 @@
 - Keep all UTC cost-history days across daylight-saving transitions.
 
 ### Changed
-- Support v0.83 synced Perplexity organization credits, WorkBuddy rewards, MiniMax quotas and corrected cost history through the existing compatible envelope.
+- Support v0.83 synced Perplexity organization credits and WorkBuddy rewards with distinct localized labels, MiniMax quotas and corrected cost history through the existing compatible envelope.
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 

@@ -1,0 +1,15 @@
+# 窗口名称分发修复：独立完整候选源码审查
+
+结论：CLEAN，无新增可操作findings。精确HEAD `c5227b588a71a23dacd123bd2e2d3f9df6b3d782`，基线0d3099448c73f0e7274b487be2d0775ab56a90be。完整候选由此前5b79c3a61完整clean审查及本次三文件全部增量逐行检查覆盖。本次仅源码/测试/文档审查；运行中的iOS全量、Archive和后续产物来源更新尚未验证。
+
+真实P2已正确修复：ProviderWindowLabel.localizationKey虽识别Organization/Rewards，原localized switch会落入Extra usage。此次把两个key接入既有直接catalog查找分支，保持各自语义及四语言翻译，不改变wire、业务数据、窗口顺序、布局或CloudKit schema。
+
+对本文件相对基线的完整diff核对：本轮新增的key仅Organization/Rewards，两者现在均有最终dispatch，未发现本轮新增key遗漏。既有Daily free tokens/Budget/Secondary budget的provider特殊路径未被更改，不属于本轮新增key。
+
+新增测试直接调用最终localized API，分别传perplexity及workbuddy providerID，检查en、zh-Hans、zh-Hant、ja共八个结果，期望值均与xcstrings对应translated值一致；没有只测试key映射而漏掉dispatch。未知label与其它旧key行为不变。
+
+App和Widgets的project.yml均包含CodexBarWidgetShared全部源文件；Widgets单独包含与App相同的Localizable.xcstrings，MobileLocalizedString按各自Bundle.main查locale。因此该修复对App卡片/详情/侧栏以及Widget QuotaPaceWindowSelection共享名称路径一致生效。WidgetOptions仅包含WidgetProviderCatalogue和非Swift共享资源，不编译或调用此label resolver，不产生另一份遗漏实现。
+
+Research06准确标记in-progress并指出iOS重跑/Archive重建要求。本次影响iOS shipping源码，既有Archive不能作为修复后的最终iOS候选，必须等待新产物。Mac manifest全部1835项逐一SHA256与当前源码匹配，零失配；a6 Mac产物输入不变。
+
+审查员未修改源码或仓库证据，没有启动构建/测试，没有声称正在执行的iOS门禁通过。最后tracked状态应由后续最终证据复审记录。
