@@ -218,6 +218,34 @@ final class CloudSyncDelegateEventQueue: Sendable {
 }
 
 enum CloudSyncBatchRecordProvider {
+    private struct SaveContents: Encodable {
+        let schemaVersion: Int
+        let provider: String
+        let deviceID: String
+        let accountKey: String
+        let fetchedAt: Date
+        let displayLabel: String
+        let usagePayload: String
+
+        init?(_ record: CKRecord) {
+            guard record.recordType == SyncRecordType.accountSnapshot.rawValue,
+                  let provider = record["provider"] as? String,
+                  let deviceID = record["deviceID"] as? String,
+                  let accountKey = record["accountKey"] as? String,
+                  let fetchedAt = record["fetchedAt"] as? Date,
+                  let displayLabel = record.encryptedValues["displayLabel"] as? String,
+                  let usagePayload = record.encryptedValues["usagePayload"] as? String
+            else { return nil }
+            self.schemaVersion = (record["schemaVersion"] as? NSNumber)?.intValue ?? 0
+            self.provider = provider
+            self.deviceID = deviceID
+            self.accountKey = accountKey
+            self.fetchedAt = fetchedAt
+            self.displayLabel = displayLabel
+            self.usagePayload = usagePayload
+        }
+    }
+
     static func record(
         for recordID: CKRecord.ID,
         desiredRecords: [CKRecord.ID: CKRecord],
@@ -253,11 +281,22 @@ enum CloudSyncBatchRecordProvider {
             schemaVersion: (record["schemaVersion"] as? NSNumber)?.intValue ?? 0)
     }
 
-    static func shouldApplySaveResult(_ record: CKRecord, pendingSaveHashes: [String: String]) -> Bool {
+    static func shouldApplySaveResult(
+        _ record: CKRecord,
+        desiredRecords: [CKRecord.ID: CKRecord],
+        pendingSaveHashes: [String: String]) -> Bool
+    {
         guard record.recordType == SyncRecordType.accountSnapshot.rawValue else { return true }
-        guard let payload = try? self.snapshot(record), let hash = try? CanonicalSyncJSON.hash(payload)
+        // The desired record stays unchanged while its save is in flight. Compare its serialized
+        // fields: decoding UsageSnapshot intentionally removes live-only reset-credit details.
+        guard pendingSaveHashes[record.recordID.recordName] != nil,
+              let desired = desiredRecords[record.recordID],
+              let returnedContents = SaveContents(record),
+              let desiredContents = SaveContents(desired),
+              let returnedHash = try? CanonicalSyncJSON.hash(returnedContents),
+              let desiredHash = try? CanonicalSyncJSON.hash(desiredContents)
         else { return false }
-        return pendingSaveHashes[record.recordID.recordName] == hash
+        return returnedHash == desiredHash
     }
 }
 
@@ -1412,6 +1451,7 @@ final class CloudSyncEngine: CKSyncEngineDelegate {
             let savedRecords = changes.savedRecords.filter { record in
                 guard CloudSyncBatchRecordProvider.shouldApplySaveResult(
                     record,
+                    desiredRecords: self.desiredRecords,
                     pendingSaveHashes: self.pendingSaveHashes)
                 else {
                     if let desired = self.desiredRecords[record.recordID] {
@@ -1434,7 +1474,7 @@ final class CloudSyncEngine: CKSyncEngineDelegate {
                 syncEngine: syncEngine)
             self.removeDeletedRecordsFromCaches(changes.deletedRecordIDs.map(\.recordName))
             for failure in changes.failedRecordSaves where CloudSyncBatchRecordProvider.shouldApplySaveResult(
-                failure.record, pendingSaveHashes: self.pendingSaveHashes)
+                failure.record, desiredRecords: self.desiredRecords, pendingSaveHashes: self.pendingSaveHashes)
             {
                 await self.handleSaveFailure(failure.record, error: failure.error, syncEngine: syncEngine)
             }
