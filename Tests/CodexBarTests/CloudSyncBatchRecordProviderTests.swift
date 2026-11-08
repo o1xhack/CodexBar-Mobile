@@ -104,6 +104,49 @@ struct CloudSyncBatchRecordProviderTests {
     }
 
     @Test
+    func `a delete that replaces a queued save does not hold back a later publication`() throws {
+        let (queued, queuedHash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        let (replacement, replacementHash) = try Self.snapshotRecord(used: 20, capturedAt: 2000.125)
+        let recordID = queued.recordID
+        let name = recordID.recordName
+        var desired = [recordID: queued]
+        var hashes = [name: queuedHash]
+        var enginePending: Set<CKSyncEngine.PendingRecordZoneChange> = [.saveRecord(recordID)]
+
+        // The provider is disabled while the save is still queued, so it is never sent.
+        CloudSyncBatchRecordProvider.replaceSaveWithDelete(
+            recordID, desiredRecords: &desired, pendingSaveHashes: &hashes)
+        { remove, add in
+            enginePending.remove(remove)
+            enginePending.insert(add)
+        }
+        #expect(enginePending == [.deleteRecord(recordID)])
+        #expect(desired.isEmpty)
+        // pushAccountSnapshots parks a payload while its record name has a pending save hash.
+        #expect(hashes[name] == nil)
+
+        // Re-enabled in the same engine lifetime: the replacement is queued, and a late result of
+        // the replaced save still cannot confirm it.
+        desired[recordID] = replacement
+        hashes[name] = replacementHash
+        #expect(!CloudSyncBatchRecordProvider.shouldApplySaveResult(
+            queued, desiredRecords: desired, pendingSaveHashes: hashes))
+        #expect(CloudSyncBatchRecordProvider.shouldApplySaveResult(
+            replacement, desiredRecords: desired, pendingSaveHashes: hashes))
+    }
+
+    @Test
+    func `a sent save that is replaced by a delete cannot confirm anything afterwards`() throws {
+        let (sent, sentHash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        var desired = [sent.recordID: sent]
+        var hashes = [sent.recordID.recordName: sentHash]
+        CloudSyncBatchRecordProvider.replaceSaveWithDelete(
+            sent.recordID, desiredRecords: &desired, pendingSaveHashes: &hashes) { _, _ in }
+        #expect(!CloudSyncBatchRecordProvider.shouldApplySaveResult(
+            sent, desiredRecords: desired, pendingSaveHashes: hashes))
+    }
+
+    @Test
     func `non snapshot saves keep their existing confirmation behavior`() {
         let record = CKRecord(recordType: "NonSnapshotFixture")
         #expect(CloudSyncBatchRecordProvider.shouldApplySaveResult(
