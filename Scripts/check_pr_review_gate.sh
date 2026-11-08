@@ -56,6 +56,7 @@ elif [[ -n "${1:-}" ]]; then
               author { login }
               body
               createdAt
+              lastEditedAt
             }
           }
           reviewThreads(first: 100) {
@@ -115,6 +116,24 @@ summary=$(jq -c '
       | (try capture("Reviewed commit:[^`]*`(?<oid>[0-9a-f]{7,40})`").oid catch null) // null);
   def is_clean:
     ((.body // "") | contains("Didn\u0027t find any major issues"));
+  # Newer connector format: one summary comment edited in place, carrying a
+  # machine-readable review state and the completion time of the code review.
+  def summary_state:
+    (.body // ""
+      | try (capture("<!-- codex-review-state:v1 (?<j>\\{.*?\\}) -->").j | fromjson)
+        catch null);
+  def normalize_time:
+    if . == null then null else sub("\\.[0-9]+Z$"; "Z") end;
+  def summary_at:
+    ((.body // ""
+      | try capture("Code Review\\*\\*[^\\n]*?<relative-time datetime=\"(?<t>[^\"]+)\"").t
+        catch null)
+      // .lastEditedAt // .createdAt)
+    | normalize_time;
+  def summary_clean($state):
+    ($state.code_review.status == "completed")
+      and ($state.code_review.has_any_findings == false)
+      and ($state.code_review.has_unresolved_findings == false);
   def is_substantive_review_comment:
     (.body // "") as $body
     | (($body | length) > 0)
@@ -153,11 +172,19 @@ summary=$(jq -c '
       | reviewed_oid as $rawOid
       | {oid: normalize_oid($rawOid; $fullOids), at: .createdAt, clean: is_clean}
       | select(.oid != null and .at != null)] as $commentEvents
+  | [(.comments.nodes // [])[]
+      | select(is_codex)
+      | summary_state as $state
+      | select($state != null and ($state.code_review.commit_sha // null) != null)
+      | {oid: normalize_oid($state.code_review.commit_sha; $fullOids),
+         at: summary_at,
+         clean: summary_clean($state)}
+      | select(.oid != null and .at != null)] as $summaryEvents
   | [(.reviews.nodes // [])[]
       | select(is_independent_review)
       | {oid: .commit.oid, at: .submittedAt, clean: is_independent_clean}
       | select(.oid != null and .at != null)] as $independentReviewEvents
-  | ($reviewEvents + $commentEvents + $independentReviewEvents) as $allReviewEvents
+  | ($reviewEvents + $commentEvents + $summaryEvents + $independentReviewEvents) as $allReviewEvents
   | ($allReviewEvents
       | group_by(.oid)
       | map(min_by(.at))
