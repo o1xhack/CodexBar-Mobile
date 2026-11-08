@@ -3,6 +3,24 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.83.0.1</title>
+            <pubDate>Sat, 07 Nov 2026 16:17:01 -0800</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>176.1.3.3.0</sparkle:version>
+            <sparkle:shortVersionString>0.83.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.83.0.1-Mobile 3.3.0</h2>
+<h3>Highlights — Mobile 3.3.0</h3>
+<ul>
+<li>Sync upstream v0.83.0: OpenDesign quotas, plugin layouts and browser support, Codex account names and reminders, archived cost history, Sol Fast pricing, provider fixes and safer iCloud retries.</li>
+<li>Preserve fork multi-account sync and cost history, including uploads with Claude/Grok reset credits; compatible iPhones receive organization credits, rewards and updated quota details.</li>
+<li>Companion Mobile 3.3.0 is the verified public version; iOS 3.5.0 (263) is prepared separately as a local candidate.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.83.0.1-mobile.3.3.0/CodexBar-0.83.0.1-mobile.3.3.0.zip" length="93704893" type="application/octet-stream" sparkle:edSignature="HRdydyrvvZgri0b86uDI7jykJqWYf33+3CL3zOepIByuXTCFMaXqsHuPyu2X0CuWZJckpSH1XKS98bMQSpjRCQ=="/>
+        </item>
+        <item>
             <title>0.82.0.1</title>
             <pubDate>Thu, 29 Oct 2026 13:52:55 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -39,30 +57,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.79.0.1-mobile.3.1.0/CodexBar-0.79.0.1-mobile.3.1.0.zip" length="90774554" type="application/octet-stream" sparkle:edSignature="1hvtItg2YrZFJCBXmnTIrWcwSH1/M8rvXB+FDUrTaBlePlC2QbZVWtAacO97CPEGRF2Ett2JUifiMGKpskhzCQ=="/>
-        </item>
-        <item>
-            <title>0.76.0.2</title>
-            <pubDate>Mon, 19 Oct 2026 08:45:18 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>169.2.2.10.0</sparkle:version>
-            <sparkle:shortVersionString>0.76.0.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.76.0.2-Mobile 2.10.0</h2>
-<h3>Highlights</h3>
-<ul>
-<li>The iPhone companion (Mobile 2.10) can now show every Claude and Grok usage-limit reset credit with its exact expiry, and can add those expiries to a calendar. Update this Mac app so your iPhone receives them; Codex reset credits keep working as before.</li>
-</ul>
-<h3>Added</h3>
-<ul>
-<li>Mobile snapshots publish the Claude and Grok reset-credit inventory as expiry times only (grant and token identifiers never leave the Mac), including a confirmed empty inventory so the iPhone can remove a calendar reminder for a reset that was used early.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Claude: an eligible reset-credit response with no available reset is kept as an empty inventory instead of no inventory, and an inventory from which a malformed grant was dropped is marked incomplete so the iPhone never treats the missing grant as used; Grok: a completed remaining-resets lookup with no token is kept as an empty inventory, a cancelled lookup keeps the previous one, and cached or retained tokens keep the time they were read instead of looking newly read (a cached empty read stays a confirmed empty inventory). Menus, Settings previews, and CLI output still hide empty inventories, so nothing changes on the Mac.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.76.0.2-mobile.2.10.0/CodexBar-0.76.0.2-mobile.2.10.0.zip" length="89020805" type="application/octet-stream" sparkle:edSignature="fKebmD1WKCvcZgdZWFWXCzOSivgu47xtOWrv1l5LhSIfnyjsi9gkomzFYwX49ywDHY26j0E0NBS4akhue+zGDA=="/>
         </item>
         <item>
             <title>0.14.0</title>
