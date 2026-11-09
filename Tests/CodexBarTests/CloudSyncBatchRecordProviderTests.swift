@@ -147,10 +147,165 @@ struct CloudSyncBatchRecordProviderTests {
     }
 
     @Test
+    func `disabling and re enabling a provider around a queued save publishes the new snapshot`() throws {
+        let (queued, queuedHash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        let (replacement, replacementHash) = try Self.snapshotRecord(used: 20, capturedAt: 2000.125)
+        var flow = try PublicationFlow(publishing: queued, hash: queuedHash)
+
+        // Offline: the save stays queued, then the provider is disabled.
+        flow.reconcile(currentSnapshots: [], enabledProviders: [])
+        #expect(flow.enginePending == [.deleteRecord(flow.recordID)])
+        #expect(flow.desired.isEmpty)
+
+        // Re-enabled in the same engine lifetime.
+        let republished = try flow.reconcileAndPublish(replacement, hash: replacementHash)
+        #expect(republished, "the new snapshot must not stay parked behind the dropped save")
+        #expect(flow.enginePending == [.saveRecord(flow.recordID)])
+        #expect(flow.batchRecord() === replacement)
+
+        flow.finishSave(returned: replacement)
+        #expect(flow.confirmedHashes[flow.recordName] == replacementHash)
+        #expect(flow.hashes.isEmpty)
+    }
+
+    @Test
+    func `a late result of a replaced in flight save cannot confirm a different republication`() throws {
+        let (sent, sentHash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        let (replacement, replacementHash) = try Self.snapshotRecord(used: 20, capturedAt: 2000.125)
+        var flow = try PublicationFlow(publishing: sent, hash: sentHash)
+        #expect(flow.batchRecord() === sent)
+        flow.enginePending.remove(.saveRecord(flow.recordID)) // handed to CloudKit, result pending
+
+        flow.reconcile(currentSnapshots: [], enabledProviders: [])
+        #expect(try flow.reconcileAndPublish(replacement, hash: replacementHash))
+
+        // Both a late success and a late failure of the replaced save are ignored.
+        #expect(!flow.acceptsResult(sent))
+        flow.finishSave(returned: sent)
+        #expect(flow.confirmedHashes.isEmpty)
+        #expect(flow.hashes[flow.recordName] == replacementHash)
+        #expect(flow.batchRecord() === replacement)
+    }
+
+    @Test
+    func `a late result of a replaced in flight save confirms an identical republication once`() throws {
+        let (sent, hash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        let (identical, identicalHash) = try Self.snapshotRecord(used: 10, capturedAt: 1000.125)
+        #expect(hash == identicalHash)
+        var flow = try PublicationFlow(publishing: sent, hash: hash)
+        #expect(flow.batchRecord() === sent)
+        flow.enginePending.remove(.saveRecord(flow.recordID))
+
+        flow.reconcile(currentSnapshots: [], enabledProviders: [])
+        #expect(try flow.reconcileAndPublish(identical, hash: identicalHash))
+        // Re-enabling cancelled the queued delete, so the server keeps the sent content.
+        #expect(!flow.enginePending.contains(.deleteRecord(flow.recordID)))
+
+        flow.finishSave(returned: sent)
+        #expect(flow.confirmedHashes[flow.recordName] == hash)
+        // The redundant queued save is dropped without leaving an in-flight marker behind.
+        #expect(flow.batchRecord() == nil)
+        #expect(flow.enginePending.isEmpty)
+        #expect(flow.hashes.isEmpty)
+    }
+
+    @Test
     func `non snapshot saves keep their existing confirmation behavior`() {
         let record = CKRecord(recordType: "NonSnapshotFixture")
         #expect(CloudSyncBatchRecordProvider.shouldApplySaveResult(
             record, desiredRecords: [:], pendingSaveHashes: [:]))
+    }
+
+    /// Drives one snapshot record through the same static decisions `CloudSyncEngine` makes in
+    /// `pushPendingSnapshots`, `makeChangeBatch` and `sentRecordZoneChanges`. The engine itself needs a
+    /// CloudKit container, so this keeps the ordering under test without touching CloudKit.
+    private struct PublicationFlow {
+        let recordID: CKRecord.ID
+        var desired: [CKRecord.ID: CKRecord] = [:]
+        var hashes: [String: String] = [:]
+        var confirmedHashes: [String: String] = [:]
+        var fleetSnapshots: [String: AccountSnapshotSyncPayload] = [:]
+        var enginePending: Set<CKSyncEngine.PendingRecordZoneChange> = []
+
+        var recordName: String {
+            self.recordID.recordName
+        }
+
+        init(publishing record: CKRecord, hash: String) throws {
+            self.recordID = record.recordID
+            #expect(try self.publish(record, hash: hash))
+        }
+
+        /// Mirrors the snapshot loop: a record name with an in-flight save parks the payload.
+        mutating func publish(_ record: CKRecord, hash: String) throws -> Bool {
+            let payload = try #require(try CloudSyncBatchRecordProvider.snapshot(record))
+            if self.confirmedHashes[payload.recordName] == hash { return true }
+            guard self.hashes[payload.recordName] == nil else { return false }
+            self.desired[record.recordID] = record
+            self.fleetSnapshots[payload.recordName] = payload
+            self.hashes[payload.recordName] = hash
+            self.enginePending.insert(.saveRecord(record.recordID))
+            return true
+        }
+
+        mutating func reconcile(
+            currentSnapshots: [AccountSnapshotSyncPayload],
+            enabledProviders: Set<ProviderInstanceID>)
+        {
+            let plan = CloudSyncSnapshotReconciliation.plan(
+                currentSnapshots: currentSnapshots,
+                persistedSnapshots: self.fleetSnapshots,
+                deviceID: "synthetic-device",
+                enabledProviders: enabledProviders,
+                authoritativeProviders: enabledProviders)
+            for name in plan.recordNamesToCancelPendingDeletes where name == self.recordName {
+                self.enginePending.remove(.deleteRecord(self.recordID))
+            }
+            let deletes = CloudSyncSnapshotMigration.immediateReconciliationDeletes(
+                plan.recordNamesToDelete, protecting: [])
+            for name in deletes where name == self.recordName {
+                var pending = self.enginePending
+                CloudSyncBatchRecordProvider.replaceSaveWithDelete(
+                    self.recordID, desiredRecords: &self.desired, pendingSaveHashes: &self.hashes)
+                { remove, add in
+                    pending.remove(remove)
+                    pending.insert(add)
+                }
+                self.enginePending = pending
+            }
+        }
+
+        mutating func reconcileAndPublish(_ record: CKRecord, hash: String) throws -> Bool {
+            let payload = try #require(try CloudSyncBatchRecordProvider.snapshot(record))
+            self.reconcile(currentSnapshots: [payload], enabledProviders: [payload.provider])
+            return try self.publish(record, hash: hash)
+        }
+
+        /// Mirrors `makeChangeBatch`, which only asks for records with a pending save.
+        mutating func batchRecord() -> CKRecord? {
+            guard self.enginePending.contains(.saveRecord(self.recordID)) else { return nil }
+            var pending = self.enginePending
+            let record = CloudSyncBatchRecordProvider.record(
+                for: self.recordID, desiredRecords: self.desired, pendingSaveHashes: &self.hashes)
+            { pending.remove($0) }
+            self.enginePending = pending
+            return record
+        }
+
+        func acceptsResult(_ record: CKRecord) -> Bool {
+            CloudSyncBatchRecordProvider.shouldApplySaveResult(
+                record, desiredRecords: self.desired, pendingSaveHashes: self.hashes)
+        }
+
+        /// Mirrors the saved-record filter in `sentRecordZoneChanges`.
+        mutating func finishSave(returned record: CKRecord) {
+            guard self.acceptsResult(record) else { return }
+            self.desired.removeValue(forKey: record.recordID)
+            CloudSyncSnapshotMigration.applyConfirmedSaveHashes(
+                savedRecordNames: [record.recordID.recordName],
+                pendingSaveHashes: &self.hashes,
+                lastSnapshotHashes: &self.confirmedHashes)
+        }
     }
 
     private static func snapshotRecord(
