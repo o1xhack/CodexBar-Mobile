@@ -122,7 +122,7 @@ struct CloudSyncBatchRecordProviderTests {
         }
         #expect(enginePending == [.deleteRecord(recordID)])
         #expect(desired.isEmpty)
-        // pushAccountSnapshots parks a payload while its record name has a pending save hash.
+        // pushPendingSnapshots parks a payload while its record name has a pending save hash.
         #expect(hashes[name] == nil)
 
         // Re-enabled in the same engine lifetime: the replacement is queued, and a late result of
@@ -179,12 +179,18 @@ struct CloudSyncBatchRecordProviderTests {
         flow.reconcile(currentSnapshots: [], enabledProviders: [])
         #expect(try flow.reconcileAndPublish(replacement, hash: replacementHash))
 
-        // Both a late success and a late failure of the replaced save are ignored.
+        // A late success is rejected. The engine filters a late failure with the same predicate,
+        // so it cannot schedule a retry or a terminal skip for the replacement either.
         #expect(!flow.acceptsResult(sent))
         flow.finishSave(returned: sent)
         #expect(flow.confirmedHashes.isEmpty)
         #expect(flow.hashes[flow.recordName] == replacementHash)
-        #expect(flow.batchRecord() === replacement)
+        // The rejected result only rebases the replacement onto the returned system fields.
+        let next = flow.batchRecord()
+        let batched = try #require(next)
+        #expect(batched.encryptedValues["usagePayload"] as? String
+            == replacement.encryptedValues["usagePayload"] as? String)
+        #expect(flow.acceptsResult(batched))
     }
 
     @Test
@@ -216,9 +222,11 @@ struct CloudSyncBatchRecordProviderTests {
             record, desiredRecords: [:], pendingSaveHashes: [:]))
     }
 
-    /// Drives one snapshot record through the same static decisions `CloudSyncEngine` makes in
-    /// `pushPendingSnapshots`, `makeChangeBatch` and `sentRecordZoneChanges`. The engine itself needs a
-    /// CloudKit container, so this keeps the ordering under test without touching CloudKit.
+    /// Model/helper-composition coverage, not engine integration: composes the real static helpers in
+    /// the order `pushPendingSnapshots` (immediate reconciliation deletes), `makeChangeBatch` and
+    /// `sentRecordZoneChanges` use them. It does not run those engine methods, nor the
+    /// `applySnapshotConfigurationDeletionIntents` path. The engine only gets a `CKSyncEngine` from
+    /// `initializeEngineIfNeeded`, which needs the iCloud entitlement, a `CKContainer` and an account.
     private struct PublicationFlow {
         let recordID: CKRecord.ID
         var desired: [CKRecord.ID: CKRecord] = [:]
@@ -299,7 +307,12 @@ struct CloudSyncBatchRecordProviderTests {
 
         /// Mirrors the saved-record filter in `sentRecordZoneChanges`.
         mutating func finishSave(returned record: CKRecord) {
-            guard self.acceptsResult(record) else { return }
+            guard self.acceptsResult(record) else {
+                if let desired = self.desired[record.recordID] {
+                    self.desired[record.recordID] = CloudSyncEngine.copyUserFields(from: desired, onto: record)
+                }
+                return
+            }
             self.desired.removeValue(forKey: record.recordID)
             CloudSyncSnapshotMigration.applyConfirmedSaveHashes(
                 savedRecordNames: [record.recordID.recordName],

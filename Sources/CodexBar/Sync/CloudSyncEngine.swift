@@ -263,7 +263,9 @@ enum CloudSyncBatchRecordProvider {
 
     /// Replaces a snapshot save with a delete. A save that never left the queue gets no result
     /// callback, so its in-flight marker is cleared here. A save that was already sent cannot confirm
-    /// a later payload: its result no longer matches `desiredRecords` (see `shouldApplySaveResult`).
+    /// a later payload with different contents: its result no longer matches `desiredRecords` (see
+    /// `shouldApplySaveResult`). A later identical payload may be confirmed by it, which is what the
+    /// server then stores.
     static func replaceSaveWithDelete(
         _ recordID: CKRecord.ID,
         desiredRecords: inout [CKRecord.ID: CKRecord],
