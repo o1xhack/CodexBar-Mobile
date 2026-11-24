@@ -2855,7 +2855,7 @@ struct CostDashboardInsights: Sendable {
                     label: label,
                     amountUSD: amount,
                     subtitle: splits[label].flatMap {
-                        CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast)
+                        CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast, totalCostUSD: amount)
                     },
                     color: palette.color(for: label))
             }
@@ -4457,7 +4457,8 @@ private struct RawDailyPointRow: View {
                     LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
                     if let split = CodexCostSplit.subtitle(
                         standardCostUSD: item.standardCostUSD,
-                        priorityCostUSD: item.priorityCostUSD)
+                        priorityCostUSD: item.priorityCostUSD,
+                        totalCostUSD: item.costUSD)
                     {
                         Text(split)
                             .font(.caption2)

@@ -9,7 +9,7 @@ enum ProviderWindowLabel {
         switch label {
         case "5-hour": "5-hour"
         case "Credits": "Credits"
-        case "Organization", "Rewards": label
+        case "Organization", "Rewards", "Cloud credits": label
         case "Requests": "Requests"
         case "Tokens": "Tokens"
         case "Renews": "Renews"
