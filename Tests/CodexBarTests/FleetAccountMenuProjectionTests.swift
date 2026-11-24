@@ -231,7 +231,7 @@ struct FleetAccountMenuProjectionTests {
         let projection = FleetAccountMenuPlanner.projection(
             provider: .claude,
             snapshots: [emailAccount, newer],
-            currentDeviceID: settings.iCloudSyncDeviceID,
+            currentDeviceID: settings.macFleetSyncDeviceID,
             localAccountKeys: localAccountKeys,
             hasLocalUsage: false)
 
