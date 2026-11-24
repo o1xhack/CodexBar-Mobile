@@ -33,7 +33,8 @@ struct CostUsageScannerClaudeSymlinkTests {
         try fm.createDirectory(at: projectsLink.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.createSymbolicLink(at: projectsLink, withDestinationURL: physicalProjects)
         let roots = ClaudeConfigPaths.costProjectsRoots(environment: ["HOME": fixture.env.root.path])
-        #expect(roots.filter { $0.resolvingSymlinksInPath() == physicalProjects.resolvingSymlinksInPath() }.count == 1)
+        let physicalPath = physicalProjects.resolvingSymlinksInPath().path
+        #expect(roots.filter { $0.resolvingSymlinksInPath().path == physicalPath }.count == 1)
         #expect(SettingsStore.hasAnyTokenCostUsageSources(env: [:], homeDirectory: fixture.env.root))
 
         for selected in [roots, [projectsLink, physicalProjects]] {
