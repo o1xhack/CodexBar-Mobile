@@ -268,10 +268,12 @@ struct SpendDashboardPane: View {
                 ForEach(self.controller.publication.sources.filter {
                     $0.state == .unavailable || $0.state == .staleLastKnown
                 }, id: \.id) { source in
-                    Text(source.displayName + " · " + L(source.provider.flatMap {
-                        // Account-specific sources must not borrow another account's error.
-                        source.id == $0.rawValue ? self.store.tokenErrors[$0.instanceID] : nil
-                    } ?? "Local token history is unavailable or incomplete."))
+                    // Account-specific sources must not borrow another account's error.
+                    let sourceError = source.provider.flatMap { provider in
+                        source.id == provider.rawValue ? self.store.tokenErrors[provider] : nil
+                    }
+                    let message = L(sourceError ?? "Local token history is unavailable or incomplete.")
+                    Text(source.displayName + " · " + message)
                     if let cached = self.controller.publication.inputs.first(where: { $0.id == source.id }) {
                         Text(L("Cached data from") + " " +
                             cached.snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened))
