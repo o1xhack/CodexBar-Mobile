@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.85.0.1 — Unreleased
+## 0.85.0.1 — 2026-11-24
 
 ### Changed
 - Sync upstream v0.84.0 and v0.85.0, including lower refresh costs, revised Codex and Claude spending reports, and new provider usage sources.
