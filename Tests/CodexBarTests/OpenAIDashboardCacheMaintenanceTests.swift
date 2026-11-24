@@ -58,11 +58,16 @@ struct OpenAIDashboardCacheMaintenanceTests {
         let output = Pipe()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
-        // cfprefsd otherwise shares the real user's application domain despite CFFIXED_USER_HOME.
-        process.arguments = ["-p", """
+        // CFPreferences can fall back to reading the login user's plist on disk when cfprefsd is blocked.
+        let loginHome = try #require(getpwuid(getuid())?.pointee.pw_dir)
+        let loginPreferences = URL(fileURLWithPath: String(cString: loginHome), isDirectory: true)
+            .appendingPathComponent("Library/Preferences", isDirectory: true)
+            .path
+        process.arguments = ["-D", "LOGIN_PREFERENCES=\(loginPreferences)", "-p", """
         (version 1)(allow default)
-        (deny mach-lookup (global-name "com.apple.cfprefsd.agent"))
-        (deny mach-lookup (global-name "com.apple.cfprefsd.daemon"))
+        (deny network*)
+        (deny mach-lookup (global-name-regex #".*cfprefsd.*"))
+        (deny file-read* file-write* (subpath (param "LOGIN_PREFERENCES")))
         """, executable.path]
         // No test-runner flags: the child must use the production WebKit path.
         process.environment = [
