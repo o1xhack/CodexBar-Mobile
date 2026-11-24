@@ -224,7 +224,12 @@ log "Launch smoke check: resource probe OK."
 
 # The ordinary launch below intentionally suppresses background work. This separate
 # cold process must reach real WebKit enumeration, with only a synthetic named store.
-mkdir -p "$SMOKE_HOME/Library/WebKit/com.steipete.codexbar/WebsiteDataStore/11111111-1111-4111-8111-111111111111"
+SMOKE_BUNDLE_ID=$(python3 -c 'import plistlib, sys; print(plistlib.load(open(sys.argv[1], "rb"))["CFBundleIdentifier"])' \
+  "$SMOKE_DIR/CodexBar.app/Contents/Info.plist")
+if [[ ! "$SMOKE_BUNDLE_ID" =~ ^[[:alnum:].-]+$ || "$SMOKE_BUNDLE_ID" == "." || "$SMOKE_BUNDLE_ID" == ".." ]]; then
+  fail_with_probe_log "Launch smoke check FAILED: invalid packaged bundle identifier."
+fi
+mkdir -p "$SMOKE_HOME/Library/WebKit/$SMOKE_BUNDLE_ID/WebsiteDataStore/11111111-1111-4111-8111-111111111111"
 log "Launch smoke check: probing cold WebKit cache maintenance."
 (
   cd "$SMOKE_DIR"

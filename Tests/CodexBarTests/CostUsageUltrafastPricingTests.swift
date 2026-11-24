@@ -47,6 +47,26 @@ struct CostUsageUltrafastPricingTests {
     }
 
     @Test
+    func `a mixed Ultrafast total does not publish a two-tier split`() throws {
+        let rows = ["standard", "priority", "ultrafast"].enumerated().map { index, mode in
+            CostUsageScanner.CodexUsageRow(
+                day: "2026-11-20",
+                model: "gpt-6.1-sol",
+                eventIndex: index,
+                input: 1000,
+                cached: 0,
+                output: 100,
+                pricingMode: mode,
+                knownCostNanos: Int64(index + 1) * 1_000_000_000)
+        }
+        let breakdown = CostUsageScanner.codexRowCostBreakdown(
+            rows: rows, priorityTurns: [:], modelsDevCatalog: nil, modelsDevCacheRoot: nil)
+        #expect(breakdown.totalCostUSD == 6)
+        #expect(breakdown.coversGroup(canonicalTotalTokens: 3300))
+        #expect(!breakdown.hasModeSplit)
+    }
+
+    @Test
     func `native Ultrafast checkpoint keeps legacy booleans readable`() throws {
         let decoder = JSONDecoder()
         typealias Tier = CostUsageScanner.CodexNativePricingTier

@@ -41,7 +41,9 @@ extension CostUsageScanner {
         }
 
         var hasModeSplit: Bool {
-            self.sawPriorityCost || self.priorityTokens > 0
+            // The current report exposes only Standard and Fast, so omit a partial split.
+            !self.sawUltrafastCost && self.ultrafastTokens == 0
+                && (self.sawPriorityCost || self.priorityTokens > 0)
         }
 
         /// The rows account for exactly the group's billed tokens, so their per-request costs describe it.
