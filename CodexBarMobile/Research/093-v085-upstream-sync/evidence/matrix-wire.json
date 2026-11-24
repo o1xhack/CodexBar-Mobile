@@ -1,0 +1,885 @@
+{
+  "scope": "serialization and real old/new pure consumer merge; no SwiftData, UI, CloudKit, APNs or physical device evidence",
+  "cases": [
+    {
+      "case": 1,
+      "mask": 0,
+      "versions": [
+        "old",
+        "old",
+        "old",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 2,
+      "mask": 1,
+      "versions": [
+        "old",
+        "old",
+        "old",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 3,
+      "mask": 2,
+      "versions": [
+        "old",
+        "old",
+        "new",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 4,
+      "mask": 3,
+      "versions": [
+        "old",
+        "old",
+        "new",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 5,
+      "mask": 4,
+      "versions": [
+        "old",
+        "new",
+        "old",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 6,
+      "mask": 5,
+      "versions": [
+        "old",
+        "new",
+        "old",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 7,
+      "mask": 6,
+      "versions": [
+        "old",
+        "new",
+        "new",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 8,
+      "mask": 7,
+      "versions": [
+        "old",
+        "new",
+        "new",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 9,
+      "mask": 8,
+      "versions": [
+        "new",
+        "old",
+        "old",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 10,
+      "mask": 9,
+      "versions": [
+        "new",
+        "old",
+        "old",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 11,
+      "mask": 10,
+      "versions": [
+        "new",
+        "old",
+        "new",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 12,
+      "mask": 11,
+      "versions": [
+        "new",
+        "old",
+        "new",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "old",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 13,
+      "mask": 12,
+      "versions": [
+        "new",
+        "new",
+        "old",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 14,
+      "mask": 13,
+      "versions": [
+        "new",
+        "new",
+        "old",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 15,
+      "mask": 14,
+      "versions": [
+        "new",
+        "new",
+        "new",
+        "old"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "old",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    },
+    {
+      "case": 16,
+      "mask": 15,
+      "versions": [
+        "new",
+        "new",
+        "new",
+        "new"
+      ],
+      "stage": "frozen-shared-wire-and-consumer-merge",
+      "readOperations": [
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-a",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-a",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "device": "mac-b",
+          "writer": "new",
+          "exitCode": 0
+        },
+        {
+          "phone": "phone-b",
+          "reader": "new",
+          "operation": "two-writer-merge",
+          "exitCode": 0
+        }
+      ],
+      "result": "substituted",
+      "validationPassed": true
+    }
+  ]
+}
