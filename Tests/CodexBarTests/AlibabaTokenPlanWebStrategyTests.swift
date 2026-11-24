@@ -174,8 +174,8 @@ struct AlibabaTokenPlanWebStrategyTests {
     }
 
     @Test
-    func `workspace permission failure preserves cached browser cookies`() async {
-        await self.withIsolatedCookieCache {
+    func `workspace permission failure preserves cached browser cookies`() async throws {
+        try await self.withIsolatedCookieCache {
             self.clearCookieCaches()
             defer { self.clearCookieCaches() }
 
@@ -197,10 +197,12 @@ struct AlibabaTokenPlanWebStrategyTests {
                 throw AlibabaTokenPlanUsageError.apiError("BailianGateway.Workspace.NotAuthorised")
             }
 
-            await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
-                Issue.record("A workspace permission error must not trigger browser import")
-                throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
-            } operation: {
+            let rejectImport: (BrowserDetection, ((String) -> Void)?) throws
+                -> AlibabaCodingPlanCookieImporter.SessionInfo = { _, _ in
+                    Issue.record("A workspace permission error must not trigger browser import")
+                    throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
+                }
+            try await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting(rejectImport) {
                 await #expect(throws: AlibabaTokenPlanUsageError.apiError(
                     "BailianGateway.Workspace.NotAuthorised"))
                 {
