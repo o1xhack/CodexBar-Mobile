@@ -315,6 +315,8 @@ struct MockProviderInjectorTests {
                 "sailresearch", "sofya", "xapi",
                 "fal", "flora", "parallel", "claudeplatform", "futureagi", "munito",
                 "soniox", "traecn", "abliteration", "chatbox", "opendesign",
+                // These providers show balances, credits, or quota details without daily USD cost history.
+                "siliconflow", "tripo", "googledeveloper", "trustedrouter",
             ]),
             "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
