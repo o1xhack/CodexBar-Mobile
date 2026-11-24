@@ -212,7 +212,7 @@ extension UsageStore {
     // subset (Settings per-account refresh) updates its rows but never counts as a full publication.
     // The restore/refresh/rollback sequence is intentionally kept contiguous so
     // every early exit can be audited against the original-account restoration.
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func refreshCodexVisibleAccountsForSnapshotPublication(
         generation: UInt64? = nil,
         requestedAccountIDs: Set<String>? = nil) async -> Bool

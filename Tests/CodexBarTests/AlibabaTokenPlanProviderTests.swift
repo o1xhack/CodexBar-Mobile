@@ -4,7 +4,6 @@ import Testing
 @testable import CodexBarCore
 
 // Keep this fixture-driven provider suite together so its regional and account-mode contracts stay reviewable.
-// swiftlint:disable file_length
 
 private func alibabaTokenPlanFixture(_ name: String) throws -> Data {
     try Data(

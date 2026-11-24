@@ -4,7 +4,6 @@ import Foundation
 import Testing
 @testable import CodexBarCLI
 
-// swiftlint:disable:next type_body_length
 struct CLICostTests {
     @Test(arguments: [0.0, 1.25])
     func `source recorded CLI amounts never claim to be list price estimates`(amount: Double) throws {

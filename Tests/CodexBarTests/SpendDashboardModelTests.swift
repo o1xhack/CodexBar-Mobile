@@ -3,6 +3,8 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
+// Keep the snapshot builders and coverage assertions together.
+// swiftlint:disable file_length
 struct SpendDashboardModelTests {
     @Test
     func `count labels avoid plural agreement and localize numbers`() {
@@ -1680,3 +1682,5 @@ extension SpendDashboardModelTests {
         #expect(first.id != second.id)
     }
 }
+
+// swiftlint:enable file_length

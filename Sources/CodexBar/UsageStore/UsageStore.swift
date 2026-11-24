@@ -772,10 +772,9 @@ final class UsageStore {
     @ObservationIgnored private(set) var completedRefreshCountForTesting = 0
     #endif
 
+    /// The provider/plugin refresh orchestration intentionally keeps cancellation,
+    /// enrichment, and publication authority in one transaction boundary.
     @discardableResult
-    // The provider/plugin refresh orchestration intentionally keeps cancellation,
-    // enrichment, and publication authority in one transaction boundary.
-    // swiftlint:disable:next cyclomatic_complexity
     func runRefresh(
         enrichmentMode: RefreshEnrichmentMode = .automatic,
         startupConnectivityRetryAttempt: Int?,

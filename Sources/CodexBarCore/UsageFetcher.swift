@@ -1,5 +1,8 @@
 import Foundation
 
+// Keep the shared fetch pipeline and its implementation-only parser seams in the same file.
+// swiftlint:disable file_length
+
 public enum RateWindowPeriod: String, Codable, Sendable {
     case session
     case daily
@@ -1722,3 +1725,5 @@ extension UsageFetcher {
     }
 }
 #endif
+
+// swiftlint:enable file_length
