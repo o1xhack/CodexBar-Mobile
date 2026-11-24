@@ -1125,6 +1125,30 @@ extension SpendDashboardModelTests {
     }
 
     @Test
+    func `lagged plugin reports use the declared civil end day`() throws {
+        let now = Date(timeIntervalSince1970: 1_784_220_600)
+        let input = SpendDashboardModel.ProviderInput(
+            id: "fixture-provider",
+            provider: try #require(ProviderInstanceID(rawValue: "fixture-provider")),
+            displayName: "Fixture provider",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [Self.entry(day: "2026-07-14", cost: 4)],
+                historyDays: 1,
+                updatedAt: now,
+                bucketTimeZoneIdentifier: "Asia/Tokyo",
+                windowEndDayKey: "2026-07-14"))
+
+        var display = Calendar(identifier: .gregorian)
+        display.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let model = SpendDashboardModel.build(inputs: [input], requestedDays: 7, now: now, calendar: display)
+        let group = try #require(model.groups.first)
+        #expect(group.totalCost == 4)
+        let last = try #require(group.dailyPoints.last)
+        #expect(CostUsageLocalDay.key(from: last.day, calendar: display) == "2026-07-13")
+    }
+
+    @Test
     func `snapshot bucket timezone controls boundary day placement`() throws {
         let now = Date(timeIntervalSince1970: 1_784_220_600) // 2026-07-16 16:50:00 UTC; July 17 in Tokyo.
         let snapshot = Self.snapshot(
@@ -1578,7 +1602,8 @@ extension SpendDashboardModelTests {
         historyDays: Int = 30,
         projects: [CostUsageProjectBreakdown] = [],
         updatedAt: Date = now,
-        bucketTimeZoneIdentifier: String? = nil) -> CostUsageTokenSnapshot
+        bucketTimeZoneIdentifier: String? = nil,
+        windowEndDayKey: String? = nil) -> CostUsageTokenSnapshot
     {
         CostUsageTokenSnapshot(
             sessionTokens: nil,
@@ -1590,6 +1615,7 @@ extension SpendDashboardModelTests {
             daily: entries,
             projects: projects,
             bucketTimeZoneIdentifier: bucketTimeZoneIdentifier,
+            windowEndDayKey: windowEndDayKey,
             updatedAt: updatedAt)
     }
 
