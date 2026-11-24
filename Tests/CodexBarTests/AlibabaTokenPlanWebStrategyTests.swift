@@ -197,10 +197,10 @@ struct AlibabaTokenPlanWebStrategyTests {
                 throw AlibabaTokenPlanUsageError.apiError("BailianGateway.Workspace.NotAuthorised")
             }
 
-            await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting({ _, _ in
+            await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
                 Issue.record("A workspace permission error must not trigger browser import")
                 throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
-            }) {
+            } operation: {
                 await #expect(throws: AlibabaTokenPlanUsageError.apiError(
                     "BailianGateway.Workspace.NotAuthorised"))
                 {
