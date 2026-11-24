@@ -38,3 +38,4 @@
 - iOS 26.5 iPhone SE 通过 Usage 选择、旋转、Cost 分享草稿和取消、Summary 返回保留筛选两条用户路径。本轮没有改变 iOS 的最低部署版本。
 - 候选 3.6.0 (264) 使用 Apple Development 签名，主 App、Push Extension、Widget Extension 均为 CloudKit Production；Widget Options 仅 App Group。Archive 未上传。真实源码、四 bundle 哈希与 Archive ZIP SHA256 见 [签名归档证据](evidence/ios-candidate-archive-verified.json)。
 - 最终严格 SwiftLint 为 0 违规。CI 和 README guard、四语言、Mac 打包 WebKit 冒烟脚本单测已通过。完整 Mac 测试继续运行。
+- iPad mini 26.5 与 Duo 1 当前姿态复测中，Cost 页面、分享面板、取消及 Summary 详情往返保留筛选均通过。最初 Summary 模块重排序失败独立保留。iPhone SE、iPhone 18 Pro、iPad mini 和 Duo 1 均已停止，其他会话的 17e 保持运行。
