@@ -31,3 +31,10 @@
 - Duo 1 的 Cost 页面、分享入口、报告和取消操作通过。首次 Summary 配额模块原生重排序用例未将模块移动到第一项并失败。Device Hub 的 AppleEvent 在多次调用中超时，尚未取得当前候选的原生折展矩阵。保留 `Duo-Current.xcresult` 与日志供诊断。
 - Mac 初始候选编译后完成了后续源码修复，当前正在执行最终测试。全量 Gate、Mac 签名草稿和远端审查需各自取证。
 - 上游 v0.85.0 的 [CI](https://github.com/steipete/CodexBar/actions/runs/44919945104) 通过。[Tag 发布流程](https://github.com/steipete/CodexBar/actions/runs/44925305336) 中构建与 assemble 通过，后续 publish 在发布已可见后因 GitHub CLI 参数过长退出。此差异应保留在发布证据链里。
+
+### 当前证据
+
+- 最终 iOS shipping 输入在 `289116106` 冻结。27.2 iPhone 18 Pro 的全量测试通过，包括 1303 个 Swift Testing 用例、75 个 XCTest 执行（1 个跳过），覆盖 WidgetSnapshotBuilder 与 Widget 渲染矩阵。
+- iOS 26.5 iPhone SE 通过 Usage 选择、旋转、Cost 分享草稿和取消、Summary 返回保留筛选两条用户路径。本轮没有改变 iOS 的最低部署版本。
+- 候选 3.6.0 (264) 使用 Apple Development 签名，主 App、Push Extension、Widget Extension 均为 CloudKit Production；Widget Options 仅 App Group。Archive 未上传。真实源码、四 bundle 哈希与 Archive ZIP SHA256 见 [签名归档证据](evidence/ios-candidate-archive-verified.json)。
+- 最终严格 SwiftLint 为 0 违规。CI 和 README guard、四语言、Mac 打包 WebKit 冒烟脚本单测已通过。完整 Mac 测试继续运行。
