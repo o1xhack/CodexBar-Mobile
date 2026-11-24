@@ -9,6 +9,8 @@ read_when:
 
 # Antigravity provider
 
+The CLI launch lock lives in the user application-support directory under `CodexBar/antigravity/agy-session.lock` (`~/Library/Application Support` on macOS). Config-file overrides do not split this lock. Existing credential and session-record paths, and legacy lock files, are unchanged.
+
 For Google individual, AI Pro, and Ultra accounts blocked by the June 2026 Gemini CLI OAuth
 shutdown, Antigravity is the replacement path for Gemini quota tracking in CodexBar. Launch
 the Antigravity app or run `agy`, sign in, then refresh. See `docs/gemini.md` for the Gemini
@@ -20,7 +22,9 @@ To use the `agy` CLI source without keeping the desktop app open, install the CL
 run `agy` once and sign in. An explicit `ANTIGRAVITY_CLI_PATH` is authoritative: if it is empty,
 points to a missing file, or is not executable, CodexBar skips the CLI source instead of discovering another `agy`
 through PATH, installation directories, shell lookup, or aliases. Unset the variable to restore
-automatic discovery. Other providers retain their existing override behavior.
+automatic discovery. After existing CLI locations and shell lookups, CodexBar also checks the bundled `agy`
+helper in `/Applications/Gemini.app` and `~/Applications/Gemini.app`. An installed CLI still takes precedence.
+Other providers retain their existing override behavior.
 CodexBar keeps the signed-in `agy` local HTTPS server alive briefly
 after each refresh and stops it when idle, or reuses a signed-in `agy` you already have running
 without taking ownership of that process.
@@ -42,9 +46,11 @@ expose the generated token (1.1.28, 1.2.0, and 1.2.1 answer the same request wit
 executable reports 1.2.2 or later, CodexBar still spends its bounded warm-reuse check but does not spawn a
 managed session or wait for its readiness deadline. Unknown versions keep the managed spawn.
 The legacy gate and ambient or account-scoped print fallback share one `agy --version` result per refresh,
-including unknown versions and probe failures. Each later refresh probes again; successful warm reuse needs
-no version subprocess. On the CSRF-gated fallback, CLI launches drop from three to two: one version check
-and one usage report, without caching across accounts or refreshes.
+including unknown versions and probe failures. A known version is also reused across refreshes in the same
+CodexBar process while the resolved executable's path, size, modification time, and file identity are unchanged.
+Only the most recently used executable is retained; no account or usage data is cached with it. Unknown versions
+and failures are retried on the next refresh. Successful warm reuse needs no version subprocess. On the
+CSRF-gated fallback, later refreshes launch only the usage report; a new CLI process still checks the version.
 
 For `agy` 1.2.2 and later, a failed legacy HTTPS fetch can fall back to
 `agy -p /usage --output-format json`. CodexBar checks that the same executable reports version 1.1.11
@@ -86,6 +92,8 @@ fallback; cancellation stops the pipeline. Linux keeps its existing OAuth fallba
 
 Scoped runs share the ambient runner's three-second version check, 90-second command limit, 1 MiB output
 limit, and descendant cleanup. Identity verification has a 15-second request and resource deadline.
+Checks with the full 15-second budget reuse a connection pool without cookie, credential, or response storage;
+checks with less time remaining use a private session with that shorter resource deadline.
 The existing menu account model caps a refresh at six accounts; CLI `--all-accounts` refreshes sequentially.
 Grouped weekly-only Starter quotas use the same parser as the other sources.
 

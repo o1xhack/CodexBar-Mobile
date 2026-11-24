@@ -204,9 +204,9 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     /// onto the existing opaque payload's `sourceDayKey`.
     public let windowEndDayKey: String?
     /// Exact event-time slices for quota-window projection. Empty for legacy/coarse providers.
-    public let quotaSlices: [CostUsageTimedEntry]
+    public private(set) var quotaSlices: [CostUsageTimedEntry]
     public let updatedAt: Date
-    let quotaProjectionMemo = CostUsageQuotaProjectionMemo()
+    private(set) var quotaProjectionMemo = CostUsageQuotaProjectionMemo()
 
     public init(
         sessionTokens: Int?,
@@ -258,6 +258,15 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.windowEndDayKey = windowEndDayKey
         self.quotaSlices = quotaSlices
         self.updatedAt = updatedAt
+    }
+
+    package func droppingQuotaSlices() -> Self {
+        guard !self.quotaSlices.isEmpty else { return self }
+        var copy = self
+        copy.quotaSlices = []
+        // The shared memo belongs to the original immutable entries, including their exact slices.
+        copy.quotaProjectionMemo = CostUsageQuotaProjectionMemo()
+        return copy
     }
 
     /// Coverage is established *and* the read of that coverage ran to completion. Surfaces that
@@ -437,6 +446,9 @@ public struct CostUsageProjectSourceBreakdown: Sendable, Equatable {
 }
 
 public struct CostUsageDailyReport: Sendable, Codable {
+    #if DEBUG
+    @TaskLocal static var entryAccumulationObserverForTesting: (@Sendable () -> Void)?
+    #endif
     public struct ModelBreakdown: Sendable, Codable, Equatable {
         public let modelName: String
         public let costUSD: Double?
@@ -773,9 +785,9 @@ public struct CostUsageDailyReport: Sendable, Codable {
                 return models
             }
 
-            guard container.contains(.models) else { return nil }
-
-            guard let modelMap = try? container.nestedContainer(keyedBy: CostUsageAnyCodingKey.self, forKey: .models)
+            guard container.contains(.models), let modelMap = try? container.nestedContainer(
+                keyedBy: CostUsageAnyCodingKey.self,
+                forKey: .models)
             else { return nil }
 
             let modelNames = modelMap.allKeys.map(\.stringValue).sorted()
@@ -824,6 +836,10 @@ public struct CostUsageDailyReport: Sendable, Codable {
         }
 
         public init(from decoder: Decoder) throws {
+            try self.init(from: decoder, legacy: false)
+        }
+
+        fileprivate init(from decoder: Decoder, legacy: Bool) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             self.totalInputTokens = try container.decodeIfPresent(Int.self, forKey: .totalInputTokens)
             self.totalOutputTokens = try container.decodeIfPresent(Int.self, forKey: .totalOutputTokens)
@@ -833,10 +849,10 @@ public struct CostUsageDailyReport: Sendable, Codable {
             self.cacheCreationTokens =
                 try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens)
                 ?? container.decodeIfPresent(Int.self, forKey: .totalCacheCreationTokens)
-            self.reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens)
+            self.reasoningTokens = legacy ? nil : try container.decodeIfPresent(Int.self, forKey: .reasoningTokens)
             self.totalTokens = try container.decodeIfPresent(Int.self, forKey: .totalTokens)
             self.totalCostUSD =
-                try container.decodeIfPresent(Double.self, forKey: .totalCostUSD)
+                try (legacy ? nil : container.decodeIfPresent(Double.self, forKey: .totalCostUSD))
                 ?? container.decodeIfPresent(Double.self, forKey: .totalCost)
         }
 
@@ -878,18 +894,8 @@ public struct CostUsageDailyReport: Sendable, Codable {
         }
 
         self.data = try container.decode([Entry].self, forKey: .daily)
-        if container.contains(.totals) {
-            let totals = try container.decode(CostUsageLegacyTotals.self, forKey: .totals)
-            self.summary = Summary(
-                totalInputTokens: totals.totalInputTokens,
-                totalOutputTokens: totals.totalOutputTokens,
-                cacheReadTokens: totals.cacheReadTokens,
-                cacheCreationTokens: totals.cacheCreationTokens,
-                totalTokens: totals.totalTokens,
-                totalCostUSD: totals.totalCost)
-        } else {
-            self.summary = nil
-        }
+        self.summary = container.contains(.totals)
+            ? try Summary(from: container.superDecoder(forKey: .totals), legacy: true) : nil
     }
 
     public init(
@@ -1050,6 +1056,9 @@ extension CostUsageDailyReport {
         var breakdowns: [String: BreakdownAccumulator] = [:]
 
         mutating func add(_ entry: Entry) {
+            #if DEBUG
+            CostUsageDailyReport.entryAccumulationObserverForTesting?()
+            #endif
             self.tokenMix.merge(.from(entry: entry))
             self.requestCount.add(entry.requestCount)
             // Classify each source before combining costs: a priced source cannot price another source's missing rows.
@@ -1155,7 +1164,7 @@ extension CostUsageDailyReport {
         _ reports: [CostUsageDailyReport],
         calendar: Calendar = .current) -> CostUsageDailyReport
     {
-        let entries = self.mergedEntries(from: reports, calendar: calendar)
+        let entries = self.mergedEntries(from: reports.lazy.flatMap(\.data), calendar: calendar)
         let mergedHourly = self.mergedHourly(from: reports, calendar: calendar)
         let mergedQuotaSlices = self.mergedQuotaSlices(from: reports)
         guard !entries.isEmpty || !mergedHourly.isEmpty || !mergedQuotaSlices.isEmpty else {
@@ -1163,7 +1172,7 @@ extension CostUsageDailyReport {
         }
         return CostUsageDailyReport(
             data: entries,
-            summary: entries.isEmpty ? nil : self.mergedSummary(from: reports),
+            summary: entries.isEmpty ? nil : self.summary(for: reports.lazy.flatMap(\.data)),
             hourly: mergedHourly,
             quotaSlices: mergedQuotaSlices)
     }
@@ -1247,18 +1256,16 @@ extension CostUsageDailyReport {
         }
     }
 
-    private static func mergedEntries(
-        from reports: [CostUsageDailyReport],
+    static func mergedEntries(
+        from entries: some Sequence<Entry>,
         calendar: Calendar) -> [Entry]
     {
         var dayAccumulators: [String: EntryAccumulator] = [:]
-        for report in reports {
-            for entry in report.data {
-                let rawDate = entry.date.trimmingCharacters(in: .whitespacesAndNewlines)
-                let dayKey = CostUsageTokenSnapshot.localDayKey(for: rawDate, calendar: calendar)
-                    ?? rawDate
-                dayAccumulators[dayKey, default: EntryAccumulator()].add(entry)
-            }
+        for entry in entries {
+            let rawDate = entry.date.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dayKey = CostUsageTokenSnapshot.localDayKey(for: rawDate, calendar: calendar)
+                ?? rawDate
+            dayAccumulators[dayKey, default: EntryAccumulator()].add(entry)
         }
 
         return dayAccumulators
@@ -1269,14 +1276,12 @@ extension CostUsageDailyReport {
             }
     }
 
-    private static func mergedSummary(from reports: [CostUsageDailyReport]) -> Summary {
+    static func summary(for entries: some Sequence<Entry>) -> Summary {
         // Reuse source accumulators so daily overflow cannot revive in a later day, while a
         // missing metric does not erase useful subtotals from the rest of the history.
         var totals = EntryAccumulator()
-        for report in reports {
-            for entry in report.data {
-                totals.add(entry)
-            }
+        for entry in entries {
+            totals.add(entry)
         }
         return Summary(
             totalInputTokens: totals.tokenMix.inputTokens,
@@ -1371,15 +1376,10 @@ public struct CostUsageSessionReport: Sendable, Decodable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        if container.contains(.type) {
-            _ = try container.decode(String.self, forKey: .type)
-            self.data = try container.decode([Entry].self, forKey: .data)
-            self.summary = try container.decodeIfPresent(Summary.self, forKey: .summary)
-            return
-        }
-
-        self.data = try container.decode([Entry].self, forKey: .sessions)
-        self.summary = try container.decodeIfPresent(Summary.self, forKey: .totals)
+        let modern = container.contains(.type)
+        if modern { _ = try container.decode(String.self, forKey: .type) }
+        self.data = try container.decode([Entry].self, forKey: modern ? .data : .sessions)
+        self.summary = try container.decodeIfPresent(Summary.self, forKey: modern ? .summary : .totals)
     }
 }
 
@@ -1440,50 +1440,10 @@ public struct CostUsageMonthlyReport: Sendable, Decodable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        if container.contains(.type) {
-            _ = try container.decode(String.self, forKey: .type)
-            self.data = try container.decode([Entry].self, forKey: .data)
-            self.summary = try container.decodeIfPresent(Summary.self, forKey: .summary)
-            return
-        }
-
-        self.data = try container.decode([Entry].self, forKey: .monthly)
-        self.summary = try container.decodeIfPresent(Summary.self, forKey: .totals)
-    }
-}
-
-private struct CostUsageLegacyTotals: Decodable {
-    let totalInputTokens: Int?
-    let totalOutputTokens: Int?
-    let cacheReadTokens: Int?
-    let cacheCreationTokens: Int?
-    let totalTokens: Int?
-    let totalCost: Double?
-
-    private enum CodingKeys: String, CodingKey {
-        case totalInputTokens
-        case totalOutputTokens
-        case cacheReadTokens
-        case cacheCreationTokens
-        case totalCacheReadTokens
-        case totalCacheCreationTokens
-        case totalTokens
-        case totalCost
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.totalInputTokens = try container.decodeIfPresent(Int.self, forKey: .totalInputTokens)
-        self.totalOutputTokens = try container.decodeIfPresent(Int.self, forKey: .totalOutputTokens)
-        self.cacheReadTokens =
-            try container.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
-            ?? container.decodeIfPresent(Int.self, forKey: .totalCacheReadTokens)
-        self.cacheCreationTokens =
-            try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens)
-            ?? container.decodeIfPresent(Int.self, forKey: .totalCacheCreationTokens)
-        self.totalTokens = try container.decodeIfPresent(Int.self, forKey: .totalTokens)
-        self.totalCost = try container.decodeIfPresent(Double.self, forKey: .totalCost)
+        let modern = container.contains(.type)
+        if modern { _ = try container.decode(String.self, forKey: .type) }
+        self.data = try container.decode([Entry].self, forKey: modern ? .data : .monthly)
+        self.summary = try container.decodeIfPresent(Summary.self, forKey: modern ? .summary : .totals)
     }
 }
 

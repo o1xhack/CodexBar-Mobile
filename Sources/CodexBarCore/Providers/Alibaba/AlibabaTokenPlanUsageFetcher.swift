@@ -59,7 +59,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let region: AlibabaTokenPlanAPIRegion
         @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
-        let session: URLSession
+        let session: any ProviderHTTPTransport
     }
 
     private struct RateLimitContext: Sendable {
@@ -69,6 +69,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
     }
+    static let usageSession = URLSession(configuration: .default)
 
     private static let log = CodexBarLog.logger("alibaba-token-plan")
     private static let bssServiceCode = "BssOpenAPI-V3"
@@ -168,48 +169,21 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         let url = self.resolveQuotaURL(region: region, environment: environment)
         let apiRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedAPIHeader)
         let rateLimitRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedRateLimitHeader ?? "")
-        let dashboardRedirectDiagnostics: RedirectDiagnostics?
-        let apiSession: URLSession
-        let rateLimitSession: URLSession
-        let dashboardSession: URLSession
-        if let overrideSession {
-            apiSession = overrideSession
-            rateLimitSession = overrideSession
-            dashboardSession = overrideSession
-            dashboardRedirectDiagnostics = nil
-        } else {
-            let dashboardDiagnostics = RedirectDiagnostics(cookieHeader: normalizedDashboardHeader)
-            apiSession = URLSession(
-                configuration: .default,
-                delegate: apiRedirectDiagnostics,
-                delegateQueue: nil)
-            rateLimitSession = URLSession(
-                configuration: .default,
-                delegate: rateLimitRedirectDiagnostics,
-                delegateQueue: nil)
-            dashboardSession = URLSession(
-                configuration: .default,
-                delegate: dashboardDiagnostics,
-                delegateQueue: nil)
-            dashboardRedirectDiagnostics = dashboardDiagnostics
+        let dashboardRedirectDiagnostics = RedirectDiagnostics(cookieHeader: normalizedDashboardHeader)
+        let session = overrideSession ?? Self.usageSession
+        let apiSession = ProviderHTTPTransportHandler { request in
+            try await session.data(for: request, delegate: apiRedirectDiagnostics)
+        }
+        let rateLimitSession = ProviderHTTPTransportHandler { request in
+            try await session.data(for: request, delegate: rateLimitRedirectDiagnostics)
+        }
+        let dashboardSession = ProviderHTTPTransportHandler { request in
+            try await session.data(for: request, delegate: dashboardRedirectDiagnostics)
         }
         defer {
-            if overrideSession == nil {
-                apiSession.invalidateAndCancel()
-                rateLimitSession.invalidateAndCancel()
-                dashboardSession.invalidateAndCancel()
-            }
-            if let dashboardRedirectDiagnostics {
-                Self.logRedirects(
-                    dashboardRedirectDiagnostics.snapshot(),
-                    message: "Alibaba Token Plan dashboard redirects")
-            }
-            Self.logRedirects(
-                apiRedirectDiagnostics.snapshot(),
-                message: "Alibaba Token Plan subscription-summary redirects")
-            Self.logRedirects(
-                rateLimitRedirectDiagnostics.snapshot(),
-                message: "Alibaba Token Plan rate-limit redirects")
+            Self.logRedirects(dashboardRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan dashboard redirects")
+            Self.logRedirects(apiRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan subscription-summary redirects")
+            Self.logRedirects(rateLimitRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan rate-limit redirects")
         }
 
         if region.usesPersonalTokenPlanAPI {
@@ -341,7 +315,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
 
     private static func fetchSubscriptionSummary(
         context: SubscriptionSummaryContext,
-        session: URLSession) async throws -> AlibabaTokenPlanUsageSnapshot
+        session: any ProviderHTTPTransport) async throws -> AlibabaTokenPlanUsageSnapshot
     {
         var request = URLRequest(url: context.url)
         request.httpMethod = "POST"
@@ -402,7 +376,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
 
     private static func fetchRateLimitUsage(
         context: RateLimitContext,
-        session: URLSession) async throws -> AlibabaTokenPlanUsageSnapshot
+        session: any ProviderHTTPTransport) async throws -> AlibabaTokenPlanUsageSnapshot
     {
         let url = self.resolveRateLimitURL(
             region: context.region,
@@ -912,7 +886,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         apiCookieHeader: String,
         region: AlibabaTokenPlanAPIRegion,
         environment: [String: String],
-        session: URLSession) async -> String?
+        session: any ProviderHTTPTransport) async -> String?
     {
         let cookieSECToken = self.extractCookieValue(name: "sec_token", from: dashboardCookieHeader) ??
             self.extractCookieValue(name: "sec_token", from: apiCookieHeader)
@@ -978,7 +952,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         cookieHeader: String,
         region: AlibabaTokenPlanAPIRegion,
         environment: [String: String],
-        session: URLSession) async -> String?
+        session: any ProviderHTTPTransport) async -> String?
     {
         let baseURL = self.consoleBaseURL(region: region, environment: environment)
         let userInfoURL = baseURL.appendingPathComponent("tool/user/info.json")

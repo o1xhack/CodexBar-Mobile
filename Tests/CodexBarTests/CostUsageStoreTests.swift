@@ -532,9 +532,9 @@ extension CostUsageStoreTests {
         let reloaded = CostUsageStoreAccess.read(cacheRoot: fixture.root, calendar: calendar)
         #expect(reloaded.lastScanUnixMs == 2000)
 
-        // Repeating the unchanged scan checkpoints at most the prior metadata frame, then emits
-        // exactly one new metadata-row change. Both files are measured using SQLite's real `-wal`
-        // path; no claim of zero physical writes is made.
+        // With automatic checkpoints disabled, another unchanged scan appends freshness frames
+        // instead of truncating the WAL. It still emits exactly one metadata-row change. Both files
+        // use SQLite's real `-wal` path; no claim of zero physical writes is made.
         var repeated = reloaded
         repeated.lastScanUnixMs = 2500
         let repeatBefore = footprint()
@@ -545,7 +545,9 @@ extension CostUsageStoreTests {
         #expect(repeatCountersAfter.rows - repeatCountersBefore.rows == 1)
         #expect(repeatCountersAfter.pages <= 2)
         #expect(repeatAfter[dbURL]?.size == repeatBefore[dbURL]?.size)
-        #expect(repeatAfter[walURL]?.size == after[walURL]?.size)
+        let priorWALBytes = try #require(repeatBefore[walURL]?.size)
+        let repeatedWALBytes = try #require(repeatAfter[walURL]?.size)
+        #expect(repeatedWALBytes > priorWALBytes)
         #expect(repeatAfter[dbURL]?.mtime != nil)
         #expect(repeatAfter[walURL]?.mtime != repeatBefore[walURL]?.mtime)
         print("[no-op-write-proof] first before=\(before) after=\(after)")
@@ -960,6 +962,12 @@ extension CostUsageStoreTests {
         "3f88178bf03ad704",
         "0d41437dcd95c17e", // Published 0.73.0.1 with the ledger pricing fix.
         "68cbd75ed0e591d9", // Published 0.74.1.1 with the ledger pricing fix on upstream 0.74.1.
+        "0e253ad335df6daa", // Preserve rows and checkpoints when adopting native Ultrafast pricing.
+        "51f8655d53d65b3d", // Current main before Terra and Luna Fast repricing.
+        "ad011f05e9ab733a", // Released in 0.84.0; retain history while recalculating Fast prices.
+        "2dc85fe95af0aa95", // Preserve project-accumulation caches when combined with linked-root discovery.
+        "5454415c8ea2ce7b", // Linked-root discovery preserves native rows, checkpoints, and report totals.
+        "6b42e42bafad1922", // Project accumulation preserves native rows and retained report totals.
         "f98b2d0afc00443c", // Corrected revision-14 reports survive the identified-pricing export change.
         "0ef5e15cc00e8e25", // Current main before resumed-tier and Fast pricing correction.
         "5a57546c60494379", // Home-scoped main before archived-row retention.
@@ -1137,7 +1145,8 @@ extension CostUsageStoreTests {
 
     @Test(arguments: [
         "8050a4faf4fddb96", "dd19ffa2dcfa8d47", "ed735dc27ffa70d9", "99d920977063318a",
-        "0ef5e15cc00e8e25", "5a57546c60494379", "e5909f60274b2c47",
+        "0ef5e15cc00e8e25", "5a57546c60494379", "e5909f60274b2c47", "ad011f05e9ab733a",
+        "51f8655d53d65b3d", "f98b2d0afc00443c", "6b42e42bafad1922", "2dc85fe95af0aa95", "5454415c8ea2ce7b",
     ])
     func `retained report migration preserves compatible rows and clears stale payload`(
         predecessorHash: String) async throws

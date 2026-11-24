@@ -30,6 +30,8 @@ public enum ProviderTokenHistoryPresentation: Sendable, Equatable {
 public struct ProviderTokenCostConfig: Sendable {
     public let supportsTokenCost: Bool
     public let noDataMessage: @Sendable () -> String
+    /// Evaluated when the usage snapshot has no cost projection; balance alone need not prove zero spend.
+    public let isUsageUnavailable: @Sendable (UsageSnapshot) -> Bool
     public let menuHintLines: [ProviderTokenCostHint]
     public let supportsTokenSnapshot: Bool
     public let settingsStatusOrder: Int?
@@ -47,6 +49,7 @@ public struct ProviderTokenCostConfig: Sendable {
     public init(
         supportsTokenCost: Bool,
         noDataMessage: @escaping @Sendable () -> String,
+        isUsageUnavailable: @escaping @Sendable (UsageSnapshot) -> Bool = { _ in false },
         menuHintLines: [ProviderTokenCostHint] = [],
         supportsTokenSnapshot: Bool = false,
         settingsStatusOrder: Int? = nil,
@@ -63,6 +66,7 @@ public struct ProviderTokenCostConfig: Sendable {
     {
         self.supportsTokenCost = supportsTokenCost
         self.noDataMessage = noDataMessage
+        self.isUsageUnavailable = isUsageUnavailable
         self.menuHintLines = menuHintLines
         self.supportsTokenSnapshot = supportsTokenSnapshot
         self.settingsStatusOrder = settingsStatusOrder
@@ -347,6 +351,7 @@ public struct ProviderDescriptor: Sendable {
     public let menuBarMetrics: ProviderMenuBarMetricCapabilities
     public let fetchPlan: ProviderFetchPlan
     public let cli: ProviderCLIConfig
+    public let setup: ProviderSetup
     public let nativeAppBundleIdentifiers: Set<String>
     private let configNormalizer: @Sendable (inout ProviderConfig) -> Void
 
@@ -365,6 +370,7 @@ public struct ProviderDescriptor: Sendable {
         presentation: ProviderUsagePresentation = ProviderUsagePresentation(),
         fetchPlan: ProviderFetchPlan,
         cli: ProviderCLIConfig,
+        setup: ProviderSetup = .unknown,
         nativeAppBundleIdentifiers: Set<String> = [],
         configNormalizer: @escaping @Sendable (inout ProviderConfig) -> Void = { _ in })
     {
@@ -382,6 +388,7 @@ public struct ProviderDescriptor: Sendable {
         self.menuBarMetrics = menuBarMetrics ?? (metadata.balanceOnly ? .automaticOnly : .standard)
         self.fetchPlan = fetchPlan
         self.cli = cli
+        self.setup = setup
         self.nativeAppBundleIdentifiers = nativeAppBundleIdentifiers
         self.configNormalizer = configNormalizer
     }

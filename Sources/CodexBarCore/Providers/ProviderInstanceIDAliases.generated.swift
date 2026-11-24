@@ -114,6 +114,10 @@ extension ProviderInstanceID {
     public static let chatbox = UsageProvider.chatbox.instanceID
     public static let abliteration = UsageProvider.abliteration.instanceID
     public static let opendesign = UsageProvider.opendesign.instanceID
+    public static let siliconflow = UsageProvider.siliconflow.instanceID
+    public static let tripo = UsageProvider.tripo.instanceID
+    public static let googledeveloper = UsageProvider.googledeveloper.instanceID
+    public static let trustedrouter = UsageProvider.trustedrouter.instanceID
 }
 
 // swiftformat:enable sortDeclarations

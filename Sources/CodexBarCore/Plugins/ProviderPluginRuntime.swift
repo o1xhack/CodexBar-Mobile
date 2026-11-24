@@ -24,7 +24,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
     private let source: String
     private let preludeSource: String
     private let transport: any ProviderHTTPTransport
-    private let timeout: TimeInterval
+    let timeout: TimeInterval
     private let responseSizeLimit: Int
     private let enforcesUserResponsePolicy: Bool
     private let allowsDynamicID: Bool
@@ -50,14 +50,16 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         bundledPlugin name: String,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
-        contextOptions: ProviderPluginContextOptions) throws
+        contextOptions: ProviderPluginContextOptions,
+        engine: ProviderPluginEngineKind = .automatic) throws
     {
         try self.init(
             bundledPlugin: name,
             resourceBundle: CodexBarCoreResources.bundle,
             transport: transport,
             timeout: timeout,
-            contextOptions: contextOptions)
+            contextOptions: contextOptions,
+            engine: engine)
     }
 
     convenience init(
@@ -65,7 +67,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         resourceBundle: Bundle?,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
-        contextOptions: ProviderPluginContextOptions = .production) throws
+        contextOptions: ProviderPluginContextOptions = .production,
+        engine: ProviderPluginEngineKind = .automatic) throws
     {
         guard let resourceBundle else {
             throw ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)
@@ -80,7 +83,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             resourceBundle: resourceBundle,
             transport: transport,
             timeout: timeout,
-            contextOptions: contextOptions)
+            contextOptions: contextOptions,
+            engine: engine)
     }
 
     public convenience init(
@@ -265,8 +269,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                     cookieResolver: cookieResolver,
                     instanceCookieResolver: instanceCookieResolver,
                     completion: finish)
-                Task.detached {
-                    try? await Task.sleep(for: .seconds(self.timeout))
+                Task.detached { [timeout = self.timeout, wait = contextOptions.waitForFetchDeadline] in
+                    do { try await wait(timeout) } catch { return }
                     finish(.failure(ProviderPluginError.timedOut))
                 }
             }

@@ -130,6 +130,10 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case chatbox
     case abliteration
     case opendesign
+    case siliconflow
+    case tripo
+    case googledeveloper
+    case trustedrouter
 }
 
 // swiftformat:enable sortDeclarations

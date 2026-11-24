@@ -58,6 +58,18 @@ Completed requests for models without a known price keep their token usage and r
 - A lower-level direct Claude fetcher still contains a separate `.auto` order. That inconsistency is tracked in
   [docs/refactor/claude-current-baseline.md](refactor/claude-current-baseline.md).
 
+With **Disable Keychain access** on, a failed background Auto CLI fetch retries after 15 minutes.
+Consecutive failures double the delay up to four hours; a successful fetch resets it. Explicit authentication
+failures still wait for a successful manual refresh. Keychain-enabled background access keeps its existing policy.
+
+With Keychain access enabled and **Only on user action** selected, the app's background Auto refreshes can reuse a
+successful CLI result for up to 15 minutes, or until a quota window resets, but cannot launch another Claude CLI probe.
+A successful manual Refresh does not lift that restriction: Claude runs outside CodexBar's no-prompt Keychain
+controls. If OAuth is unusable and Web has no accessible session, scheduled refreshes fail after the cached result
+expires even though the timer continues running. The retained capture timestamp remains unchanged; changing the
+refresh interval cannot repair source access. Manual Refresh can obtain a new CLI result without enabling future
+background CLI launches under this policy.
+
 Usage source picker:
 - Preferences → Providers → Claude → Usage source (Auto/OAuth/Web/CLI).
 
@@ -145,18 +157,26 @@ This cleanup applies to the reusable PTY session, not the separate one-shot usag
 
 ## Keychain prompt policy (Claude OAuth)
 
+The OAuth cache lock lives in the user application-support directory under `CodexBar/claude-oauth-cache.lock` (`~/Library/Application Support` on macOS). It is independent of config-file overrides so app and CLI processes still coordinate access to the same credentials. Existing legacy lock files are left untouched.
+
 If CodexBar reports that its Claude OAuth cache is temporarily unavailable in macOS Keychain, check
 that the login keychain is unlocked in Keychain Access, then retry Refresh. This guidance does not
 change the existing prompt policy or switch to another credential source.
+
+The credentials-unavailable message does not establish that a token rotated or macOS revoked access. The same
+state can follow a read suppressed by the selected policy. Refresh retries within the existing consent and prompt rules.
 
 - Preferences → Providers → Claude → Keychain prompt policy.
 - Options:
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
-  - `Always allow prompts`: allows interactive prompts in both user and background flows.
+  - `Always allow prompts`: permits consented background recovery when access is confirmed without UI;
+    interactive OAuth repair remains manual.
 - Explicit Refresh can repair Claude OAuth Keychain access when direct-read consent is enabled and the policy
-  allows user prompts. Ordinary OAuth fetches remain noninteractive, including with `Always allow prompts`;
-  that policy still governs the existing delegated refresh and experimental reader paths.
+  allows user prompts. The direct credential read shares the manual action's single interactive allowance with
+  browser imports, and a denial suppresses further interactive reads for six hours. Ordinary OAuth fetches remain
+  noninteractive, including with `Always allow prompts`. They inspect both the decrypt ACL and the signing-team
+  partition before reading the credential payload; rejected or inconclusive checks leave it unread.
 - After a missing-credentials failure, a newer Claude Code credential timestamp replaces the stale error with
   **Claude Code credentials changed** and a **Refresh** instruction in the menu and OAuth CLI output. Click the
   existing menu **Refresh** action to retry; direct-read consent and the prompt policy still control access.
@@ -167,15 +187,18 @@ change the existing prompt policy or switch to another credential source.
   only the last failure time per profile so the guidance survives restarts and is shared with the bundled CLI;
   a readable credential clears it. Auto continues to configured CLI/Web sources under their existing access gates.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
-- The policy also applies to the experimental `/usr/bin/security` reader and delegated OAuth refresh through
-  `claude`: background operations that can prompt require `Always allow prompts`.
-- CodexBar's `Always allow prompts` permits future prompts; macOS's **Always Allow** grants access to the current
-  Keychain item. Claude Code can recreate `Claude Code-credentials` and reset that grant. An ACL entry still named
-  CodexBar does not prove that its stored code-signing requirement matches the running binary. `Only on user action`
-  reduces background interruptions but may require a manual Refresh to recover OAuth access. In #3798, a
-  before/after trace shows Claude Code preserving the decrypt ACL's CodexBar entry but removing CodexBar's Team ID
-  from the separate partition ACL. Decrypt-ACL preflight alone cannot establish partition authorization; repeated
-  manual grants therefore need not survive the next Claude Code refresh.
+- Delegated OAuth refresh through `claude` runs only for an explicit user action, never a scheduled or
+  settings-change refresh, even with `Always allow prompts`. Claude Code controls its own credential reads;
+  CodexBar's no-UI query flags cannot constrain that child process.
+- CodexBar's prompt policy and macOS's **Always Allow** are separate. The latter grants access to the current
+  Keychain item and signing identity. Claude Code saves credentials with `security add-generic-password -U`;
+  an update can replace partition authorization without deleting the item or removing the visible CodexBar
+  entry from its decrypt ACL. The before/after traces in #3798 show CodexBar's Team ID disappearing from that
+  separate partition list. **Always Allow** therefore cannot guarantee access after the next Claude Code write.
+  CodexBar does not rewrite Claude Code's access controls; use **Refresh** when authorization is needed again.
+- To avoid CodexBar's direct read of this item, use an existing OAuth credentials file or choose the CLI usage
+  source. Claude Code can still request its own authorization when run. Web uses a separate browser session and
+  may require a manual Safe Storage grant; it does not repair the Claude Code credential item.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
 
@@ -225,13 +248,14 @@ change the existing prompt policy or switch to another credential source.
   - `anthropic-beta: oauth-2025-04-20`
   - Reset inventory uses `claude-cli/<detected-version> (external, cli)`; eligibility remains server-controlled.
 - Mapping:
-  - `five_hour` → session window.
-  - `seven_day` → weekly window; also becomes the primary fallback when `five_hour` is absent or has no utilization.
+  - `five_hour` → session window only when it reports utilization; missing or null five-hour data leaves the session row absent.
+  - `seven_day` → weekly window, with `seven_day_oauth_apps` as its fallback. Weekly data never fills the session lane.
   - `seven_day_sonnet` / `seven_day_opus` → model-specific weekly window.
   - `limits[].weekly_scoped` → model-specific weekly windows; generic `All models` scopes stay in the main weekly row.
     OAuth and Web share per-entry parsing: malformed siblings or optional fields do not hide valid model rows. Boolean and string percentages are ignored.
   - The menu localizes scoped titles as a model name plus weekly duration; canonical snapshot and CLI titles remain unchanged.
-  - Automatic and Session + Weekly menu bar metrics fall back to the most constrained known scoped weekly window when the regular quota windows are missing. Unknown scoped measurements remain unavailable; Extra usage stays a spend-only fallback.
+  - Automatic and Session + Weekly menu bar metrics use a measured Sonnet/Opus weekly window when regular quotas are absent, then the most constrained known scoped weekly window. Unknown scoped measurements remain unavailable; Extra usage stays a spend-only fallback.
+  - Without a session window, the status icon draws the weekly window as a single meter instead of reserving an empty session lane.
   - `seven_day_routines` / `seven_day_cowork` → Daily Routines extra window.
   - Claude Design/Omelette keys are ignored because Claude Design shares the main Claude usage limit.
   - `extra_usage` → Extra usage cost (monthly spend/limit).
@@ -303,7 +327,7 @@ action, and honors denial cooldowns. OAuth and Claude Code login sources are unc
   The fixtures cover the reported subscription schema, including cancellation and absent dates; they do not
   establish that every plan or organization role can access this endpoint. Team/Enterprise billing access and
   live cancelled subscriptions remain unverified. Quota resets and Extra usage balances are independent.
-- Session quota warnings ignore a weekly quota promoted into the primary field when the five-hour payload is missing. Existing session warning history stays tied to its account, and weekly warnings continue independently.
+- Missing five-hour readings preserve the account’s session warning history. Legacy cached weekly windows in the primary field still do not count as session usage, and weekly warnings continue independently.
 - Preferences → Providers → Claude → Cookie source (Automatic or Manual).
 - Manual mode accepts a `Cookie:` header from a claude.ai request.
 Each Claude token account can optionally select a **Claude config directory** in Settings → Providers → Claude.
@@ -335,6 +359,8 @@ is stored on the token account in the config file and does not change quota fetc
   including Firefox import, remains unavailable. This enables the same API request path as macOS; it does not
   bypass Cloudflare challenges, refresh Claude Code OAuth credentials, or guarantee that a browser session will
   work outside the browser. Use the OAuth source when the web request is challenged.
+  Successful OAuth quota and a valid manual cookie can still leave subscription dates unavailable:
+  a challenge on the optional web account check stops billing enrichment before subscription details are fetched.
 - Linux CLI Auto mode: an existing valid manual cookie makes Web eligible ahead of CLI after upgrading.
   Web success returns without launching Claude Code; authentication rejection or a Cloudflare challenge falls
   back to an available CLI using the existing Auto policy. Cancellation stops without launching the CLI.
@@ -410,6 +436,8 @@ prepaid-balance caption. Accounts with quota windows keep their separate Extra u
 menu-card-sections layout. Uncapped balances keep their compact Credits row; Admin API spend is unchanged.
 Extra usage still follows its existing visibility choice and the global optional-usage switch. Pace follows the
 existing pace setting, independently of redeemable Limit Reset Credits.
+The provider switcher also uses this cap when normal quotas are unavailable; a real session or weekly quota
+keeps priority. Snapshots from other providers never supply this Claude cap.
 
 Claude does not report the cap reset. CodexBar infers midnight UTC on the first of the next month from the cost
 observation, applying [Anthropic's documented spend-limit period](https://platform.claude.com/docs/en/manage-claude/spend-limits-api)
@@ -483,7 +511,7 @@ The accepted multi-account design in
 - Slots excluded from claude-swap's automatic rotation are marked `(disabled)` but remain valid explicit switch
   targets. The active account label is emphasized.
 - Display: when claude-swap reports more than one account, its accounts replace ambient/token-account Claude cards.
-  The app honors **Menu → Multi-account layout**: Segmented shows account buttons and one active account card;
+  The app honors **Menu → Multi-account layout**: Segmented keeps account buttons in numeric slot order and shows one active account card;
   pending or failed switches show the requested account's details while the active marker stays source-owned.
   Expired or otherwise unavailable accounts remain inspectable without activation; selecting the active account
   returns to its card. If the adapter reports no active account, the menu says so instead of selecting the first row.
@@ -505,6 +533,16 @@ The accepted multi-account design in
   `~/.config/codexbar/config.json`; legacy installs may use `~/.codexbar/config.json`). The option defaults off,
   zero accounts still use the ambient presentation, and account identity is `claude-swap:<slot>`, never the display
   email.
+- Cost: claude-swap slots share the combined local Claude history, which cannot be attributed to one slot.
+  The menu shows that history once in a **This Mac** section below the account cards or rows, in every
+  multi-account layout, instead of attaching it to an account.
+- With **Show all accounts in Overview** off, the single Claude Overview card follows the presented adapter slot:
+  a pending switch, an inspected account, a failed switch, or the active account, in that order. It retains the
+  provider's combined local costs and uses the ambient card when no adapter account is presented. Expanded
+  **Show all accounts** rows keep their account-specific usage without borrowing those combined costs.
+- The **Plan Usage** submenu charts the same presented adapter account's recorded history, so it matches the card
+  rather than ambient Claude history. With no presented account, or while an iCloud Fleet card stands in for this
+  Mac's usage, it uses ambient Claude history.
 - Session forecasts use each account's own recorded usage. History keys hash the normalized email and organization
   UUID from the existing list response, so moving slots preserves history and the same email in different workspaces
   stays separate. Empty organization UUIDs identify personal accounts; an email change starts a new history.
@@ -572,7 +610,9 @@ When Claude Code reports `Per-model breakdown unavailable`, CodexBar keeps the c
 weekly quotas and carries the CLI's notice in a `usage.details` row with ID `claude-model-breakdown`.
 This distinguishes an unavailable model breakdown from an account with no model-specific limit in
 `codexbar usage --json` and `codexbar serve`'s `/usage` response. The notice is upstream CLI text; it disappears
-with the next successful breakdown. The compact `/dashboard/v1/snapshot` schema does not expose usage details.
+with the next successful breakdown. `/dashboard/v1/snapshot` exposes only the fixed code
+`providers[].warnings: ["model-breakdown-unavailable"]`; it never forwards the CLI notice text, regardless of identity
+mode. The additive field is omitted after recovery and from shell rows.
 
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
 - The PTY and replay screen share a 160-column, 200-row viewport so tall inline `/usage` panels retain their session,
@@ -604,9 +644,11 @@ with the next successful breakdown. The compact `/dashboard/v1/snapshot` schema 
     "Current session" + "Current week" headers. Cursor jumps preserve unchanged cells from earlier frames, keeping
     scoped weekly percentages, reset spacing, and account identity intact. Erased content is not reused as history.
   - Plain reports, including color-only ANSI output and legacy CR-delimited text, retain their existing parsing behavior.
-  - Capture completion uses the current rendered frame and waits for session quota values; percentages in the
+  - Capture completion uses the current rendered frame and waits for the first quota value (the session row, or the
+    weekly row on plans without a session window) and the CLI's `Refreshing…` footer to clear; percentages in the
     "What's contributing to your limits usage?" insights section cannot finish a loading quota probe. Once quota is
-    complete, insight text cannot trigger another command-palette confirmation.
+    visible, further Enter retries stop while the scoped weekly breakdown finishes refreshing. The existing capture
+    timeout still bounds the wait; unmarked late redraws cannot be distinguished from a complete panel.
   - Extracts percent left/used and reset text near those headers.
   - When a reset date cannot be parsed, the menu preserves its description and normalizes leading `Reset` or `Resets` labels once, including scoped weekly limits.
   - Parses `Account:` and `Org:` lines when present.
@@ -624,6 +666,7 @@ with the next successful breakdown. The compact `/dashboard/v1/snapshot` schema 
 - Source roots:
   - Native Claude logs:
     - `$CLAUDE_CONFIG_DIR` selects one literal directory and uses `<root>/projects`; commas are part of its path.
+    - Symlinks at selected history directory roots are resolved before source detection and scanning. Aliases to the same directory remain deduplicated; nested directory symlinks are not traversed.
     - Also includes claude-swap session profiles at `~/.claude-swap-backup/sessions/<slot>-<label>/projects`. On Linux, also checks `$XDG_DATA_HOME/claude-swap/sessions` (default `~/.local/share/claude-swap/sessions`). Discovery examines only immediate positive-numbered slot directories and their `projects` child; it does not read credentials or run cswap.
     - Fallback roots:
       - `~/.config/claude/projects`
@@ -653,23 +696,35 @@ with the next successful breakdown. The compact `/dashboard/v1/snapshot` schema 
     single pi-compatible session can contribute to multiple models/days.
   - Matching assistant entry IDs within the same session are counted once across roots; distinct turns are retained. If a Pi/OMP mirror scan is incomplete, established native spend remains usable as a marked partial estimate. The combined history is still incomplete, and native-only reports keep their own coverage.
   - Claude-swap history contributes to the combined Claude total, including when an explicit `$CLAUDE_CONFIG_DIR` is set. Shared-history symlinks are scanned once, copied responses use the same deduplication as native logs, and missing profile directories do not prevent other homes from contributing. Local cost records do not establish per-account attribution.
+- Projects and conversations:
+  - The Cost menu, Usage & Spend, and `codexbar cost --group-by project|session` group native Claude usage by project and conversation. Sessions and projects partition the native total exactly; a model and day the native report cannot fully price stay unpriced in every conversation and project.
+  - A conversation is the row's `sessionId`. Rows without one use the directory above `subagents/` for subagent transcripts, otherwise the transcript file name, so subagent cost folds into its parent conversation.
+  - A project is the first `cwd` on the conversation's own assistant usage lines, preferring parent transcripts over subagents, so a transcript holding several conversations (Cowork audit logs) keeps each one's directory. Appends keep each conversation's first `cwd`; a replaced transcript records new ones. Conversations without any `cwd` appear under **Unknown project**.
+  - A response copied into several transcripts (resumed sessions, sidechains, Cowork audit copies) is counted once and belongs to the conversation of the copy that deduplication keeps.
+  - Titles are not read: conversations show a shortened session ID. Git worktrees stay separate projects. Vertex AI history has no project or conversation breakdown.
+  - Pi/OMP usage merged into the Claude total appears as one **Unknown project** and hides conversations, as for Codex. Session text output and native-only views keep native conversations.
+  - Hide personal information masks project names, paths, and conversation titles in the app; CLI output is not masked.
 - Quota-week menu cards reuse the immutable snapshot’s day projection, warmed in the background. New snapshots and changed bucket time zones rebuild it; reset observations and the current time remain live on every card build.
 - Cache:
-  - Bundled fallback pricing includes Claude Mythos 5.1 and Mythos 5 at [Anthropic's published rates](https://platform.claude.com/docs/en/about-claude/pricing). The report-semantics update reprices retained usage without rereading unchanged transcripts.
+  - Bundled fallback pricing includes Claude Mythos 5.2, Mythos 5.1, and Mythos 5 at [Anthropic's published rates](https://platform.claude.com/docs/en/about-claude/pricing). The report-semantics update reprices retained usage without rereading unchanged transcripts.
   - GPT usage recorded through Claude Code uses the bundled OpenAI model's long-context boundary (272K for supported models), while retaining catalog rates. Uncached input and cache-read/create tokens all contribute to the prompt length. Saved reports are recalculated after pricing corrections without discarding retained Codex history.
   - Native provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v6.json`. This is a small manifest; its sibling `claude-v6.json.fragments` directory holds immutable JSON shards grouped by transcript project/directory, including source identities and empty-file parse offsets.
   - Report memo: `~/Library/Caches/CodexBar/cost-usage/claude-v6.report-memo.json` stores the daily report and references project shards for source stamps. It is reused only while transcript inventory, cache/pricing artifacts, requested window, and report-semantics revision still match.
+  - Reports from the same source and pricing scope share exact-event storage only when every event value and completeness flag matches. Requested windows, daily totals, and window certificates remain independent. After loading a persisted report, the report memo owns its decoded values; the fragment cache keeps the metadata needed for unchanged saves without retaining a second decoded header.
+  - Publishing a report releases its decoded transcript rows from memory. The completed report stays warm for unchanged refreshes; a changed source reloads its disk shards and retains them through the next update before releasing them again.
   - An unreadable transcript root or directory fails the refresh without replacing the last valid cache or report memo. Restoring access allows the next refresh to reuse that history; genuinely missing paths still count as removed sources.
   - A pricing catalog replacement during a refresh preserves certification of the parsed transcript window. The next refresh applies the replacement prices to cached rows without reparsing unchanged transcripts, including after a restart. Externally replaced transcript caches still require window certification again.
+  - The decoded fragment memo keeps a digest instead of a second encoded copy of report headers. Decoded values remain warm; unchanged-save checks, cache budgets, and persisted JSON are unchanged.
   - Unchanged sources reuse the memo even when a menu refresh bypasses the scan debounce. Explicit rescans still reparse transcripts, but byte-identical cache and report-memo content is not rewritten; an unchanged rebuild retains its previous scan timestamp.
   - Changed refreshes write only affected project shards and the manifests. Loaded usage dictionaries reserve capacity for their source files, and unchanged immutable file records are reused across refreshes to reduce peak memory on large histories. Report aggregates remain in the memo header; a large individual project or report can still require larger writes. Unchanged shards are neither read nor re-encoded while their snapshot remains in the bounded memory memo. The memo retains at most eight snapshots under a conservative encoded-size budget; schema, time-zone, source, window, filter, and pricing checks remain independent.
   - Writers commit shards before atomically replacing the manifest, then remove unreferenced shards under the same cross-process lock used by readers. A process interrupted before the manifest replacement leaves the previous snapshot intact. Missing or corrupt referenced shards reject the snapshot rather than returning partial totals. Clone-capable macOS volumes reuse unchanged blocks within a changed shard; other volumes use full shard writes.
   - Existing single-file JSON caches load and migrate on their next save. Migration itself does not require rereading transcripts, and compact row fields and parser revisions are unchanged. Older CodexBar builds can rebuild these caches from the original logs if downgraded. Public report JSON is unchanged.
   - The app's Usage & Spend refresh uses `claude-history-v6.json` and its own report memo. The two app refreshes do not replace each other's retained rows or restart each other's transcript scans. Once both have established their windows, same-day append refreshes read changed tails once per cache.
-  - App memos record whether every file's rows were selected for their scan window. Older or externally replaced caches without that proof rebuild once, even if their stored bounds already match; app window changes also rebuild to preserve cold-scan duplicate selection. The regular cache filename and row schema remain compatible, and standalone CLI range behavior is unchanged.
+  - App memos record whether every file's rows were selected for their scan window. Older or externally replaced caches without that proof rebuild once, even if their stored bounds already match. Complete transcript scans also retain source-date bounds in the existing project shards. On a day rollover or other app window change, unchanged files reuse their rows when their full date span fits both windows, or retain no rows when the span is outside the new window. Files crossing a window boundary, incomplete sources, and older entries without date bounds still reparse to preserve cold-scan duplicate selection and recover previously excluded events. Explicit rescans and changed source/filter/configuration checks remain active. Date bounds are populated on the next required parse without a migration-only rebuild. The regular cache filename, compact row schema, parser revision, and standalone CLI range behavior are unchanged.
   - The Claude/Vertex cache artifact retains source file identities independently of the shared Codex parser fingerprint. Replacing a transcript rebuilds its rows rather than merging an old prefix into a new suffix; genuine appends still use the saved parse offset. Older entries without identity are rebuilt once before reuse, including during the normal refresh debounce.
   - Older Claude/Vertex native caches and report memos are rebuilt once from unchanged transcripts to apply the corrected response deduplication. Corrected reports remain eligible for memo reuse across launches.
-  - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v9.json`. Version 8 rebuilds once from transcripts to establish source scope and completeness. Enabling the standalone [Pi provider](pi.md) keeps Claude history native-only in combined views.
+  - Cache schema 6 records each conversation's working directory per transcript. Older Claude/Vertex caches rebuild once from transcripts after upgrade. The report memo also keeps project and conversation breakdowns, so a restart over unchanged transcripts decodes neither the cache nor the transcripts. A changed refresh reprices each row once for the daily report, once for conversations, and once for projects; only the daily report builds hourly and quota buckets.
+  - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v10.json`. Older caches rebuild once from transcripts to establish source scope, completeness, and session metadata. Enabling the standalone [Pi provider](pi.md) keeps Claude history native-only in combined views.
 
 ## Key files
 - OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`

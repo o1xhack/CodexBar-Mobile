@@ -364,42 +364,75 @@ struct WorkBuddyPluginTests {
         #expect(snapshot.primary?.resetDescription == "450 / 500 credits left")
     }
 
-    @Test(arguments: BundledPluginTestSupport.engines)
-    func `stalled listings keep the balance within the production fetch deadline`(
+    @Test(.timeLimit(.minutes(1)), arguments: BundledPluginTestSupport.engines)
+    func `stalled listing exhausts its shared budget and preserves the balance`(
         engine: ProviderPluginEngineKind) async throws
     {
         let context = ProviderFetchContext(
             runtime: .cli, sourceMode: .web, includeCredits: false,
             webTimeout: 60, webDebugDumpHTML: false, verbose: false, env: [:],
-            settings: .make(workbuddy: .init(cookieSource: .manual, manualCookieHeader: Self.fixtureCookie)),
+            settings: .make(workbuddy: .init(cookies: .init(
+                cookieSource: .manual,
+                manualCookieHeader: Self.fixtureCookie))),
             fetcher: UsageFetcher(environment: [:]),
             claudeFetcher: WorkBuddyUnusedClaudeFetcher(),
             browserDetection: BrowserDetection(
                 homeDirectory: "/nonexistent/workbuddy-fixture",
                 fileExists: { _ in false }, directoryContents: { _ in nil }))
         let web = try #require(WorkBuddyProviderDescriptor.spec.webSource)
+        #expect(web.timeout.resolve(context) == 60)
         let values = try #require(web.resolveValues(context))
         let bundle = try #require(CodexBarCoreResources.bundle)
         let source = try String(
             contentsOf: #require(bundle.url(forResource: "workbuddy", withExtension: "js")),
             encoding: .utf8)
+        let paths = PathTrace()
+        let (starts, started) = AsyncStream<Void>.makeStream()
+        let (cancellations, cancelled) = AsyncStream<Bool>.makeStream()
+        defer { started.finish(); cancelled.finish() }
+        // Advance the fixture clock at the next listing budget check after the request times out.
+        let clock = """
+        Date.now = (() => {
+          let reads = 0;
+          return () => ++reads <= 2 ? 0 : 5000;
+        })();
+        """
         let runtime = try ProviderPluginRuntime(
-            source: source, resourceBundle: bundle,
+            source: clock + "\n" + source, resourceBundle: bundle,
             transport: ProviderHTTPTransportHandler { request in
+                paths.append(request.url?.path ?? "")
                 if request.url?.path == Self.summaryPath {
+                    #expect(request.timeoutInterval == 30)
                     return try Self.response(request, body: Self.summary)
                 }
-                try await Task.sleep(for: .seconds(120))
+                #expect(request.url?.path == Self.paidPath)
+                #expect(request.timeoutInterval == 5)
+                started.yield()
+                defer { cancelled.yield(Task.isCancelled) }
+                try await BundledPluginTestSupport.suspendUntilCancelled()
                 throw URLError(.timedOut)
             },
-            timeout: web.timeout.resolve(context), engine: engine)
+            timeout: BundledPluginTestSupport.timeout,
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                waitForHTTPDeadline: { _, budget in
+                    if budget == .seconds(30) {
+                        try await BundledPluginTestSupport.suspendUntilCancelled()
+                        return
+                    }
+                    #expect(budget == .seconds(5))
+                    var iterator = starts.makeAsyncIterator()
+                    #expect(await iterator.next() != nil)
+                    try Task.checkCancellation()
+                }),
+            engine: engine)
         let sessions = SessionTrace(headers: [Self.fixtureCookie])
-        let started = ContinuousClock.now
         let snapshot = try await runtime.fetchUsage(
             settings: values.settings, cookieSource: .manual,
             cookieSessionResolver: { _, _ in sessions.next() })
-        // WorkBuddy never uses a fetch deadline below 30 s; the shared listing budget normally ends near 5 s.
-        #expect(started.duration(to: .now) < .seconds(30))
+        var iterator = cancellations.makeAsyncIterator()
+        #expect(await iterator.next() == true)
+        #expect(paths.values == [Self.summaryPath, Self.paidPath])
         #expect(snapshot.primary?.usedPercent == 10)
         #expect(snapshot.primary?.resetsAt == nil)
     }
@@ -414,7 +447,7 @@ struct WorkBuddyPluginTests {
     @Test(arguments: BundledPluginTestSupport.engines)
     func `cancelling an optional listing still cancels the refresh`(engine: ProviderPluginEngineKind) async throws {
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 if request.url?.path != Self.summaryPath { throw URLError(.cancelled) }
                 return try Self.response(request, body: Self.summary)
@@ -513,7 +546,7 @@ struct WorkBuddyPluginTests {
     func `rejected candidates advance within the same refresh`(engine: ProviderPluginEngineKind) async throws {
         let sessions = SessionTrace(headers: ["session=rejected-fixture", Self.fixtureCookie])
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 let header = request.value(forHTTPHeaderField: "Cookie") ?? ""
                 let path = request.url?.path ?? ""
@@ -544,7 +577,7 @@ struct WorkBuddyPluginTests {
     {
         let sessions = SessionTrace(headers: ["session=rejected-fixture", Self.fixtureCookie])
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 sessions.request(request.value(forHTTPHeaderField: "Cookie") ?? "")
                 return try Self.response(request, body: "{}", status: 401)
@@ -567,7 +600,7 @@ struct WorkBuddyPluginTests {
     {
         let sessions = SessionTrace(headers: [Self.fixtureCookie, "session=other"])
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 sessions.request(request.value(forHTTPHeaderField: "Cookie") ?? "")
                 return try Self.response(request, body: "{}", status: status)
@@ -595,7 +628,7 @@ struct WorkBuddyPluginTests {
     {
         let agents = PathTrace()
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 let path = request.url?.path ?? ""
                 let agent = request.value(forHTTPHeaderField: "User-Agent") ?? "none"
@@ -605,7 +638,7 @@ struct WorkBuddyPluginTests {
             })
         let sessions = SessionTrace(headers: [Self.fixtureCookie])
         let usage = try await runtime.fetchUsage(
-            settings: ["chromeMajorVersion": "154"],
+            settings: ["chromeMajorVersion": "154", "manualUserAgent": "Unused UA fixture"],
             now: Self.now,
             cookieSessionResolver: { _, _ in sessions.next() },
             cookieSessionValidator: { _, _ in })
@@ -614,13 +647,61 @@ struct WorkBuddyPluginTests {
         #expect(sessions.rejected.isEmpty)
     }
 
+    @Test(arguments: ["Mozilla/5.0 Edge fixture", "   "], BundledPluginTestSupport.engines)
+    func `manual usage sends the selected user agent to every billing endpoint`(
+        configured: String,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let expected = configured.trimmingCharacters(in: .whitespaces).isEmpty ? Self.chromeUserAgent(154) : configured
+        let settings = configured == expected
+            ? ["manualUserAgent": configured]
+            : ["manualUserAgent": configured, "chromeMajorVersion": "154"]
+        let paths = PathTrace()
+        let runtime = try BundledPluginTestSupport.runtime(
+            "workbuddy", engine: engine, wallClock: Self.now,
+            transport: ProviderHTTPTransportHandler { request in
+                let path = request.url?.path ?? ""
+                #expect(request.value(forHTTPHeaderField: "User-Agent") == expected)
+                paths.append(path)
+                if path == Self.paidPath {
+                    return try Self.response(request, body: #"{"code":0,"data":{"Accounts":[]}}"#)
+                }
+                return try Self.response(request, body: Self.route(path).1)
+            })
+        let sessions = SessionTrace(headers: [Self.fixtureCookie])
+        let usage = try await runtime.fetchUsage(
+            settings: settings, now: Self.now, cookieSource: .manual,
+            cookieSessionResolver: { _, _ in sessions.next() })
+        #expect(usage.primary?.resetsAt == Self.octoberReset)
+        #expect(Set(paths.values) == [Self.summaryPath, Self.paidPath, Self.freePath])
+    }
+
+    @Test(
+        arguments: ["fixture\nInjected: yes", "fixture\r\nInjected: yes", "fixture\u{7F}", "fixture\tUA"],
+        BundledPluginTestSupport.engines)
+    func `manual user agent with invalid header characters fails before accessing cookies`(
+        configured: String, engine: ProviderPluginEngineKind) async throws
+    {
+        let sessions = SessionTrace(headers: [Self.fixtureCookie])
+        let runtime = try BundledPluginTestSupport.runtime(
+            "workbuddy", engine: engine, wallClock: Self.now,
+            transport: ProviderHTTPTransportHandler { _ in throw URLError(.badURL) })
+        await Self.expectFailure(.missingCredential) {
+            _ = try await runtime.fetchUsage(
+                settings: ["manualUserAgent": configured],
+                now: Self.now, cookieSource: .manual,
+                cookieSessionResolver: { _, _ in sessions.next() })
+        }
+        #expect(sessions.consumed == 0)
+    }
+
     @Test(arguments: ["154", nil], BundledPluginTestSupport.engines)
     func `a session rejected for every user agent is expired`(
         version: String?, engine: ProviderPluginEngineKind) async throws
     {
         let agents = PathTrace()
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 agents.append(request.value(forHTTPHeaderField: "User-Agent") ?? "none")
                 return try Self.response(request, body: "{}", status: 401)
@@ -647,7 +728,7 @@ struct WorkBuddyPluginTests {
         let sessions = SessionTrace(headers: [Self.fixtureCookie])
         let accepted = PathTrace()
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { request in
                 try Self.response(request, body: Self.route(request.url?.path ?? "").1)
             })
@@ -664,7 +745,7 @@ struct WorkBuddyPluginTests {
         engine: ProviderPluginEngineKind) throws
     {
         let runtime = try BundledPluginTestSupport.runtime(
-            "workbuddy", engine: engine,
+            "workbuddy", engine: engine, wallClock: Self.now,
             transport: ProviderHTTPTransportHandler { _ in throw URLError(.badURL) })
         let policy = try #require(runtime.manifest.cookiePolicy)
         #expect(policy.selection == .requestURL)

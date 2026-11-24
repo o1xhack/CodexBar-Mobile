@@ -1,9 +1,9 @@
 import Foundation
+import Testing
+@testable import CodexBarCore
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-@testable import CodexBarCore
 
 /// Plugin-engine coverage for the bundled muse.ai subscription script.
 struct MuseAIPluginTests {
@@ -79,6 +79,58 @@ struct MuseAIPluginTests {
         #expect(!result.requests.contains("GET /_next/static/chunks/other.js"))
         #expect(result.requests.last == "POST / \(Self.actionID)")
         #expect(result.storedID == Self.actionID)
+    }
+
+    @Test(arguments: [nil, 400, 404, 409], BundledPluginTestSupport.engines)
+    func `immutable chunk paths discover the subscription action`(
+        staleStatus: Int?,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        var chunks: [String: String] = [:]
+        for (path, body) in Self.chunks {
+            chunks[path.replacing("static/chunks/", with: "static/immutable/chunks/")] =
+                body.replacing("static/chunks/", with: "static/immutable/chunks/")
+        }
+        let result = try await Self.fetch(
+            engine: engine,
+            storedID: staleStatus == nil ? nil : "40aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            action: Self.free, staleStatus: staleStatus ?? 404, chunks: chunks)
+        #expect(result.snapshot.primary?.usedPercent == 28)
+        #expect(result.requests.contains("GET /_next/static/immutable/chunks/settings.js"))
+        #expect(!result.requests.contains("GET /_next/static/immutable/chunks/other.js"))
+        #expect(result.storedID == Self.actionID)
+    }
+
+    @Test(arguments: [400, 409], BundledPluginTestSupport.engines)
+    func `a stale action answered with an unstructured error is rediscovered`(
+        staleStatus: Int,
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let result = try await Self.fetch(
+            engine: engine, storedID: "40aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", action: Self.free,
+            staleStatus: staleStatus)
+        #expect(result.snapshot.primary?.usedPercent == 28)
+        #expect(result.requests.filter { $0.hasPrefix("POST") }.count == 2)
+        #expect(result.storedID == Self.actionID)
+    }
+
+    @Test(arguments: [408, 429, 500], BundledPluginTestSupport.engines)
+    func `transient action failures do not rediscover or discard the cached action`(
+        status: Int,
+        engine: ProviderPluginEngineKind) async
+    {
+        do {
+            _ = try await Self.fetch(engine: engine, storedID: Self.actionID, action: "", actionStatus: status) {
+                requests, stored in
+                #expect(requests == ["POST / \(Self.actionID)"])
+                #expect(stored == Self.actionID)
+            }
+            Issue.record("Expected an API failure")
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .apiFailure)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test(arguments: [(307, 200), (200, 403)], BundledPluginTestSupport.engines)
@@ -203,7 +255,9 @@ struct MuseAIPluginTests {
     private final class Log: @unchecked Sendable {
         let lock = NSLock()
         var entries: [String] = []
+        var postContentTypes: [String?] = []
         func append(_ entry: String) { self.lock.withLock { self.entries.append(entry) } }
+        func appendContentType(_ value: String?) { self.lock.withLock { self.postContentTypes.append(value) } }
     }
 
     private static func fetch(
@@ -212,6 +266,7 @@ struct MuseAIPluginTests {
         action: String,
         pageStatus: Int = 200,
         actionStatus: Int = 200,
+        staleStatus: Int = 404,
         cookies: [String] = ["hatch_sess=fixture"],
         cookieSource: ProviderCookieSource = .auto,
         chunks: [String: String] = Self.chunks,
@@ -226,6 +281,7 @@ struct MuseAIPluginTests {
         }
         let log = Log()
         defer {
+            #expect(log.postContentTypes.allSatisfy { $0 == "text/plain;charset=UTF-8" })
             let saved = (try? Data(contentsOf: file)).flatMap {
                 try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
             }
@@ -245,8 +301,9 @@ struct MuseAIPluginTests {
                 let expired = request.value(forHTTPHeaderField: "Cookie") == "hatch_sess=fixture-rejected-session-value"
                 if request.httpMethod == "POST" {
                     #expect(request.value(forHTTPHeaderField: "Sec-Fetch-Site") == "same-origin")
+                    log.appendContentType(request.value(forHTTPHeaderField: "Content-Type"))
                     (status, body) = expired ? (403, #"{"error":"Forbidden"}"#)
-                        : actionHeader == Self.actionID ? (actionStatus, action) : (404, "Server action not found.")
+                        : actionHeader == Self.actionID ? (actionStatus, action) : (staleStatus, "Action unavailable.")
                 } else if path == "/" {
                     status = pageStatus
                     if pageStatus == 307 {

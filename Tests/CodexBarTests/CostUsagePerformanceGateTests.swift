@@ -331,7 +331,7 @@ struct CostUsagePerformanceGateTests {
         "5a57546c60494379", "e5909f60274b2c47",
         "0d8f9504f8e63d0f", "7ff985e81e281a11", "0d41437dcd95c17e",
         "43609cc56f76a003", "c6c46a376ba16304", "b77d4ec72e14ea63", "e3fca1e6d81137d6", "f043ae98075c8e4d",
-        "9ca89383b9957b07",
+        "9ca89383b9957b07", "6b42e42bafad1922", "2dc85fe95af0aa95", "5454415c8ea2ce7b",
     ])
     func `compatible predecessor store adoption performs zero session head parses`(predecessorHash: String) throws {
         let env = try CostUsageTestEnvironment()
@@ -760,6 +760,16 @@ struct CostUsagePerformanceGateTests {
         #expect(offsets.last == metadata.size)
         #expect(report?.summary?.totalTokens == baseline.summary?.totalTokens)
         #expect(report?.data.map(\.totalTokens) == baseline.data.map(\.totalTokens))
+
+        // A completed oversized file must survive ordinary warm refreshes.
+        for _ in 0..<3 {
+            let warm = Self.report(day: day, now: day, options: options)
+            let cached = try #require(CostUsageStoreAccess.read(
+                cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.values.first)
+            #expect(cached.codexScanComplete == true)
+            #expect(cached.parsedBytes == metadata.size)
+            #expect(warm.summary?.totalTokens == baseline.summary?.totalTokens)
+        }
     }
 
     @Test
@@ -1245,6 +1255,13 @@ struct CostUsagePerformanceGateTests {
         #expect(sawPartialRecord)
         #expect(zip(offsets, offsets.dropFirst()).allSatisfy { $0 < $1 })
         #expect(report?.summary?.totalTokens == baseline.summary?.totalTokens)
+        for _ in 0..<3 {
+            let warm = Self.report(day: day, now: day, options: options)
+            let cached = try #require(CostUsageStoreAccess.read(
+                cacheRoot: env.cacheRoot, home: env.codexStoreHome).files.values.first)
+            #expect(cached.codexScanComplete == true)
+            #expect(warm.summary?.totalTokens == baseline.summary?.totalTokens)
+        }
     }
 
     @Test

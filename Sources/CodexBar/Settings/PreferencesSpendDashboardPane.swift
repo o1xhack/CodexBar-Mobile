@@ -132,7 +132,7 @@ struct SpendDashboardPane: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            LazyVStack(alignment: .leading, spacing: 18) {
                 if let request = self.sessionNavigation.request {
                     HStack {
                         Text(L("Sessions")).font(.title2.weight(.semibold))
@@ -608,6 +608,7 @@ struct SpendDashboardEmptyState: Equatable {
 
 enum SpendDashboardDetailSection: Hashable, Identifiable {
     case providers
+    case models
     case projects
     case chats
     case sessions
@@ -619,6 +620,7 @@ enum SpendDashboardDetailSection: Hashable, Identifiable {
     var title: String {
         switch self {
         case .providers: L("Providers")
+        case .models: L("Models")
         case .projects: L("Projects")
         case .chats: L("Independent chats")
         case .sessions: L("Sessions")
@@ -639,9 +641,13 @@ func spendDashboardAvailableDetailSections(
     hasProjects: Bool,
     hasSessions: Bool,
     hasChats: Bool = false,
+    hasModels: Bool = false,
     supportsCodexDetails: Bool = false) -> [SpendDashboardDetailSection]
 {
     var sections: [SpendDashboardDetailSection] = [.providers]
+    if hasModels {
+        sections.append(.models)
+    }
     if supportsCodexDetails || hasProjects {
         sections.append(.projects)
     }
@@ -733,7 +739,7 @@ struct SpendDashboardCurrencySection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        LazyVStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(self.group.currencyCode)
                     .font(.caption.weight(.semibold))
@@ -786,7 +792,7 @@ private struct SpendDashboardDetailPanel: View {
                 }
 
                 self.detailContent
-                if self.activeSection != .providers {
+                if self.activeSection != .providers, self.activeSection != .models {
                     if self.group.projects.isEmpty, self.group.sessions.isEmpty {
                         Text(L("No usage breakdown data available."))
                             .font(.caption).foregroundStyle(.secondary)
@@ -811,6 +817,7 @@ private struct SpendDashboardDetailPanel: View {
             hasProjects: self.group.projects.contains { !$0.isProjectless },
             hasSessions: !self.group.sessions.isEmpty,
             hasChats: self.group.projects.contains(where: \.isProjectless),
+            hasModels: !self.group.models.isEmpty,
             supportsCodexDetails: self.supportsCodexDetails)
     }
 
@@ -829,6 +836,8 @@ private struct SpendDashboardDetailPanel: View {
         switch self.activeSection {
         case .providers:
             SpendProviderBreakdownRows(group: self.group)
+        case .models:
+            SpendModelRankingRows(group: self.group)
         case .projects:
             SpendProjectRows(group: self.group, hidePersonalInfo: self.hidePersonalInfo, isProjectless: false)
         case .chats:
@@ -905,7 +914,8 @@ private struct SpendProjectRows: View {
     }
 }
 
-private struct SpendPanelExpandButton: View {
+/// Shared by the Projects/Chats rows here and the Models lens in `SpendDashboardModelRanking.swift`.
+struct SpendPanelExpandButton: View {
     let rowCount: Int
     let collapsedRowCount: Int
     @Binding var showsAllRows: Bool
@@ -1140,7 +1150,9 @@ struct SpendSessionRows: View {
 
     private func sourceName(_ id: String) -> String {
         guard let row = self.group.sessions.first(where: { $0.sourceID == id }) else { return "" }
-        let provider = ProviderDescriptorRegistry.descriptor(for: row.provider).metadata.displayName
+        let provider = row.provider.firstPartyProvider.map {
+            ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName
+        } ?? row.provider.rawValue
         if self.hidePersonalInfo {
             let index = (self.sourceIDs.firstIndex(of: id) ?? 0) + 1
             return self.sourceIDs.count > 1 ? "\(provider) · \(codexBarLocalizedInteger(index))" : provider

@@ -460,6 +460,7 @@ struct DebugPane: View {
         }
         .task {
             self.unknownModelEntries = await UnknownModelDiagnostics.shared.snapshot()
+            await self.store.refreshPathDebugInfo()
         }
     }
 

@@ -122,9 +122,9 @@ extension SpendDashboardSource {
             guard codexIndices.count == 1 else { return nil }
             return codexIndices.first
         }
-        let matching = inputs.indices.filter { inputs[$0].provider == provider }
+        let matching = inputs.indices.filter { inputs[$0].provider == provider.instanceID }
         guard matching.count == 1 else {
-            return inputs.firstIndex(where: { $0.provider == provider && $0.sourceKind == .native })
+            return inputs.firstIndex(where: { $0.provider == provider.instanceID && $0.sourceKind == .native })
         }
         return matching.first
     }
@@ -136,7 +136,7 @@ extension SpendDashboardSource {
     {
         SpendDashboardModel.ProviderInput(
             id: input.id,
-            provider: input.provider,
+            providerID: input.provider,
             displayName: input.displayName,
             modelProviderName: input.modelProviderName,
             snapshot: OpenCodexUsageFanOut.mergeSnapshots(
@@ -146,8 +146,7 @@ extension SpendDashboardSource {
                 historyDays: self.scanDays,
                 calendar: request.configuration.bucketCalendar),
             tokenActivityCache: input.tokenActivityCache,
-            sourceKind: input.sourceKind,
-            accounting: input.accounting)
+            sourceKind: input.sourceKind)
     }
 
     static func shouldPublishOpenCodexSnapshot(_ snapshot: CostUsageTokenSnapshot) -> Bool {

@@ -41,6 +41,7 @@ from pathlib import Path
 plist = plistlib.loads(Path(sys.argv[1]).read_bytes())
 assert plist["CFBundleVersion"] == "0.0.0.0"
 assert plist["CodexMobileVersion"] == "0.0.0"
+assert plist.get("LSEnvironment") == {"MallocLargeCache": "0"}
 assert plist.get("SUAutomaticallyUpdate") is True
 declarations = plist.get("UTExportedTypeDeclarations")
 assert declarations == [{

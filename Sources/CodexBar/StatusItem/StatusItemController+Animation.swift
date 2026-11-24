@@ -786,7 +786,11 @@ extension StatusItemController {
         case .mistral: self.menuBarMetricWindow(for: provider, snapshot: snapshot, now: now) == nil
         default: !ProviderDescriptorRegistry.descriptor(for: provider).presentation.menuBarBalanceUsesPrepaidCost
         }
-        if usesBalance, let balance = MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot) {
+        if usesBalance, let balance = MenuBarLayoutBalanceResolver.legacyBalance(
+            provider: provider,
+            snapshot: snapshot,
+            showsOptionalCredits: self.settings.showOptionalCreditsAndExtraUsage)
+        {
             return balance
         }
         if provider == .kiro {
@@ -1340,7 +1344,8 @@ extension StatusItemController {
     }
 
     private func stopLoadingAnimation(resetStart: Bool = true) {
-        self.animationDriver?.stop()
+        guard let driver = self.animationDriver else { return }
+        driver.stop()
         self.animationDriver = nil
         self.animationPhase = 0
         if resetStart {

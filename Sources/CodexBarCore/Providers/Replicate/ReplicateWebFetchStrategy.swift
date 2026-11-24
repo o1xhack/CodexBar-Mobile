@@ -83,7 +83,6 @@ struct ReplicateWebFetchStrategy: ProviderFetchStrategy {
             sessions,
             shouldRetry: Self.isAuthenticationFailure,
             attempt: { session in
-                try Task.checkCancellation()
                 let usage = try await self.usageLoader(session.cookieHeader)
                 try Task.checkCancellation()
                 self.cacheWriter(observation, session)
@@ -97,12 +96,19 @@ struct ReplicateWebFetchStrategy: ProviderFetchStrategy {
         (error as? ProviderFetchClassifiedError)?.kind == .authenticationExpired
     }
 
-    private static func fetchUsage(cookieHeader: String) async throws -> UsageSnapshot {
+    /// Reuse connections without retaining cookies, credentials, or responses between account refreshes.
+    static let usageSession: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
-        let session = ProviderHTTPClient.redirectGuardedSession(configuration: configuration)
-        defer { session.invalidateAndCancel() }
+        return ProviderHTTPClient.redirectGuardedSession(configuration: configuration)
+    }()
+
+    private static func fetchUsage(cookieHeader: String) async throws -> UsageSnapshot {
+        let session = Self.usageSession
         let runtime = try ProviderPluginRuntime(
             bundledPlugin: "replicate",
             transport: ProviderHTTPClient(session: session))

@@ -1,5 +1,6 @@
 import CodexBarCore
 import Commander
+import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -10,38 +11,47 @@ import Glibc
 #elseif canImport(Musl)
 import Musl
 #endif
-import Foundation
 #if os(macOS)
 import CoreFoundation
 #endif
 
 extension CodexBarCLI {
-    static func decodeProvider(from values: ParsedValues, config: CodexBarConfig) -> ProviderSelection {
+    static func decodeProvider(
+        from values: ParsedValues,
+        config: CodexBarConfig,
+        output: CLIOutputPreferences) -> ProviderSelection
+    {
         let rawOverride = values.options["provider"]?.last
-        return Self.providerSelection(
-            rawOverride: rawOverride,
-            enabled: config.enabledProviders().compactMap(\.firstPartyProvider))
+        do {
+            return try Self.providerSelection(
+                rawOverride: rawOverride,
+                enabled: config.enabledProviders().compactMap(\.firstPartyProvider))
+        } catch {
+            Self.exit(code: .failure, message: "Error: \(error.localizedDescription)", output: output, kind: .args)
+        }
     }
 
-    static func providerSelection(rawOverride: String?, enabled: [UsageProvider]) -> ProviderSelection {
-        if let rawOverride, let parsed = ProviderSelection(argument: rawOverride) {
+    /// An omitted override falls back to the enabled providers; an explicit but unrecognized one is an error.
+    static func providerSelection(rawOverride: String?, enabled: [UsageProvider]) throws -> ProviderSelection {
+        if let rawOverride {
+            guard let parsed = ProviderSelection(argument: rawOverride) else {
+                throw CLIArgumentError("unknown provider '\(rawOverride)'")
+            }
             return parsed
         }
-        if enabled.count == 2 {
-            let enabledSet = Set(enabled)
-            let primary = Set(ProviderDescriptorRegistry.all.filter(\ .metadata.isPrimaryProvider).map(\ .id))
-            if !primary.isEmpty, enabledSet == primary {
-                return .both
-            }
-            return .custom(enabled)
+        return Self.defaultProviderSelection(enabled: enabled)
+    }
+
+    static func defaultProviderSelection(enabled: [UsageProvider]) -> ProviderSelection {
+        if enabled.count == 2,
+           Set(enabled) == Set(ProviderDescriptorRegistry.all.filter(\ .metadata.isPrimaryProvider).map(\ .id))
+        {
+            return .both
         }
-        if enabled.count >= 3 {
-            return .custom(enabled)
-        }
-        if let first = enabled.first {
+        if enabled.count == 1, let first = enabled.first {
             return ProviderSelection(provider: first)
         }
-        return .custom([])
+        return .custom(enabled)
     }
 
     static func decodeFormat(from values: ParsedValues) -> OutputFormat {
@@ -304,10 +314,16 @@ extension CodexBarCLI {
         }
     }
 
+    /// Oldest supplemental OpenAI dashboard cache the CLI attaches to freshly fetched Codex usage.
+    static let openAIDashboardCacheMaxAge: TimeInterval = 60 * 60
+    /// Accepts caches stamped slightly ahead of `now`, e.g. after a small clock correction.
+    static let openAIDashboardCacheFutureTolerance: TimeInterval = 60
+
     static func loadOpenAIDashboardIfAvailable(
         usage: UsageSnapshot,
         sourceLabel: String,
-        context: ProviderFetchContext) -> OpenAIDashboardSnapshot?
+        context: ProviderFetchContext,
+        now: Date = Date()) -> OpenAIDashboardSnapshot?
     {
         guard let cache = OpenAIDashboardCacheStore.load() else { return nil }
         let snapshot: OpenAIDashboardSnapshot = if cache.snapshot.dailyBreakdown.isEmpty,
@@ -349,6 +365,11 @@ extension CodexBarCLI {
             context: context)
         let decision = CodexDashboardAuthority.evaluate(input)
         if decision.allowedEffects.contains(.cachedDashboardReuse) {
+            // Supplemental balances and limits must not look current beside freshly fetched usage.
+            let age = now.timeIntervalSince(snapshot.updatedAt)
+            guard age >= -Self.openAIDashboardCacheFutureTolerance,
+                  age <= Self.openAIDashboardCacheMaxAge
+            else { return nil }
             return snapshot
         }
         if decision.cleanup.contains(.dashboardCache) {

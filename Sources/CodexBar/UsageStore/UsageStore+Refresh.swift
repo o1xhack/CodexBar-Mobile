@@ -74,7 +74,8 @@ extension UsageStore {
         }
     }
 
-    func prepareRefreshState(for provider: UsageProvider? = nil) {
+    func prepareRefreshState(for provider: UsageProvider? = nil, allowDisabled: Bool = false) {
+        self.settings.recoverLegacyCredentials(for: provider, allowDisabled: allowDisabled)
         // Provider-specific by design: Codex active-source correction reconciles managed profile filesystem state.
         guard provider == nil || provider == .codex else { return }
         _ = self.settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
@@ -114,7 +115,7 @@ extension UsageStore {
     {
         // Codex source reconciliation can persist a settings correction. Perform it before
         // capturing the publication revision so the request cannot invalidate itself.
-        self.prepareRefreshState(for: provider)
+        self.prepareRefreshState(for: provider, allowDisabled: allowDisabled)
         while coalesceIfRefreshing,
               let existingState = self.providerRefreshCoordinator.coalescingState(for: provider.instanceID)
         {
@@ -705,19 +706,7 @@ extension UsageStore {
             if provider == .deepseek {
                 self.clearDeepSeekProfileTransition()
             }
-            if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
-                self.publishTokenSnapshot(tokenSnapshot, for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-                self.tokenFailureGates[provider.instanceID]?.recordSuccess()
-            } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(backfilled) {
-                // Provider-specific by design: prepaid balance without usage history is unavailable,
-                // not a confirmed-empty $0 spend row.
-                self.clearTokenSnapshot(for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-            } else if Self.tokenCostRequiresProviderSnapshot(provider) {
-                self.publishConfirmedEmptyTokenSnapshot(for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-            }
+            self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
             self.lastSourceLabels[provider.instanceID] = result.sourceLabel
             self.recordProviderFetchSuccessErrorState(provider: provider)
             self.diagnostics[provider.instanceID] = result.diagnostic
