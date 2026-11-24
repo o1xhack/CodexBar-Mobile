@@ -180,25 +180,36 @@ struct AlibabaTokenPlanWebStrategyTests {
             defer { self.clearCookieCaches() }
 
             let region = AlibabaTokenPlanAPIRegion.chinaMainlandPersonal
-            let cachedHeader = "login_aliyunid_ticket=valid-ticket; gateway=personal"
+            let headers = AlibabaTokenPlanCookieHeaders(
+                apiCookieHeader: "login_aliyunid_ticket=api-fixture",
+                dashboardCookieHeader: "login_aliyunid_ticket=dashboard-fixture",
+                rateLimitCookieHeader: "login_aliyunid_ticket=rate-limit-fixture")
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
                 scope: region.cookieCacheScope,
-                cookieHeader: cachedHeader,
+                cookieHeader: headers.cacheCookieHeader,
                 sourceLabel: "Personal fixture")
 
-            let strategy = AlibabaTokenPlanWebFetchStrategy { _, _, _ in
+            let strategy = AlibabaTokenPlanWebFetchStrategy { resolved, _, _ in
+                #expect(resolved.apiCookieHeader == headers.apiCookieHeader)
+                #expect(resolved.dashboardCookieHeader == headers.dashboardCookieHeader)
+                #expect(resolved.rateLimitCookieHeader == headers.rateLimitCookieHeader)
                 throw AlibabaTokenPlanUsageError.apiError("BailianGateway.Workspace.NotAuthorised")
             }
 
-            await #expect(throws: AlibabaTokenPlanUsageError.apiError(
-                "BailianGateway.Workspace.NotAuthorised"))
-            {
-                _ = try await strategy.fetch(self.context(region: region))
+            await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting({ _, _ in
+                Issue.record("A workspace permission error must not trigger browser import")
+                throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
+            }) {
+                await #expect(throws: AlibabaTokenPlanUsageError.apiError(
+                    "BailianGateway.Workspace.NotAuthorised"))
+                {
+                    _ = try await strategy.fetch(self.context(region: region))
+                }
             }
             #expect(CookieHeaderCache.load(
                 provider: .alibabatokenplan,
-                scope: region.cookieCacheScope)?.cookieHeader == cachedHeader)
+                scope: region.cookieCacheScope)?.cookieHeader == headers.cacheCookieHeader)
         }
     }
 
