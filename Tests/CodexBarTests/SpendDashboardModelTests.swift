@@ -1127,9 +1127,9 @@ extension SpendDashboardModelTests {
     @Test
     func `lagged plugin reports use the declared civil end day`() throws {
         let now = Date(timeIntervalSince1970: 1_784_220_600)
-        let input = SpendDashboardModel.ProviderInput(
+        let input = try SpendDashboardModel.ProviderInput(
             id: "fixture-provider",
-            provider: try #require(ProviderInstanceID(rawValue: "fixture-provider")),
+            provider: #require(ProviderInstanceID(rawValue: "fixture-provider")),
             displayName: "Fixture provider",
             snapshot: Self.snapshot(
                 currency: "USD",

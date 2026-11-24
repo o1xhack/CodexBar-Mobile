@@ -47,7 +47,7 @@ struct CostUsageUltrafastPricingTests {
     }
 
     @Test
-    func `a mixed Ultrafast total does not publish a two-tier split`() throws {
+    func `a mixed Ultrafast total does not publish a two-tier split`() {
         let rows = ["standard", "priority", "ultrafast"].enumerated().map { index, mode in
             CostUsageScanner.CodexUsageRow(
                 day: "2026-11-20",
