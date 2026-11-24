@@ -128,6 +128,13 @@ struct AlibabaTokenPlanWebStrategyTests {
         }
     }
 
+    private func clearCookieCaches() {
+        CookieHeaderCache.clear(provider: .alibabatokenplan)
+        for region in AlibabaTokenPlanAPIRegion.allCases {
+            CookieHeaderCache.clear(provider: .alibabatokenplan, scope: region.cookieCacheScope)
+        }
+    }
+
     @Test
     func `Auto falls back to browser cookies when the Team CLI has no seats`() async throws {
         try await self.withIsolatedCookieCache {
@@ -163,13 +170,6 @@ struct AlibabaTokenPlanWebStrategyTests {
             #expect(outcome.attempts.map(\.strategyID) == ["alibaba-token-plan.cli", "alibaba-token-plan.web"])
             #expect(result.sourceLabel == "web")
             #expect(result.usage.primary?.usedPercent == 30)
-        }
-    }
-
-    private func clearCookieCaches() {
-        CookieHeaderCache.clear(provider: .alibabatokenplan)
-        for region in AlibabaTokenPlanAPIRegion.allCases {
-            CookieHeaderCache.clear(provider: .alibabatokenplan, scope: region.cookieCacheScope)
         }
     }
 
@@ -372,12 +372,18 @@ struct AlibabaTokenPlanWebStrategyTests {
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
                 scope: AlibabaTokenPlanAPIRegion.international.cookieCacheScope,
-                cookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                cookieHeader: AlibabaTokenPlanCookieHeaders(
+                    apiCookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                    dashboardCookieHeader: "login_aliyunid_ticket=intl-ticket; gateway=intl",
+                    rateLimitCookieHeader: "login_aliyunid_ticket=intl-ticket; rpc=intl").cacheCookieHeader,
                 sourceLabel: "International fixture")
             CookieHeaderCache.store(
                 provider: .alibabatokenplan,
                 scope: AlibabaTokenPlanAPIRegion.chinaMainland.cookieCacheScope,
-                cookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                cookieHeader: AlibabaTokenPlanCookieHeaders(
+                    apiCookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                    dashboardCookieHeader: "login_aliyunid_ticket=cn-ticket; gateway=cn",
+                    rateLimitCookieHeader: "login_aliyunid_ticket=cn-ticket; rpc=cn").cacheCookieHeader,
                 sourceLabel: "China fixture")
             try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
                 throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected import")
@@ -401,7 +407,7 @@ struct AlibabaTokenPlanWebStrategyTests {
     }
 
     @Test
-    func `legacy unscoped cache migrates only to China gateway`() throws {
+    func `legacy unscoped cache refreshes without crossing regions`() throws {
         try self.withIsolatedCookieCache {
             self.clearCookieCaches()
             defer { self.clearCookieCaches() }
@@ -431,7 +437,22 @@ struct AlibabaTokenPlanWebStrategyTests {
             }
 
             let china = try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
-                throw AlibabaCodingPlanSettingsError.missingCookie(details: "unexpected China import")
+                AlibabaCodingPlanCookieImporter.SessionInfo(
+                    cookies: [
+                        self.cookie(
+                            name: "login_aliyunid_ticket",
+                            value: "cn",
+                            domain: ".aliyun.com"),
+                        self.cookie(
+                            name: "gateway",
+                            value: "fresh-cn",
+                            domain: "bailian.console.aliyun.com"),
+                        self.cookie(
+                            name: "rpc",
+                            value: "fresh-cn",
+                            domain: "bailian-cs.console.aliyun.com"),
+                    ],
+                    sourceLabel: "China fixture")
             } operation: {
                 try AlibabaTokenPlanWebFetchStrategy.resolveCookieHeaders(
                     context: context,
@@ -441,7 +462,9 @@ struct AlibabaTokenPlanWebStrategyTests {
 
             #expect(international.apiCookieHeader.contains("gateway=intl"))
             #expect(!international.apiCookieHeader.contains("gateway=legacy-cn"))
-            #expect(china.apiCookieHeader.contains("gateway=legacy-cn"))
+            #expect(china.apiCookieHeader.contains("gateway=fresh-cn"))
+            #expect(!china.apiCookieHeader.contains("gateway=legacy-cn"))
+            #expect(china.rateLimitCookieHeader?.contains("rpc=fresh-cn") == true)
             #expect(CookieHeaderCache.load(provider: .alibabatokenplan) == nil)
             #expect(CookieHeaderCache.load(
                 provider: .alibabatokenplan,
@@ -506,4 +529,84 @@ struct AlibabaTokenPlanWebStrategyTests {
             .secure: true,
         ])!
     }
+}
+
+final class AlibabaTokenPlanStubURLProtocol: URLProtocol {
+    private static let _handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
+    static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
+        get { Self._handlerBox.value }
+        set { Self._handlerBox.setValue(newValue) }
+    }
+
+    override static func canInit(with request: URLRequest) -> Bool {
+        guard let host = request.url?.host else { return false }
+        return host == "bailian.console.aliyun.com" ||
+            host == "bailian-cs.console.aliyun.com" ||
+            host == "bailian-singapore-cs.alibabacloud.com" ||
+            host == "alibaba-token-plan.test" ||
+            host == "rate-limit.test" ||
+            host == "session-token.test"
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = Self.handler else {
+            self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(self.request)
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            self.client?.urlProtocol(self, didLoad: data)
+            self.client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            self.client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
+}
+
+/// Dedicated protocol stub for Personal/Solo retry tests. Those requests use a
+/// production-shaped gateway host, and isolating their handler prevents the
+/// file's legacy Team/rate-limit suites from replacing it when suites run in
+/// parallel.
+final class AlibabaTokenPlanPersonalStubURLProtocol: URLProtocol {
+    private static let handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
+    static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
+        get { Self.handlerBox.value }
+        set { Self.handlerBox.setValue(newValue) }
+    }
+
+    override static func canInit(with request: URLRequest) -> Bool {
+        guard let host = request.url?.host else { return false }
+        return host == "bailian.console.aliyun.com" ||
+            host == "bailian-cs.console.aliyun.com"
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = Self.handler else {
+            self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(self.request)
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            self.client?.urlProtocol(self, didLoad: data)
+            self.client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            self.client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }

@@ -6,6 +6,16 @@ import Testing
 @Suite("v0.45 provider presentation")
 struct V045ProviderPresentationTests {
     @Test
+    func `Google Developer Program window keeps its credit label`() {
+        #expect(ProviderWindowLabel.localized(
+            "Cloud credits", fallback: "Limit", providerID: "googledeveloper",
+            locale: Locale(identifier: "zh-Hans")) == "云端额度")
+        #expect(ProviderWindowLabel.localized(
+            "Cloud credits", fallback: "Limit", providerID: "googledeveloper",
+            locale: Locale(identifier: "en")) == "Cloud credits")
+    }
+
+    @Test
     func `canonical generic window labels map to localized semantic keys`() {
         #expect(ProviderWindowLabel.localizationKey(for: "Daily") == "v045_window_daily")
         #expect(ProviderWindowLabel.localizationKey(for: "Weekly") == "v045_window_weekly")

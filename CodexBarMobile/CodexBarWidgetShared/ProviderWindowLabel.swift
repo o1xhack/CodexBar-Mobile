@@ -184,7 +184,7 @@ enum ProviderWindowLabel {
                 locale: locale)
         case "Team", "API key", "Plan credits", "Input tokens", "Output tokens", "Monthly AI tokens",
              "API credit", "Purchased credit", "AI credits", "Gateway requests", "Today", "This month",
-             "Personal budget", "Organization", "Rewards":
+             "Personal budget", "Organization", "Rewards", "Cloud credits":
             // Upstream v0.74 and v0.76 windows use their English label as the catalog key.
             return MobileLocalizedString.value(key, defaultValue: key, locale: locale)
         default:
