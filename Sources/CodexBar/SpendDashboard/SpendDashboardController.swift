@@ -832,9 +832,14 @@ enum SpendDashboardSource {
         encoder.append(snapshot.historyDays)
         encoder.append(snapshot.historyCoverageIsEstablished)
         encoder.append(snapshot.detailsAreComplete)
-        // Content-backed sources still advance at their coverage-day boundary, not every fetch.
-        let coverageDate = coverageCalendar?.startOfDay(for: snapshot.updatedAt) ?? snapshot.updatedAt
-        encoder.append(coverageDate.timeIntervalSinceReferenceDate)
+        encoder.append(snapshot.bucketTimeZoneIdentifier ?? "")
+        if let endDayKey = snapshot.windowEndDayKey {
+            encoder.append(endDayKey)
+        } else {
+            // Content-backed sources without an explicit window still change at the coverage-day boundary.
+            let coverageDate = coverageCalendar?.startOfDay(for: snapshot.updatedAt) ?? snapshot.updatedAt
+            encoder.append(coverageDate.timeIntervalSinceReferenceDate)
+        }
         encoder.append(snapshot.historyScanIsPartial)
         encoder.append(snapshot.meteredCostUSD)
         encoder.append(snapshot.costProvenance.rawValue)

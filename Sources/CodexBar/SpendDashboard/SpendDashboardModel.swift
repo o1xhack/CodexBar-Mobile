@@ -1360,11 +1360,18 @@ struct SpendDashboardModel: Equatable, Sendable {
         displayCalendar: Calendar) -> ClosedRange<Date>
     {
         let bucketCalendar = Self.bucketCalendar(for: input, displayCalendar: displayCalendar)
-        // Legacy plugins encode their civil windowEnd at noon UTC.
-        let windowEnd = input.provider.firstPartyProvider == nil && input.snapshot.bucketTimeZoneIdentifier == nil
-            ? bucketCalendar.date(from: Self.utcCalendar.dateComponents(
+        let windowEnd: Date
+        if let endDayKey = input.snapshot.windowEndDayKey,
+           let explicitEnd = Self.bucketDay(endDayKey, calendar: bucketCalendar)
+        {
+            windowEnd = explicitEnd
+        } else if input.provider.firstPartyProvider == nil && input.snapshot.bucketTimeZoneIdentifier == nil {
+            // Legacy plugins encode their civil windowEnd at noon UTC.
+            windowEnd = bucketCalendar.date(from: Self.utcCalendar.dateComponents(
                 [.year, .month, .day], from: input.snapshot.updatedAt)) ?? input.snapshot.updatedAt
-            : input.snapshot.updatedAt
+        } else {
+            windowEnd = input.snapshot.updatedAt
+        }
         let bucketEnd = bucketCalendar.startOfDay(for: windowEnd)
         let scanEnd = displayCalendar.startOfDay(for: bucketEnd)
         let scanDays = max(1, input.snapshot.historyDays)
@@ -1399,6 +1406,11 @@ struct SpendDashboardModel: Equatable, Sendable {
         input: ProviderInput,
         displayCalendar: Calendar) -> Date?
     {
+        let bucketCalendar = Self.bucketCalendar(for: input, displayCalendar: displayCalendar)
+        return Self.bucketDay(rawValue, calendar: bucketCalendar).map { displayCalendar.startOfDay(for: $0) }
+    }
+
+    private static func bucketDay(_ rawValue: String, calendar: Calendar) -> Date? {
         let bytes = Array(rawValue.utf8)
         let digitIndices = [0, 1, 2, 3, 5, 6, 8, 9]
         guard bytes.count == 10,
@@ -1407,18 +1419,17 @@ struct SpendDashboardModel: Equatable, Sendable {
               digitIndices.allSatisfy({ (48...57).contains(bytes[$0]) })
         else { return nil }
         let parts = rawValue.split(separator: "-")
-        let bucketCalendar = Self.bucketCalendar(for: input, displayCalendar: displayCalendar)
         guard parts.count == 3,
               let year = Int(parts[0]),
               let month = Int(parts[1]),
               let day = Int(parts[2]),
-              let date = bucketCalendar.date(from: DateComponents(year: year, month: month, day: day)),
-              bucketCalendar.dateComponents([.year, .month, .day], from: date) == DateComponents(
+              let date = calendar.date(from: DateComponents(year: year, month: month, day: day)),
+              calendar.dateComponents([.year, .month, .day], from: date) == DateComponents(
                   year: year,
                   month: month,
                   day: day)
         else { return nil }
-        return displayCalendar.startOfDay(for: date)
+        return date
     }
 
     private static func bucketCalendar(for input: ProviderInput, displayCalendar: Calendar) -> Calendar {

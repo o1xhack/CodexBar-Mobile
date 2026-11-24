@@ -50,6 +50,8 @@ struct ProviderAmountCard: View {
         switch period {
         case "Extra usage":
             String(localized: "Extra usage")
+        case "API credits":
+            String(localized: "API credits")
         case "Monthly credits":
             String(localized: "Monthly credits")
         case "Monthly credit limit":

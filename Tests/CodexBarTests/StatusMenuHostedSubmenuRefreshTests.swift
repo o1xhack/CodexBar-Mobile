@@ -504,9 +504,9 @@ struct StatusMenuHostedSubmenuRefreshTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.multiAccountMenuLayout = .segmented
-        settings.iCloudSyncEnabled = true
-        settings.iCloudSyncSnapshotsEnabled = true
-        settings.iCloudSyncShowFleetAccounts = true
+        settings.macFleetSyncEnabled = true
+        settings.macFleetSyncSnapshotsEnabled = true
+        settings.macFleetSyncShowFleetAccounts = true
         Self.enableOnlyClaude(settings)
         let fetcher = UsageFetcher(environment: [:])
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)

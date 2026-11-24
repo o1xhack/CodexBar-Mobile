@@ -52,12 +52,13 @@ struct CostUsageUltrafastPricingTests {
             CostUsageScanner.CodexUsageRow(
                 day: "2026-11-20",
                 model: "gpt-6.1-sol",
+                turnID: nil,
                 eventIndex: index,
                 input: 1000,
                 cached: 0,
                 output: 100,
-                pricingMode: mode,
-                knownCostNanos: Int64(index + 1) * 1_000_000_000)
+                knownCostNanos: Int64(index + 1) * 1_000_000_000,
+                pricingMode: mode)
         }
         let breakdown = CostUsageScanner.codexRowCostBreakdown(
             rows: rows, priorityTurns: [:], modelsDevCatalog: nil, modelsDevCacheRoot: nil)
