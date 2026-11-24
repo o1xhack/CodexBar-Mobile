@@ -83,6 +83,7 @@ extension CodexAccountScopedRefreshTests {
         ])
         self.installContextualCodexProvider(on: store, sourceLabel: "oauth", kind: .oauth) { context in
             if context.env["CODEX_HOME"] == siblingHome.path {
+                #expect(clock.withLock { $0 } != final.updatedAt)
                 return siblingUsage
             }
             try #require(context.env["CODEX_HOME"] == accountHome.path)
