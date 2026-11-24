@@ -5094,8 +5094,20 @@ private struct NSEInvocationLogSection: View {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "3.5.0",
+            version: "3.6.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "More services and updated cost estimates"),
+            highlights: [
+                .init(
+                    id: "upstream-085", symbol: "arrow.triangle.2.circlepath",
+                    title: String(localized: "More services and clearer credits"),
+                    detail: String(
+                        localized: "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage synced from your Mac, along with updated Codex and Claude cost estimates.")),
+            ],
+            sections: []),
+        ReleaseNotesVersion(
+            version: "3.5.0",
+            status: "",
             summary: String(localized: "Choose the limit each widget tile shows"),
             highlights: [
                 .init(

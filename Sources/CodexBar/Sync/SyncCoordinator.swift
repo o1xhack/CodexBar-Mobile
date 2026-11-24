@@ -1512,7 +1512,8 @@ final class SyncCoordinator {
                 return "organization-\(digest)"
             }
             return "device-\(deviceID.lowercased())"
-        case .opendesign, .futureagi, .soniox, .traecn, .abliteration, .chatbox:
+        case .siliconflow, .tripo, .googledeveloper, .trustedrouter,
+             .opendesign, .futureagi, .soniox, .traecn, .abliteration, .chatbox:
             return requested ?? "device-\(deviceID.lowercased())"
         case .gemini:
             // The explicit Web source exposes no verified Google account identity. Keep its quotas
@@ -1640,7 +1641,7 @@ final class SyncCoordinator {
             // The upstream nil balance with a successful observation means no purchased extra credits.
             // Publish zero so older readers also clear a previously positive amount.
             amount = providerCost.balance ?? 0
-        case .claude:
+        case .claude, .openai, .googledeveloper:
             guard let balance = providerCost.balance else { return nil }
             kind = "balance"
             amount = balance

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.85.0.1 — Unreleased
+
+### Changed
+- Sync upstream v0.84.0 and v0.85.0, including lower refresh costs, revised Codex and Claude spending reports, and new provider usage sources.
+- Send newly supported provider usage and OpenAI API balances to CodexBar Mobile through the existing CloudKit payload.
+
 ## 0.85.0 — 2026-11-21
 
 ### Highlights

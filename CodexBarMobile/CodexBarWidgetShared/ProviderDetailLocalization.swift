@@ -24,6 +24,7 @@ enum ProviderDetailLocalization {
         // Upstream v0.75.0–v0.76.0 bundled plugins.
         "claudeplatform", "fal", "flora", "parallel", "futureagi", "munito",
         "soniox", "traecn", "abliteration", "chatbox", "kimi", "opendesign",
+        "siliconflow", "tripo", "googledeveloper", "trustedrouter",
     ]
 
     /// Stable semantic labels currently emitted by bundled provider detail
@@ -40,7 +41,7 @@ enum ProviderDetailLocalization {
         "API key (all time)", "Audio", "Available", "Avg decision",
         "Available balance", "Balance", "Billable usage", "Billing", "Billing history",
         "Billing remaining", "Billing summary",
-        "Billing type", "Bobcoin usage", "Bonus credits left", "Budget ledger", "Budgets",
+        "Billing account", "Billing type", "Bobcoin usage", "Bonus", "Bonus credits left", "Budget ledger", "Budgets",
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
         "Characters", "Context files", "Context used", "Cost items", "Credit", "Credit balance",
         "Credit history", "Credit quota", "Credits", "Credits left", "Credits total", "Credits used",

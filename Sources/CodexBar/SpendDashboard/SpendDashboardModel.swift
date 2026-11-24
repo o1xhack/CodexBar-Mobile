@@ -1427,7 +1427,10 @@ struct SpendDashboardModel: Equatable, Sendable {
         {
             return self.gregorianCalendar(timeZone: timeZone)
         }
-        let provider = input.provider
+        return self.bucketCalendar(for: input.provider, displayCalendar: displayCalendar)
+    }
+
+    static func bucketCalendar(for provider: ProviderInstanceID, displayCalendar: Calendar) -> Calendar {
         // Provider-specific by design: mistral openrouter xai display calendar
         guard provider == .mistral || provider == .openrouter || provider == .xai else { return displayCalendar }
         // Mistral, OpenRouter, and xAI label daily buckets and snapshot coverage by UTC day. Map each UTC boundary into

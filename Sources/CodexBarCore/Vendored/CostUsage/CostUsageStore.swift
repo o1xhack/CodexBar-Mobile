@@ -122,6 +122,7 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "c546274ea6111fa7", // Preserve rows and checkpoints from published fork 0.83.0.1.
         "2d777571778d8f12", // Published fork 0.82.0.1; preserve native rows and checkpoints.
         "bf8c2cb80c247dd9", // Published fork 0.79.0.1: preserve native rows and scan checkpoints.
         "a5aa8ea108856b6d", // Fork 0.76.0.1/0.76.0.2: preserve rows, checkpoints, and retained reports.

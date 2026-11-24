@@ -1,5 +1,13 @@
 # Changelog — CodexBar Mobile (iOS)
 
+## 3.6.0 (264) — Unreleased
+
+### Added
+- Register SiliconFlow, Tripo, Google Developer Program and TrustedRouter for synced usage and quota notifications.
+
+### Changed
+- Display the OpenAI API credit balance reported by the paired Mac and pick up updated Codex and Claude cost estimates.
+
 ## 3.5.0 (263) — 2026-11-06
 
 ### Added

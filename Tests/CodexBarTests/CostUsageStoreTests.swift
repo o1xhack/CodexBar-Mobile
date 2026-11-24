@@ -956,6 +956,7 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     private static let testedPredecessorParserHashes = [
+        "c546274ea6111fa7", // Published fork 0.83.0.1.
         "2d777571778d8f12", // Published fork 0.82.0.1.
         "bf8c2cb80c247dd9", // Published fork 0.79.0.1.
         "a5aa8ea108856b6d",

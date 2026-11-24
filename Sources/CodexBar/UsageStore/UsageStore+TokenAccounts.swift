@@ -221,7 +221,7 @@ extension UsageStore {
         if let followUpAccount = CodexWeeklyResetConfirmation.followUpAccount,
            !self.codexWeeklyResetFollowUpMatchesCurrentScope(followUpAccount, projection: projection)
         {
-            return
+            return false
         }
         let accounts = self.limitedCodexVisibleAccounts(
             projection.visibleAccounts.filter { requestedAccountIDs?.contains($0.id) ?? true },
@@ -331,7 +331,7 @@ extension UsageStore {
             currentProjection: currentProjection)
         else {
             self.reconcileCodexAccountStateForUsageOwner(self.freshCodexAccountScopedRefreshGuard())
-            return
+            return false
         }
         guard let selectedOutcome, let selectedAccount else {
             if selectedWithheldSuccess {

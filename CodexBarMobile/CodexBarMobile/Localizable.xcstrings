@@ -1,6 +1,65 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Billing account": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Billing account"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "结算账号"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "帳單帳戶"}}, "ja": {"stringUnit": {"state": "translated", "value": "請求先アカウント"}}}},
+    "Bonus": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Bonus"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "赠送额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "贈送額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "ボーナスクレジット"}}}},
+    "Not applied": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Not applied"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "未领取"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "未領取"}}, "ja": {"stringUnit": {"state": "translated", "value": "未適用"}}}},
+    "More services and updated cost estimates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More services and updated cost estimates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服务与更新后的费用估算"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服務與更新後的費用估算"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応サービスの追加と費用見積もりの更新"
+          }
+        }
+      }
+    },
+    "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage synced from your Mac, along with updated Codex and Claude cost estimates.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage synced from your Mac, along with updated Codex and Claude cost estimates."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看从 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量，以及更新后的 Codex 和 Claude 费用估算。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看從 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量，以及更新後的 Codex 和 Claude 費用估算。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から同期した SiliconFlow、Tripo、Google Developer Program、TrustedRouter の使用状況と、更新された Codex と Claude の費用見積もりを確認できます。"
+          }
+        }
+      }
+    },
     "Rewards": {
       "localizations": {
         "en": {
