@@ -70,6 +70,7 @@ struct DeepSeekMenuBarCostTests {
         calendar.timeZone = TimeZone(secondsFromGMT: -12 * 3600) ?? .gmt
         let snapshot = self.summary(period: .currentMonth, updatedAt: Date(timeIntervalSince1970: 1_794_398_400))
             .toCostUsageTokenSnapshot(calendar: calendar)
+        #expect(snapshot.bucketTimeZoneIdentifier == "GMT" || snapshot.bucketTimeZoneIdentifier == "UTC")
         #expect(snapshot.historyDays == 11)
         #expect(snapshot.sessionCostUSD == 0.797)
         #expect(snapshot.daily.map(\.date) == ["2026-11-10", "2026-11-11"])

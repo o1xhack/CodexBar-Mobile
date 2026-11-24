@@ -1471,17 +1471,6 @@ extension UsageStore {
         }
     }
 
-    func refreshPathDebugInfo(
-        load: @MainActor () async -> PathDebugSnapshot = {
-            await withCheckedContinuation { continuation in
-                LoginShellPathCache.shared.captureOnce { _ in continuation.resume() }
-            }
-            return await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
-        }) async
-    {
-        self.pathDebugInfo = await load()
-    }
-
     func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.resetTokenUsageState(for: provider)

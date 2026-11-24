@@ -224,8 +224,8 @@ log "Launch smoke check: resource probe OK."
 
 # The ordinary launch below intentionally suppresses background work. This separate
 # cold process must reach real WebKit enumeration, with only a synthetic named store.
-SMOKE_BUNDLE_ID=$(python3 -c 'import plistlib, sys; print(plistlib.load(open(sys.argv[1], "rb"))["CFBundleIdentifier"])' \
-  "$SMOKE_DIR/CodexBar.app/Contents/Info.plist")
+SMOKE_BUNDLE_ID=$(HOME="$SMOKE_HOME" CFFIXED_USER_HOME="$SMOKE_HOME" plutil \
+  -extract CFBundleIdentifier raw -o - "$SMOKE_DIR/CodexBar.app/Contents/Info.plist")
 if [[ ! "$SMOKE_BUNDLE_ID" =~ ^[[:alnum:].-]+$ || "$SMOKE_BUNDLE_ID" == "." || "$SMOKE_BUNDLE_ID" == ".." ]]; then
   fail_with_probe_log "Launch smoke check FAILED: invalid packaged bundle identifier."
 fi

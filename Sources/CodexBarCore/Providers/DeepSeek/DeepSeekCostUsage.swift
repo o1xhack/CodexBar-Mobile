@@ -32,6 +32,7 @@ extension DeepSeekUsageSummary {
             historyLabel: isMonthToDate ? "This month" : nil,
             costProvenance: .vendorMetered,
             daily: entries,
+            bucketTimeZoneIdentifier: calendar.timeZone.identifier,
             updatedAt: self.updatedAt)
     }
 }

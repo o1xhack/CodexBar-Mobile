@@ -122,6 +122,7 @@ defineProvider({
       const windowMinutes = minutes !== undefined && Number.isSafeInteger(minutes) && minutes > 0 ? minutes : undefined;
       return {
         window: {
+          id: `notion-personal-${bucketID}`,
           title,
           // The credit counts retain more precision than the rounded percentage-scale fields.
           usedPercent: hasCredits ? (creditUsed / creditLimit) * 100 : percent,

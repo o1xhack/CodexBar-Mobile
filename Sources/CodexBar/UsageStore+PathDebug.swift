@@ -1,8 +1,14 @@
 import CodexBarCore
 
 extension UsageStore {
-    func refreshPathDebugInfo() async {
-        let result = await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
-        self.pathDebugInfo = result
+    func refreshPathDebugInfo(
+        load: @MainActor () async -> PathDebugSnapshot = {
+            await withCheckedContinuation { continuation in
+                LoginShellPathCache.shared.captureOnce { _ in continuation.resume() }
+            }
+            return await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
+        }) async
+    {
+        self.pathDebugInfo = await load()
     }
 }

@@ -78,6 +78,14 @@ class PackagedAppLaunchTests(unittest.TestCase):
                 executable.parent.mkdir(parents=True, exist_ok=True)
                 executable.write_text(child)
                 executable.chmod(0o755)
+            plutil = stubs / "plutil"
+            plutil.write_text(f"#!{sys.executable}\n" + textwrap.dedent("""\
+                import plistlib, sys
+                assert sys.argv[1:-1] == ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-']
+                with open(sys.argv[-1], 'rb') as info:
+                    print(plistlib.load(info)['CFBundleIdentifier'])
+                """))
+            plutil.chmod(0o755)
             sandbox = stubs / "sandbox-exec"
             sandbox.write_text(f"#!{sys.executable}\n" + textwrap.dedent(f"""\
                 import json, os, sys

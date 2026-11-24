@@ -151,6 +151,10 @@ enum ProviderColorPalette {
         if normalized == "parallel" { return "1D1C1A" }
         if normalized == "futureagi" { return "7857FC" }
         if normalized == "munito" { return "702CF6" }
+        if normalized == "siliconflow" { return "6E29F5" }
+        if normalized == "tripo" { return "F8CF00" }
+        if normalized == "googledeveloper" { return "5B8DEF" }
+        if normalized == "trustedrouter" { return "A9CDB9" }
         return nil
     }
 
@@ -164,10 +168,6 @@ enum ProviderColorPalette {
         "commandcode": "8C4EDD",
         "cursor": "F54E00",
         "deepseek": "4D6BFE",
-        "siliconflow": "6E29F5",
-        "tripo": "F8CF00",
-        "googledeveloper": "5B8DEF",
-        "trustedrouter": "A9CDB9",
         "devin": "317CFF",
         "kiro": "9046FF",
         "longcat": "29E154",
