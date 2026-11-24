@@ -216,9 +216,7 @@ extension CostUsageScanner {
 
     /// The model whose rates price `row`, as the custom overlay and catalogs look it up.
     static func codexPricedModel(for row: CodexUsageRow, priorityTurns: [String: CodexPriorityTurnMetadata]) -> String {
-        guard row.pricingMode != "ultrafast" else { return row.pricingModel ?? row.model }
-        return row.turnID.flatMap { priorityTurns[$0] }
-            .map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) } ?? row.pricingModel ?? row.model
+        self.codexPricingModel(for: row, priorityMetadata: row.turnID.flatMap { priorityTurns[$0] })
     }
 
     static func codexPriorityPricingModel(
@@ -235,7 +233,8 @@ extension CostUsageScanner {
         for row: CodexUsageRow,
         priorityMetadata: CodexPriorityTurnMetadata?) -> String
     {
-        priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
+        guard row.pricingMode != "ultrafast" else { return row.pricingModel ?? row.model }
+        return priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
             ?? row.pricingModel
             ?? row.model
     }
