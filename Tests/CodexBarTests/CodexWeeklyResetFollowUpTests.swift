@@ -82,7 +82,10 @@ extension CodexAccountScopedRefreshTests {
             .success(initial), .success(confirmation), .success(repeated), .success(final),
         ])
         self.installContextualCodexProvider(on: store, sourceLabel: "oauth", kind: .oauth) { context in
-            #expect(context.env["CODEX_HOME"] == accountHome.path)
+            if context.env["CODEX_HOME"] == siblingHome.path {
+                return siblingUsage
+            }
+            try #require(context.env["CODEX_HOME"] == accountHome.path)
             if clock.withLock({ $0 }) == final.updatedAt {
                 #expect(ProviderInteractionContext.current == .background)
             }
@@ -212,7 +215,7 @@ enum CodexWeeklyFollowUpStop: CaseIterable, Sendable {
 
 private actor CodexWeeklyFollowUpGate {
     private var released = false
-    private var continuation: CheckedContinuation<Void, Never>?
+    private var continuations: [CheckedContinuation<Void, Never>] = []
     private(set) var waitCount = 0
 
     func wait() async {
@@ -220,7 +223,7 @@ private actor CodexWeeklyFollowUpGate {
         if self.released { return }
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
-                if Task.isCancelled { continuation.resume() } else { self.continuation = continuation }
+                if Task.isCancelled { continuation.resume() } else { self.continuations.append(continuation) }
             }
         } onCancel: {
             Task { await self.resume() }
@@ -229,7 +232,7 @@ private actor CodexWeeklyFollowUpGate {
 
     func resume() {
         self.released = true
-        self.continuation?.resume()
-        self.continuation = nil
+        self.continuations.forEach { $0.resume() }
+        self.continuations.removeAll()
     }
 }
