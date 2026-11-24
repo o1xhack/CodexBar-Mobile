@@ -69,6 +69,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         @ProcessEnvironment private(set) var environment: [String: String]
         let now: Date
     }
+
     static let usageSession = URLSession(configuration: .default)
 
     private static let log = CodexBarLog.logger("alibaba-token-plan")
@@ -181,9 +182,15 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             try await session.data(for: request, delegate: dashboardRedirectDiagnostics)
         }
         defer {
-            Self.logRedirects(dashboardRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan dashboard redirects")
-            Self.logRedirects(apiRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan subscription-summary redirects")
-            Self.logRedirects(rateLimitRedirectDiagnostics.snapshot(), message: "Alibaba Token Plan rate-limit redirects")
+            Self.logRedirects(
+                dashboardRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan dashboard redirects")
+            Self.logRedirects(
+                apiRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan subscription-summary redirects")
+            Self.logRedirects(
+                rateLimitRedirectDiagnostics.snapshot(),
+                message: "Alibaba Token Plan rate-limit redirects")
         }
 
         if region.usesPersonalTokenPlanAPI {

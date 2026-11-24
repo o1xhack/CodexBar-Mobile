@@ -1360,17 +1360,16 @@ struct SpendDashboardModel: Equatable, Sendable {
         displayCalendar: Calendar) -> ClosedRange<Date>
     {
         let bucketCalendar = Self.bucketCalendar(for: input, displayCalendar: displayCalendar)
-        let windowEnd: Date
-        if let endDayKey = input.snapshot.windowEndDayKey,
-           let explicitEnd = Self.bucketDay(endDayKey, calendar: bucketCalendar)
+        let windowEnd: Date = if let endDayKey = input.snapshot.windowEndDayKey,
+                                 let explicitEnd = Self.bucketDay(endDayKey, calendar: bucketCalendar)
         {
-            windowEnd = explicitEnd
-        } else if input.provider.firstPartyProvider == nil && input.snapshot.bucketTimeZoneIdentifier == nil {
+            explicitEnd
+        } else if input.provider.firstPartyProvider == nil, input.snapshot.bucketTimeZoneIdentifier == nil {
             // Legacy plugins encode their civil windowEnd at noon UTC.
-            windowEnd = bucketCalendar.date(from: Self.utcCalendar.dateComponents(
+            bucketCalendar.date(from: Self.utcCalendar.dateComponents(
                 [.year, .month, .day], from: input.snapshot.updatedAt)) ?? input.snapshot.updatedAt
         } else {
-            windowEnd = input.snapshot.updatedAt
+            input.snapshot.updatedAt
         }
         let bucketEnd = bucketCalendar.startOfDay(for: windowEnd)
         let scanEnd = displayCalendar.startOfDay(for: bucketEnd)

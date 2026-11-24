@@ -2060,7 +2060,7 @@ enum MockProviderInjector {
             providerID: "googledeveloper", providerName: "Google Developer Program",
             accountLocal: "fixture", loginMethod: "Browser session",
             primaryUsage: 35, primaryLabel: "Monthly",
-            primaryWindowMinutes: 43200, primaryResetsInSeconds: 604800,
+            primaryWindowMinutes: 43200, primaryResetsInSeconds: 604_800,
             primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
         .init(
             providerID: "trustedrouter", providerName: "TrustedRouter",

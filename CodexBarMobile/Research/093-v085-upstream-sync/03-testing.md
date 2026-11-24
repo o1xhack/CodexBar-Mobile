@@ -24,3 +24,10 @@
 | 14 | new | new | old | new | substituted | 双 writer 分别解码并按两种顺序合并 |
 | 15 | new | new | new | old | substituted | 双 writer 分别解码并按两种顺序合并 |
 | 16 | new | new | new | new | substituted | 双 writer 分别解码并按两种顺序合并 |
+
+## 已完成与复测中的验证
+
+- iOS 单元前一轮在明确设置 en-US 的 27.2 iPhone 18 Pro 上通过，1301 个 Swift Testing 用例和 75 个 XCTest 执行（其中 1 个跳过）。最初未固定区域时费用断言将 `US$` 与 `$` 比较失败；修正地区并区分新品牌色与历史 v0.70 色表后复测。新增 Notion 和 Google 本地化及跨日成本分项测试后，最终候选另有一轮测试。
+- Duo 1 的 Cost 页面、分享入口、报告和取消操作通过。首次 Summary 配额模块原生重排序用例未将模块移动到第一项并失败。Device Hub 的 AppleEvent 在多次调用中超时，尚未取得当前候选的原生折展矩阵。保留 `Duo-Current.xcresult` 与日志供诊断。
+- Mac 初始候选编译后完成了后续源码修复，当前正在执行最终测试。全量 Gate、Mac 签名草稿和远端审查需各自取证。
+- 上游 v0.85.0 的 [CI](https://github.com/steipete/CodexBar/actions/runs/44919945104) 通过。[Tag 发布流程](https://github.com/steipete/CodexBar/actions/runs/44925305336) 中构建与 assemble 通过，后续 publish 在发布已可见后因 GitHub CLI 参数过长退出。此差异应保留在发布证据链里。
