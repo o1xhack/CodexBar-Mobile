@@ -1,7 +1,9 @@
 # CodexBar v0.84.0 和 v0.85.0 上游同步候选
 
-状态：in-progress  
-冻结日期：2026-11-24  
+状态：in-progress
+
+冻结日期：2026-11-24
+
 跟踪：[v0.84.0 #235](https://github.com/o1xhack/CodexBar-Mobile/issues/235)、[v0.85.0 #236](https://github.com/o1xhack/CodexBar-Mobile/issues/236)
 
 | 项目 | 冻结值 |
