@@ -23,6 +23,7 @@ struct V074ProviderPresentationTests {
             ("xapi", "Free credits", ["zh-Hans": "免费额度", "zh-Hant": "免費額度", "ja": "無料クレジット"]),
             ("qwencloud", "Seats", ["zh-Hans": "席位", "zh-Hant": "席位", "ja": "シート"]),
             ("ollama", "Next refill", ["zh-Hans": "下次补充", "zh-Hant": "下次補充", "ja": "次回の補充"]),
+            ("notion", "Personal credits", ["zh-Hans": "个人额度", "zh-Hant": "個人額度", "ja": "個人クレジット"]),
             ("xai", "Live remaining (est.)", ["zh-Hans": "实时剩余（估算）", "zh-Hant": "即時剩餘（估算）", "ja": "リアルタイム残高（推定）"]),
         ]
         for (provider, label, translations) in expected {

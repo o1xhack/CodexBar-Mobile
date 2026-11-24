@@ -14,7 +14,7 @@ enum ProviderDetailLocalization {
         "clinepass", "coderabbit", "codex", "copilot", "cursor", "deepgram", "deepseek",
         "devpass", "elevenlabs", "fireworks", "gitkraken", "groq", "helmcode",
         "huggingface", "hyper", "ibmbob", "kiro", "langdock", "litellm", "lithosai", "llmman", "llmproxy",
-        "mimo", "minimax", "moonshot", "muse", "museai", "nous", "openai", "openrouter",
+        "mimo", "minimax", "moonshot", "muse", "museai", "notion", "nous", "openai", "openrouter",
         "perplexity", "pi", "poe", "raycast", "replicate", "sakana", "sub2api", "typesafe",
         "v0", "vercel", "wayfinder", "workbuddy", "xai", "xkiro", "zai", "zoommate",
         // Upstream v0.74.0 bundled plugins, plus the providers whose v0.74 detail rows are new
