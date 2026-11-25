@@ -70,8 +70,14 @@
 首轮原生折展测试在展开并打开新草稿时发生 SpringBoard 崩溃，原始失败 `Duo-Recovered-Native-Fold.xcresult` 保留。同一候选重跑使用 600 秒的默认单用例时限，两个姿态转换各自的 180 秒断言保持原值，98.382 秒通过。主检出目录 `CodexBarMobile/build/upstream-v085/qa` 保存原始日志、结果包和摘要。本次启动的 Duo 1、Duo 2 已关闭。
 
 
-## GitHub 复审后的 iOS 候选
+## Notion 复审后的 iOS 归档（历史）
 
 - [GitHub 复审](https://github.com/o1xhack/CodexBar-Mobile/pull/237#discussion_r4689136829) 发现 Notion 的个人额度明细仍以英文显示数值单位和用量。`8a8ea9b9c` 为 App 和 Widget 共用的展示逻辑修复了这两种格式，新增覆盖四种语言、零值和不适用内容的测试。
 - 27.2 iPhone 18 Pro 上复跑全量 iOS 单元测试，1,378 项通过，1 项跳过，0 项失败。结果保存在 `CodexBarMobile/build/upstream-v085/qa/iOS-Unit-Notion.xcresult`。Duo 原生姿态和折叠验收使用复审前候选。本次修正涉及 Notion 的两种文案格式，由全量回归覆盖。Mac 出包输入沿用已验证版本。
-- 从 `8a8ea9b9c` 重新归档 3.6.0 (264)，回读四个 bundle 的版本、签名、entitlement 和哈希。主 App、Push Extension、Widget Extension 的 CloudKit 环境为 Production。更新后的 ZIP SHA256 为 `aec819b0b8be900c3453d1ce89a6cb33be09eefb26b00e18dac1c9e40b50fcea`，旧归档移至 `superseded/`。新 Archive 保存在本机，上传待授权。[本轮签名归档证据](evidence/ios-notion-archive-verified.json)
+- 从 `8a8ea9b9c` 重新归档 3.6.0 (264)，回读四个 bundle 的版本、签名、entitlement 和哈希。主 App、Push Extension、Widget Extension 的 CloudKit 环境为 Production。该轮 ZIP SHA256 为 `aec819b0b8be900c3453d1ce89a6cb33be09eefb26b00e18dac1c9e40b50fcea`，旧归档移至 `superseded/`。本轮归档已由后续版本替换并保存在 `superseded/notion-review/`。[本轮签名归档证据](evidence/ios-notion-archive-verified.json)
+
+## 本轮最终 iOS 候选
+
+- [GitHub 复审](https://github.com/o1xhack/CodexBar-Mobile/pull/237#discussion_r4689301127) 发现 Google Developer Program 同步文案沿用 Mac 的语言。iOS 现能识别 23 套 Mac 语言资源产生的额度、日期、状态及浏览器会话文本，并按手机语言展示。测试覆盖四种 iOS 语言、跨语言输入、授予及到期日期、Summary 账户标题。相邻核对补齐 MiMo 额度单位及 Helmcode 的固定文案，Helmcode 模型名仍来自服务数据。
+- 使用 `sim-run` 在 iOS 27.2 iPhone 18 Pro 复跑全量单元测试，1,382 项通过，1 项跳过，0 项失败。结果存于 `CodexBarMobile/build/upstream-v085/qa/iOS-Unit-Credit-Localization-Final.xcresult`。另复跑跨版本同步替代矩阵，16 组、64 次解码、32 次合并全部通过。Duo 原生四姿态和折展采用复审前候选，本次显示文本修正在全量测试中核对。
+- 从源码 `ccd2a6786` 重做 3.6.0 (264) Archive。回读四 bundle 的版本、签名、entitlement 和执行文件哈希。主 App、Push Extension、Widget Extension 均为 CloudKit Production。当前 ZIP SHA256 为 `43dd6acd04293b8dc5fbcbe68f51ad730118bdbc2e79144524fc09ac7467c348`。归档存于本机，上传待授权。[最终签名归档证据](evidence/ios-credit-final-archive-verified.json)
