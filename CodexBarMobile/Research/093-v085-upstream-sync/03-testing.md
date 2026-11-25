@@ -29,7 +29,7 @@
 
 - iOS 单元前一轮在明确设置 en-US 的 27.2 iPhone 18 Pro 上通过，1301 个 Swift Testing 用例和 75 个 XCTest 执行（其中 1 个跳过）。最初未固定区域时费用断言将 `US$` 与 `$` 比较失败；修正地区并区分新品牌色与历史 v0.70 色表后复测。新增 Notion 和 Google 本地化及跨日成本分项测试后，最终候选另有一轮测试。
 - Duo 1 的 Cost 页面、分享入口、报告和取消操作通过。首次 Summary 配额模块原生重排序用例未将模块移动到第一项并失败。Device Hub 的 AppleEvent 在多次调用中超时，尚未取得当前候选的原生折展矩阵。保留 `Duo-Current.xcresult` 与日志供诊断。
-- Mac 候选完成双架构签名、公证、本机分发检查、全量测试与未发布 GitHub 草稿。PR 和远端审查等候原生 Duo 余下门禁。
+- Mac 候选完成双架构签名、公证、本机分发检查、全量测试与未发布 GitHub 草稿。原生 Duo 验证见末节。
 - 上游 v0.85.0 的 [CI](https://github.com/steipete/CodexBar/actions/runs/44919945104) 通过。[Tag 发布流程](https://github.com/steipete/CodexBar/actions/runs/44925305336) 中构建与 assemble 通过，后续 publish 在发布已可见后因 GitHub CLI 参数过长退出。此差异应保留在发布证据链里。
 
 ### 当前证据
@@ -53,4 +53,18 @@
 - 测试源码 `4fba9be2925c36b04fae13e52335de88bc995f04`。仓库全量测试退出 0，1,970 个选择项全部执行，运行器交叉核对 17,055 个测试方法。176 个分组首轮全过，0 失败，0 超时，0 重试。之后仅更新验收文档。
 - 原始日志位于主检出目录 `CodexBarMobile/build/upstream-v085/qa/mac-full-v085.log`。SHA256 为 `87cc7f6b1a8d53119874addcef93d99bdc26250a9865a4a630c122f2f9e69375`。Mac 草稿流程重新执行完整 lint，3,337 文件 0 违规。
 - [GitHub Mac 草稿](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-c20885d2f9fe8c04d910) ID 为 `457487375`，`mobile-dev` 是占位 target。GitHub 上两个上传附件的大小与 SHA256 均和本地一致。草稿说明已回读并确认采用实际打包源码。预定标签在本地与远端均未创建。
-- [#235](https://github.com/o1xhack/CodexBar-Mobile/issues/235) 跟踪 v0.84.0，[#236](https://github.com/o1xhack/CodexBar-Mobile/issues/236) 跟踪 v0.85.0，二者仍开放。按仓库本地验收顺序，Duo 完成后进入候选 PR、GitHub Code Review 和远端门禁。
+- [#235](https://github.com/o1xhack/CodexBar-Mobile/issues/235) 跟踪 v0.84.0，[#236](https://github.com/o1xhack/CodexBar-Mobile/issues/236) 跟踪 v0.85.0，二者仍开放。Duo 补测完成后进入候选 PR、GitHub Code Review 和远端门禁。
+
+## Duo 原生姿态补测
+
+通过活动监视器仅强制退出无响应的 Device Hub 前端，再重新启动该应用。另一会话的 17e 保持运行。使用当前候选的 UI 测试产品和合成预览数据，在同一台共享 Duo 1（iOS 27.2）实际操作 Device Hub 原生折叠、打开和旋转按钮。
+
+| 姿态或操作 | 结果 | 原始结果 |
+|---|---|---|
+| 外屏竖屏 | 重排序保存后重开仍在首位，详情与账号往返通过 | `Duo-Outer-Summary-Reorder-Viewport.xcresult` |
+| 外屏横屏 | Cost 和分享控件可用，Summary 实际视口 678 × 466。初次启动在竖屏，实际旋转后走完流程 | `Duo-Recovered-Outer-Landscape.xcresult` |
+| 内屏横屏 | Cost、分享、双面板独立滚动及 Summary 全宽和筛选回归通过，Summary 实际网格宽 951 pt | `Duo-Recovered-Inner-Landscape.xcresult` |
+| 内屏竖屏 | Cost、分享和 Summary 全宽回归通过，Summary 实际网格宽 669 pt | `Duo-Recovered-Inner-Portrait.xcresult` |
+| 原生折叠再展开 | 保留热图草稿、范围和账号选择，取消原草稿后可创建新的 Classic 草稿，重跑通过 | `Duo-Recovered-Native-Fold-Retry.xcresult` |
+
+首轮原生折展测试在展开并打开新草稿时发生 SpringBoard 崩溃，原始失败 `Duo-Recovered-Native-Fold.xcresult` 保留。同一候选重跑使用 600 秒的默认单用例时限，两个姿态转换各自的 180 秒断言保持原值，约 97 秒通过。主检出目录 `CodexBarMobile/build/upstream-v085/qa` 保存原始日志、结果包和摘要。本次启动的 Duo 1、Duo 2 已关闭。
