@@ -21,4 +21,6 @@
 
 - `b72640434fe91c963b5a09a8796a246426a11135` 独立复审通过。冷启动 WebKit 测试只对登录用户的 Preferences 目录增加文件限制，仍运行实际 CodexBar 二进制的生产清理入口并要求清理一个合成 store。签名产物输入无变化。
 
+- `92ad165b6852ace19d68469b9ee5ac47b40de147` 与 `4fba9be2925c36b04fae13e52335de88bc995f04` 独立复审通过。现有 95 个 provider ID 前缀及顺序与基线完全一致，OpenDesign 仍为第 95 个。新增 4 个 ID 位于末尾。Mac 与 iOS 测试分别锁定 99 个 provider 和 297 个订阅。
+
 本记录只证明独立源码审查结论。构建、运行时、签名、公证和 GitHub Code Review 均另有验收。
