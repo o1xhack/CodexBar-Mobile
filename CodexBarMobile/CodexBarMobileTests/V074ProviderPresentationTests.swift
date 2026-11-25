@@ -23,6 +23,7 @@ struct V074ProviderPresentationTests {
             ("xapi", "Free credits", ["zh-Hans": "免费额度", "zh-Hant": "免費額度", "ja": "無料クレジット"]),
             ("qwencloud", "Seats", ["zh-Hans": "席位", "zh-Hant": "席位", "ja": "シート"]),
             ("ollama", "Next refill", ["zh-Hans": "下次补充", "zh-Hant": "下次補充", "ja": "次回の補充"]),
+            ("notion", "Personal credits", ["zh-Hans": "个人额度", "zh-Hant": "個人額度", "ja": "個人クレジット"]),
             ("xai", "Live remaining (est.)", ["zh-Hans": "实时剩余（估算）", "zh-Hant": "即時剩餘（估算）", "ja": "リアルタイム残高（推定）"]),
         ]
         for (provider, label, translations) in expected {
@@ -59,6 +60,31 @@ struct V074ProviderPresentationTests {
         #expect(ProviderDetailLocalization.localizedValue("Something new", providerID: "sofya", locale: zh) == "Something new")
     }
 
+    @Test func `Notion allowance rows render credit and usage values in four languages`() {
+        let row = SyncProviderDetailSection.Row(
+            label: "Standard remaining", value: "1,365.33 credits", secondaryValue: "134.67 / 1,500 used")
+        for (language, primary, secondary) in [
+            ("en", "1,365.33 credits", "134.67 / 1,500 used"),
+            ("zh-Hans", "1,365.33 额度", "已用 134.67 / 1,500"),
+            ("zh-Hant", "1,365.33 額度", "已用 134.67 / 1,500"),
+            ("ja", "1,365.33 クレジット", "134.67 / 1,500 使用済み"),
+        ] {
+            let presentation = ProviderDetailRowPresentation(
+                providerID: "notion", row: row, sectionTitle: "Personal credits", locale: Locale(identifier: language))
+            #expect(presentation.value == primary)
+            #expect(presentation.secondaryValue == secondary)
+        }
+
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "0 credits", providerID: "notion", sectionTitle: "Personal credits", locale: zh) == "0 额度")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "workspace credits", providerID: "notion", sectionTitle: "Personal credits", locale: zh)
+            == "workspace credits")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "420 credits", providerID: "my-plugin", sectionTitle: "Personal credits", locale: zh) == "420 credits")
+    }
+
     @Test func `new quota window labels localize`() {
         let ja = Locale(identifier: "ja")
         #expect(ProviderWindowLabel.localized("Team", fallback: "Session", providerID: "qwencloud", locale: ja)
@@ -67,6 +93,89 @@ struct V074ProviderPresentationTests {
             == "出力トークン")
         #expect(ProviderWindowLabel.localized("Plan credits", fallback: "Session", providerID: "tavily",
                                               locale: Locale(identifier: "zh-Hant")) == "方案額度")
+    }
+
+    @Test func `Google Developer cloud credit details and quota descriptions localize in four languages`() {
+        let balance = "$7.50 of $10.00 left"
+        let status = SyncProviderDetailSection.Row(
+            label: "Status", value: "Not applied", secondaryValue: "me.developers.google.com/benefits")
+        let granted = SyncProviderDetailSection.Row(label: "Granted", value: "2026-12-01")
+        for (language, expectedStatus, expectedBalance, day, expiry) in [
+            ("en", "Not applied", balance, "Dec 1, 2026", "Expires Dec 1, 2026"),
+            ("zh-Hans", "未领取", "剩余 $7.50（共 $10.00）", "2026年12月1日", "2026年12月1日 到期"),
+            ("zh-Hant", "未領取", "剩餘 $7.50（共 $10.00）", "2026年12月1日", "2026年12月1日 到期"),
+            ("ja", "未適用", "残り $7.50 / $10.00", "2026年12月1日", "有効期限：2026年12月1日"),
+        ] {
+            let locale = Locale(identifier: language)
+            let statusPresentation = ProviderDetailRowPresentation(
+                providerID: "googledeveloper", row: status, sectionTitle: "Cloud credits", locale: locale)
+            let grantPresentation = ProviderDetailRowPresentation(
+                providerID: "googledeveloper", row: granted, sectionTitle: "Billing", locale: locale)
+            #expect(statusPresentation.value == expectedStatus)
+            #expect(statusPresentation.secondaryValue == "me.developers.google.com/benefits")
+            #expect(grantPresentation.value == day)
+            #expect(ProviderDetailLocalization.localizedValue(balance, providerID: "googledeveloper", locale: locale)
+                == expectedBalance)
+            #expect(ProviderDetailLocalization.localizedValue(
+                balance + " · Expires 2026-12-01", providerID: "googledeveloper", locale: locale)
+                == "\(expectedBalance) · \(expiry)")
+        }
+
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "CHF 0.00 of CHF 10.00 left", providerID: "googledeveloper", locale: zh)
+            == "剩余 CHF 0.00（共 CHF 10.00）")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Not applied", providerID: "googledeveloper", rowLabel: "Billing account", sectionTitle: "Billing", locale: zh)
+            == "Not applied")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "2026-02-30", providerID: "googledeveloper", rowLabel: "Granted", sectionTitle: "Billing", locale: zh)
+            == "2026-02-30")
+        #expect(ProviderDetailLocalization.localizedValue(
+            balance, providerID: "my-plugin", locale: zh) == balance)
+    }
+
+    @Test func `localized Google Developer Mac snapshots render in the phone language`() {
+        let en = Locale(identifier: "en")
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "残り ¥750 / ¥1,000 · 2026-12-01に期限切れ", providerID: "googledeveloper", locale: en)
+            == "¥750 of ¥1,000 left · Expires Dec 1, 2026")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "7,50 € restants sur 10,00 € · Expire 2026-12-01", providerID: "googledeveloper", locale: zh)
+            == "剩余 7,50 €（共 10,00 €） · 2026年12月1日 到期")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "剩余 CN¥7.50，共 CN¥10.00", providerID: "googledeveloper", locale: en)
+            == "CN¥7.50 of CN¥10.00 left")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Non appliqué", providerID: "googledeveloper", rowLabel: "Status", sectionTitle: "Cloud credits", locale: zh)
+            == "未领取")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "ブラウザセッション", providerID: "googledeveloper", locale: en) == "Browser session")
+    }
+
+    @Test func `MiMo quota units and Helmcode plan labels localize without changing model names`() {
+        let model = SyncProviderDetailSection.Row(label: "Other models", value: "200")
+        let section = SyncProviderDetailSection(title: "Credits used", rows: [model])
+        let context = ProviderDetailLocalization.rowContext(
+            providerID: "helmcode", section: section, row: model, index: 0)
+        for (language, credit, perMillion, gracePeriod) in [
+            ("en", "Credits", "Credits per million tokens", "Paused during grace period"),
+            ("zh-Hans", "额度", "每百万 token 的额度", "宽限期内已暂停"),
+            ("zh-Hant", "額度", "每百萬 token 的額度", "寬限期內已暫停"),
+            ("ja", "クレジット", "100万トークンあたりのクレジット", "猶予期間中は一時停止"),
+        ] {
+            let locale = Locale(identifier: language)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "120 / 500 Credits", providerID: "mimo", locale: locale) == "120 / 500 \(credit)")
+            #expect(ProviderDetailLocalization.localized(
+                "Credits per million tokens", providerID: "helmcode", locale: locale) == perMillion)
+            #expect(ProviderDetailLocalization.localized(
+                "Paused during grace period", providerID: "helmcode",
+                context: .rowLabel(sectionTitle: "Credits"), locale: locale) == gracePeriod)
+            #expect(ProviderDetailLocalization.localized(
+                model.label, providerID: "helmcode", context: context, locale: locale) == model.label)
+        }
     }
 
     @Test func `the Mac's Claude credentials-changed error becomes phone guidance`() {

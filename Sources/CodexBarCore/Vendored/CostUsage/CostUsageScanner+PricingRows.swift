@@ -4,6 +4,9 @@ extension CostUsageScanner {
     struct CodexRowCostBreakdown {
         var standardCostUSD: Double = 0
         var priorityCostUSD: Double = 0
+        var ultrafastCostUSD: Double = 0
+        var ultrafastTokens = 0
+        var sawUltrafastCost = false
         var standardTokens: Int = 0
         var priorityTokens: Int = 0
         var sawStandardCost = false
@@ -33,21 +36,21 @@ extension CostUsageScanner {
         }
 
         var totalCostUSD: Double? {
-            guard self.sawStandardCost || self.sawPriorityCost else { return nil }
-            return self.standardCostUSD + self.priorityCostUSD
+            guard self.sawStandardCost || self.sawPriorityCost || self.sawUltrafastCost else { return nil }
+            return self.standardCostUSD + self.priorityCostUSD + self.ultrafastCostUSD
         }
 
         var hasModeSplit: Bool {
-            self.sawPriorityCost || self.priorityTokens > 0
+            // The current report exposes only Standard and Fast, so omit a partial split.
+            !self.sawUltrafastCost && self.ultrafastTokens == 0
+                && (self.sawPriorityCost || self.priorityTokens > 0)
         }
 
         /// The rows account for exactly the group's billed tokens, so their per-request costs describe it.
         func coversGroup(canonicalTotalTokens: Int) -> Bool {
-            let (rowTokenTotal, overflow) = self.standardTokens.addingReportingOverflow(self.priorityTokens)
-            return !self.hasUnstableTokenRows
-                && !self.hasTokenOverflow
-                && !overflow
-                && rowTokenTotal == canonicalTotalTokens
+            !self.hasUnstableTokenRows && !self.hasTokenOverflow
+                && CheckedSum.integers([self.standardTokens, self.priorityTokens, self.ultrafastTokens])
+                == canonicalTotalTokens
         }
     }
 
@@ -75,7 +78,11 @@ extension CostUsageScanner {
             }
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
             let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
-            if isPriority {
+            if row.pricingMode == "ultrafast" {
+                let (total, overflow) = breakdown.ultrafastTokens.addingReportingOverflow(tokenCount)
+                breakdown.ultrafastTokens = overflow ? breakdown.ultrafastTokens : total
+                breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
+            } else if isPriority {
                 let (total, overflow) = breakdown.priorityTokens.addingReportingOverflow(tokenCount)
                 breakdown.priorityTokens = overflow ? breakdown.priorityTokens : total
                 breakdown.hasTokenOverflow = breakdown.hasTokenOverflow || overflow
@@ -105,7 +112,10 @@ extension CostUsageScanner {
                     modelsDevCatalog: modelsDevCatalog,
                     customPricing: customPricing,
                     pricingResolver: pricingResolver)
-            if isPriority {
+            if row.pricingMode == "ultrafast" {
+                breakdown.ultrafastCostUSD += cost
+                breakdown.sawUltrafastCost = true
+            } else if isPriority {
                 breakdown.priorityCostUSD += cost
                 breakdown.sawPriorityCost = true
             } else {
@@ -145,6 +155,10 @@ extension CostUsageScanner {
             modelsDevCacheRoot: modelsDevCacheRoot,
             customPricing: overlay,
             pricingResolver: pricingResolver)
+        if row.pricingMode == "ultrafast" {
+            return CostUsagePricing.codexAPIUltrafastMultiplier(model: pricedModel, date: pricingDate)
+                .flatMap { multiplier in baseCost.map { $0 * multiplier } }
+        }
         guard isPriority else { return baseCost }
         guard let priorityCost = CostUsagePricing.codexPriorityCostUSD(
             model: pricedModel,
@@ -202,9 +216,7 @@ extension CostUsageScanner {
 
     /// The model whose rates price `row`, as the custom overlay and catalogs look it up.
     static func codexPricedModel(for row: CodexUsageRow, priorityTurns: [String: CodexPriorityTurnMetadata]) -> String {
-        row.turnID.flatMap { priorityTurns[$0] }.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
-            ?? row.pricingModel
-            ?? row.model
+        self.codexPricingModel(for: row, priorityMetadata: row.turnID.flatMap { priorityTurns[$0] })
     }
 
     static func codexPriorityPricingModel(
@@ -221,7 +233,8 @@ extension CostUsageScanner {
         for row: CodexUsageRow,
         priorityMetadata: CodexPriorityTurnMetadata?) -> String
     {
-        priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
+        guard row.pricingMode != "ultrafast" else { return row.pricingModel ?? row.model }
+        return priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
             ?? row.pricingModel
             ?? row.model
     }

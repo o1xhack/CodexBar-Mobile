@@ -23,7 +23,8 @@ struct PluginProviderSpecTests {
         .helmcode, .hyper, .manus, .perplexity, .qoder, .raycast, .sakana, .t3chat, .museai,
         .huggingface, .nous, .fireworks, .xai, .venice, .zed,
         .tavily, .linkup, .tinyapi, .exa,
-        .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel, .munito,
+        .cosmic, .aerostack, .sailresearch, .sofya, .fal, .flora, .parallel, .munito, .tripo,
+        .trustedrouter,
     ]
 
     private static let isolatedEnvironment = [

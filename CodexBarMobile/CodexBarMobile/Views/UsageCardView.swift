@@ -131,7 +131,8 @@ struct UsageCardView: View {
                         .accessibilityHidden(true)
                     Text(ProviderDetailLocalization.localizedValue(
                         balance,
-                        providerID: self.providerID ?? ""))
+                        providerID: self.providerID ?? "",
+                        locale: self.locale))
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)
@@ -157,7 +158,8 @@ struct UsageCardView: View {
                         .font(.caption)
                     Text(ProviderDetailLocalization.localizedValue(
                         description,
-                        providerID: self.providerID ?? ""))
+                        providerID: self.providerID ?? "",
+                        locale: self.locale))
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)

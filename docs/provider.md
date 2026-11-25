@@ -66,8 +66,10 @@ retain thread-safe `register(_:)` methods for future dynamic providers.
 Runtime settings follow the same boundary. A provider owns its `ProviderSettingsSectionKey` and section payload in its
 core folder, registers that key on its descriptor, and contributes the payload from its app implementation. The generic
 `ProviderSettingsSnapshot` container performs the sole type-erased cast behind its constrained subscript; provider-local
-accessors keep fetch strategies fully typed. Providers that share a payload type still declare a distinct key for each
-`ProviderInstanceID`, while providers with no runtime settings receive an empty section from the descriptor default.
+accessors keep fetch strategies fully typed. App fetch contexts construct only the requested provider's section plus
+the shared debug flags, reading current settings for each fetch. Providers that share a payload type still declare a
+distinct key for each `ProviderInstanceID`, while providers with no runtime settings receive an empty section from the
+descriptor default.
 
 Credential and config behavior follows the descriptor boundary too. Providers with credentials register a Sendable
 `ProviderCredentialAdapter` that owns config-to-environment projection, token resolution, token-account support,
@@ -82,7 +84,14 @@ Automatic cookie traversal reads one browser at a time in the provider's existin
 its candidate sessions before requesting another browser; missing or rejected sessions retain fallback.
 The plugin broker applies the same rule to both header and cookie-jar imports, while explicit browser/profile
 selections remain isolated. Public exhaustive import APIs retain their array return types; live fetches consume
-lazy candidates instead.
+lazy candidates instead. The shared candidate retry runner checks cancellation before reading candidates and
+before attempts, so a cancelled refresh stops traversal even after a retryable authentication failure.
+
+Snapshot-backed spend sources keep a current-config publication even when a successful provider fetch explicitly
+reports unavailable analytics. That settled state stays unavailable in Overview and Usage & Spend; it is not zero
+spend and does not trigger an extra provider fetch when those surfaces fill missing data. Repeated unavailable
+results do not advertise a recovery to the dashboard. Missing publications,
+changed credentials or account scope, and failed refreshes that clear their publication still need a fetch.
 
 ### Provider architecture gatekeeper threat model
 
@@ -122,6 +131,11 @@ Introduce a single descriptor per provider:
 - account behavior (e.g., `usesAccountFallback` for Codex auth.json)
 - `nativeAppBundleIdentifiers`: exact provider-owned desktop app bundle IDs for the opt-in frontmost merged icon. The shared monitor matches only enabled providers and rejects ambiguous matches; general-purpose browsers and terminals must not claim a provider.
 
+For snapshot-backed spend, `tokenCost.isUsageUnavailable` distinguishes missing analytics from confirmed empty history
+when no cost projection exists. Balance providers such as DeepSeek and xAI declare this on their descriptors so a
+successful balance fetch alone cannot establish zero spend. Both normal refreshes and direct publication use the same
+shared publisher; pending local history retains the last published spend.
+
 UI and settings should become descriptor-driven:
 - no provider-specific branching for labels/links/toggle titles
 - minimal provider-specific UI (only when a provider truly needs bespoke UX)
@@ -138,6 +152,16 @@ Providers may return `.automaticCandidates` from `presentation.menuBarWindowReso
 competing quotas. The shared app resolver ranks those windows by depletion forecast, then used percentage.
 Return `.resolved` for authoritative selections such as ordered credit pools or product-specific fallback;
 `.unhandled` lets Auto rank the standard lanes. Keep optional/model-only exclusions inside the descriptor.
+
+## Setup declarations
+
+`ProviderDescriptor.setup` owns static CLI setup guidance beside the provider. The default is `.unknown`;
+do not infer required inputs from fetch modes or supported credential types. Declare alternative routes with stable
+provider-local IDs, supported platforms, required inputs, and localized hints. Optional enrichment belongs in
+`optionalCapabilities`. Declarations contain names only and must never resolve secrets, inspect authentication,
+import browser data, start login, or fetch usage. See [the CLI setup contract](cli.md#configuration).
+Set `presentation.legacyMenuBarShowsBalance` to `false` when legacy percentage, pace and reset-time modes
+must retain their allowance metric. Explicit Balance elements still use the reported balance.
 
 ## Fetch strategies
 

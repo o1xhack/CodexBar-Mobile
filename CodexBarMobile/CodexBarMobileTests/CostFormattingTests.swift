@@ -15,6 +15,13 @@ import Testing
 /// change the output in one view while forgetting another.
 @Suite("Cost formatting central contract")
 struct CostFormattingTests {
+    @Test
+    func `cost split only appears when the displayed modes cover the total`() {
+        #expect(CodexCostSplit.subtitle(standardCostUSD: 1, priorityCostUSD: 2, totalCostUSD: 9) == nil)
+        #expect(CodexCostSplit.subtitle(standardCostUSD: 1, priorityCostUSD: 2, totalCostUSD: 3) != nil)
+        #expect(CodexCostSplit.subtitle(standardCostUSD: 0.1, priorityCostUSD: 0.2, totalCostUSD: 0.3) != nil)
+    }
+
     // MARK: - USD
 
     @Test("usd formats whole dollars with two decimals and currency symbol")

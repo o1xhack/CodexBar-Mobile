@@ -26,7 +26,8 @@ struct SyncCoordinatorV083Tests {
         #expect(synced.quotaLimit == 200)
         #expect(synced.quotaUnit == "credits")
         #expect(AccountIdentityComputer.compute(provider: .opendesign, identity: nil) == nil)
-        #expect(QuotaProviderList.providers.last?.id == "opendesign")
+        // OpenDesign ended the v0.83 catalog and retains that position as new providers are appended.
+        #expect(QuotaProviderList.providers.prefix(95).last?.id == "opendesign")
         #expect(MockProviderInjector.allMocks().contains { $0.providerID == "opendesign" })
     }
 

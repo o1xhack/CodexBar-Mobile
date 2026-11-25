@@ -1315,7 +1315,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=...\n\natau tempel hanya nilai session_id";
 "Clear" = "Hapus";
 "No matching providers" = "Tidak ada penyedia cocok";
-"Search providers" = "Cari penyedia";
+"No matching settings or providers" = "Tidak ada pengaturan atau penyedia yang cocok";
+"Search settings" = "Cari pengaturan";
 
 "Request quota: %@ / %@" = "Kuota permintaan: %@ / %@";
 "language_arabic" = "العربية";
@@ -1647,7 +1648,7 @@
 "7-day usage" = "Penggunaan 7 hari";
 "Total usage" = "Total penggunaan";
 "claude_oauth_keychain_access_disabled" = "Akses Keychain dinonaktifkan, sehingga CodexBar tidak dapat membaca informasi masuk Claude.";
-"claude_oauth_keychain_access_revoked" = "Akses Rantai Kunci Claude dicabut akibat rotasi token Claude Code. Klik Segarkan untuk memberikan akses lagi, atau ubah sumber penggunaan Claude ke CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Kredensial OAuth Claude saat ini tidak dapat diakses oleh CodexBar. Klik Segarkan untuk mencoba mengaksesnya lagi, atau ubah sumber penggunaan Claude ke CLI/Web.";
 "claude_showing_last_known_usage" = "Menampilkan penggunaan terakhir yang diketahui, diambil %@.";
 "claude_limited_usage_detail" = "Rincian penggunaan terbatas";
 /* Spend dashboard cost analysis */
@@ -1834,7 +1835,7 @@
 "Automatic imports longcat.chat cookies from your browser." = "Impor otomatis longcat.chat cookies dari browser Anda.";
 "Automatically imports browser cookies for budget extras." = "Secara otomatis mengimpor browser cookies untuk tambahan anggaran.";
 "Automatically imports browser cookies for github.com budget extras." = "Secara otomatis mengimpor browser cookies untuk tambahan anggaran github.com.";
-"Automatically imports the app.devin.ai session from Chromium browsers." = "Secara otomatis mengimpor sesi app.devin.ai dari browser Chromium.";
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Secara otomatis mengimpor sesi app.devin.ai dari aplikasi Devin atau browser Chromium.";
 "Automatically imports the browser session cookie." = "Secara otomatis mengimpor sesi browser cookie.";
 "Automatically signs in using your ZoomMate session cookies from Chrome." = "Masuk secara otomatis menggunakan sesi ZoomMate Anda cookies dari Chrome.";
 "BY USAGE" = "Diberi peringkat berdasarkan penggunaan";
@@ -2881,3 +2882,81 @@
 "Leave blank to use the default name." = "Biarkan kosong untuk menggunakan nama bawaan.";
 "Rewards" = "Hadiah";
 "Reward expiry" = "Kedaluwarsa hadiah";
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "Default adalah Tiongkok (CNY). Akun internasional memakai https://api.siliconflow.com (USD).";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "Asal API SiliconFlow harus https://api.siliconflow.cn atau https://api.siliconflow.com.";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow menolak kueri saldo. Periksa saldo di konsol SiliconFlow.";
+
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "Tampilkan penggunaan SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow membatasi frekuensi permintaan. Coba lagi nanti.";
+"SiliconFlow request failed. Try refreshing later." = "Permintaan SiliconFlow gagal. Coba segarkan lagi nanti.";
+"SiliconFlow returned an unrecognized response. Update CodexBar and try again." = "SiliconFlow mengembalikan respons yang tidak dikenali. Perbarui CodexBar dan coba lagi.";
+"Sign in to cloud.siliconflow.cn in your browser, then refresh CodexBar." = "Masuk ke cloud.siliconflow.cn di browser Anda, lalu segarkan CodexBar.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API saldo SiliconFlow China telah dihentikan. Ubah sumber SiliconFlow ke Web dan masuk ke cloud.siliconflow.cn.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow menolak akses ke saldo konsol (HTTP 403). Buka cloud.siliconflow.cn, pastikan akun ini dapat melihat penagihan, lalu segarkan.";
+"Claude Platform session validated and saved." = "Sesi Claude Platform telah divalidasi dan disimpan.";
+"Use %@ or %@." = "Gunakan %@ atau %@.";
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Masuk di %@. Berikan header Cookie yang berisi sessionKey secara privat ke %@. Lalu jalankan %@.";
+"Read cookie header from stdin" = "Baca header cookie dari stdin";
+"User-Agent" = "User-Agent";
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Opsional. Tempel nilai User-Agent dari permintaan yang sama dengan header Cookie.";
+"Paste the WorkBuddy User-Agent as a single request header value." = "Tempel User-Agent WorkBuddy sebagai satu nilai header permintaan.";
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "Ringkasan penagihan TypeSafe tidak dapat dibaca. Buka https://console.typesafe.ai/billing untuk memeriksa akses; jika halaman terbuka, laporkan kegagalan integrasi.";
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Cookie sesi TypeSafe tidak ditemukan. Masuk di console.typesafe.ai/billing atau tempel header Cookie.";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "Tampilkan penggunaan Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo membatasi frekuensi permintaan. Coba lagi nanti.";
+"Tripo request failed. Try refreshing later." = "Permintaan Tripo gagal. Coba segarkan lagi nanti.";
+"Tripo returned an unrecognized response. Update CodexBar and try again." = "Tripo mengembalikan respons yang tidak dikenali. Perbarui CodexBar dan coba lagi.";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "Otorisasi kode perangkat GitHub untuk menyimpan akun token Copilot.";
+"Supply a GitHub token accepted by the Copilot usage API." = "Berikan token GitHub yang diterima API penggunaan Copilot.";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "Anggaran opsional tanpa jaminan, hanya untuk github.com publik. Aktifkan tambahan anggaran di app macOS; sesi browser harus cocok dengan akun token. Kuota tidak memerlukan cookie.";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "Di app macOS, pilih sumber cookie manual dan berikan header Cookie GitHub yang sesuai.";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "Masuk ke GitHub di browser yang didukung dan pilih impor cookie otomatis di app macOS.";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Gunakan kunci API Admin organisasi untuk biaya dan penggunaan organisasi. Kunci proyek atau akun layanan tidak dapat membaca endpoint tersebut.";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Kunci API biasa hanya mendukung cadangan saldo lama tanpa jaminan, bukan penggunaan organisasi. Kunci yang dikonfigurasi dengan cakupan proyek tidak memakai cadangan ini.";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Berikan kunci, endpoint sumber daya HTTPS, dan nama deployment. Versi API opsional. Penyegaran mengirim permintaan validasi yang mungkin dikenakan biaya, bukan kueri riwayat penggunaan.";
+"Mistral session expired or invalid." = "Sesi Mistral telah kedaluwarsa atau tidak valid.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Perintah ini membaca kunci API yang disalurkan melalui pipe dan menyimpannya sebagai kunci mandiri. Akun token API yang dipilih mengesampingkan kunci mandiri tersebut.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Gunakan kunci API dengan izin user_read untuk melihat penggunaan langganan. Perintah ini menyimpan kunci terpisah; akun kunci API yang dipilih diprioritaskan.";
+"Web" = "Web";
+"Credits per million tokens" = "Kredit per juta token";
+"Paused during grace period" = "Dijeda selama masa tenggang";
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program menampilkan kredit Cloud bulanan saat ini, bukan riwayat biaya token lokal.";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "Tempel header Cookie me.developers.google.com dari akun Google yang sudah masuk.";
+"Billing account" = "Akun penagihan";
+"Granted" = "Diberikan";
+"Not applied" = "Belum diterapkan";
+"%@ of %@ left" = "%@ dari %@ tersisa";
+"No Cloud credit found. Check your Google Developer Program benefits." = "Kredit Cloud tidak ditemukan. Periksa manfaat Google Developer Program Anda.";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "Sesi browser";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program membatasi frekuensi permintaan. Coba lagi nanti.";
+"Google Developer Program request failed. Try refreshing later." = "Permintaan Google Developer Program gagal. Coba segarkan lagi nanti.";
+"Google Developer Program returned an unrecognized response. Update CodexBar and try again." = "Google Developer Program mengembalikan respons yang tidak dikenali. Perbarui CodexBar dan coba lagi.";
+"Google session expired or invalid." = "Sesi Google telah kedaluwarsa atau tidak valid.";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Cookie sesi Google Developer Program tidak ditemukan. Masuk di me.developers.google.com/benefits atau tempel header Cookie.";
+
+"Enterprise" = "Enterprise";
+"Personal credits" = "Kredit pribadi";
+"Standard remaining" = "Sisa Standard";
+"Select remaining" = "Sisa Select";
+"Remaining credits" = "Sisa kredit";
+"Notion Credits" = "Kredit Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage for the selected workspace in Notion, then refresh CodexBar again." = "Notion tidak menyediakan kuota AI pribadi yang dapat digunakan untuk ruang kerja ini. Periksa penggunaan AI untuk ruang kerja yang dipilih di Notion, lalu segarkan CodexBar kembali.";
+"Select" = "Select";
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Tampilkan penggunaan TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter membatasi frekuensi permintaan. Coba lagi nanti.";
+"TrustedRouter request failed. Try refreshing later." = "Permintaan TrustedRouter gagal. Coba segarkan lagi nanti.";
+"TrustedRouter returned an unrecognized response. Update CodexBar and try again." = "TrustedRouter mengembalikan respons yang tidak dikenali. Perbarui CodexBar dan coba lagi.";
+"MiMo returned an unrecognized response. Update CodexBar and try again." = "MiMo mengembalikan respons yang tidak dikenali. Perbarui CodexBar dan coba lagi.";
+"China mainland" = "Tiongkok daratan";
+"Singapore" = "Singapura";
+"MiMo is rate limiting requests. Try again later." = "MiMo membatasi frekuensi permintaan. Coba lagi nanti.";
+"MiMo request failed. Try refreshing later." = "Permintaan MiMo gagal. Coba segarkan lagi nanti.";
+"Skip cost refresh" = "Lewati pembaruan biaya";

@@ -1312,7 +1312,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=... \n\n หรือวางเฉพาะค่า session_id";
 "Clear" = "ล้างค่าการค้นหา";
 "No matching providers" = "ไม่มีผู้ให้บริการที่ตรงกัน";
-"Search providers" = "ผู้ให้บริการการค้นหา";
+"No matching settings or providers" = "ไม่มีการตั้งค่าหรือผู้ให้บริการที่ตรงกัน";
+"Search settings" = "ค้นหาการตั้งค่า";
 
 "language_vietnamese" = "เวียดนาม";
 "language_indonesian" = "บาฮาซาอินโดนีเซีย";
@@ -1646,7 +1647,7 @@
 "7-day usage" = "การใช้งาน 7 วัน";
 "Total usage" = "การใช้งานทั้งหมด";
 "claude_oauth_keychain_access_disabled" = "การเข้าถึง Keychain ถูกปิดใช้งาน จึงทำให้ CodexBar ไม่สามารถอ่านข้อมูลการลงชื่อเข้าใช้ Claude ได้";
-"claude_oauth_keychain_access_revoked" = "สิทธิ์เข้าถึงพวงกุญแจ Claude ถูกเพิกถอนจากการหมุนเวียนโทเค็นของ Claude Code คลิกรีเฟรชเพื่อให้สิทธิ์อีกครั้ง หรือเปลี่ยนแหล่งที่มาการใช้งาน Claude เป็น CLI/Web";
+"claude_oauth_keychain_access_revoked" = "ขณะนี้ CodexBar ไม่สามารถเข้าถึงข้อมูลรับรอง OAuth ของ Claude ได้ คลิกรีเฟรชเพื่อลองเข้าถึงอีกครั้ง หรือเปลี่ยนแหล่งที่มาการใช้งาน Claude เป็น CLI/Web";
 "claude_showing_last_known_usage" = "กำลังแสดงการใช้งานล่าสุดที่ทราบ ซึ่งบันทึกเมื่อ %@";
 "claude_limited_usage_detail" = "รายละเอียดการใช้งานมีจำกัด";
 /* Spend dashboard cost analysis */
@@ -1834,7 +1835,7 @@
 "Automatic imports longcat.chat cookies from your browser." = "นำเข้า longcat.chat cookies จากเบราว์เซอร์ของคุณโดยอัตโนมัติ";
 "Automatically imports browser cookies for budget extras." = "นำเข้าเบราว์เซอร์ cookies โดยอัตโนมัติเพื่อเพิ่มงบประมาณ";
 "Automatically imports browser cookies for github.com budget extras." = "นำเข้าเบราว์เซอร์ cookies โดยอัตโนมัติสำหรับงบประมาณพิเศษ github.com";
-"Automatically imports the app.devin.ai session from Chromium browsers." = "นำเข้าเซสชัน app.devin.ai จากเบราว์เซอร์ Chromium โดยอัตโนมัติ";
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "นำเข้าเซสชัน app.devin.ai จากแอป Devin หรือเบราว์เซอร์ Chromium โดยอัตโนมัติ";
 "Automatically imports the browser session cookie." = "นำเข้าเซสชันเบราว์เซอร์ cookie โดยอัตโนมัติ";
 "Automatically signs in using your ZoomMate session cookies from Chrome." = "ลงชื่อเข้าใช้โดยอัตโนมัติโดยใช้เซสชัน ZoomMate ของคุณ cookies จาก Chrome";
 "BY USAGE" = "จัดอันดับตามการใช้งาน";
@@ -2881,3 +2882,81 @@
 "Leave blank to use the default name." = "เว้นว่างไว้เพื่อใช้ชื่อเริ่มต้น";
 "Rewards" = "รางวัล";
 "Reward expiry" = "วันหมดอายุของรางวัล";
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "ค่าเริ่มต้นคือจีน (CNY) บัญชีต่างประเทศใช้ https://api.siliconflow.com (USD)";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "ต้นทาง API ของ SiliconFlow ต้องเป็น https://api.siliconflow.cn หรือ https://api.siliconflow.com";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow ปฏิเสธคำขอยอดคงเหลือ โปรดตรวจสอบยอดคงเหลือในคอนโซล SiliconFlow";
+
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "แสดงการใช้งาน SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"SiliconFlow request failed. Try refreshing later." = "คำขอ SiliconFlow ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"SiliconFlow returned an unrecognized response. Update CodexBar and try again." = "SiliconFlow ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต CodexBar แล้วลองอีกครั้ง";
+"Sign in to cloud.siliconflow.cn in your browser, then refresh CodexBar." = "ลงชื่อเข้าใช้ cloud.siliconflow.cn ในเบราว์เซอร์ แล้วรีเฟรช CodexBar";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API ยอดคงเหลือ SiliconFlow ประเทศจีนถูกยกเลิกแล้ว เปลี่ยนแหล่งข้อมูลของ SiliconFlow เป็น เว็บ แล้วลงชื่อเข้าใช้ cloud.siliconflow.cn";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow ปฏิเสธการเข้าถึงยอดคงเหลือในคอนโซล (HTTP 403) เปิด cloud.siliconflow.cn ตรวจสอบว่าบัญชีนี้ดูข้อมูลการเรียกเก็บเงินได้ แล้วรีเฟรช";
+"Claude Platform session validated and saved." = "ตรวจสอบและบันทึกเซสชัน Claude Platform แล้ว";
+"Use %@ or %@." = "ใช้ %@ หรือ %@";
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "ลงชื่อเข้าใช้ที่ %@ ส่งส่วนหัว Cookie ที่มี sessionKey ไปยัง %@ แบบเป็นส่วนตัว จากนั้นเรียกใช้ %@";
+"Read cookie header from stdin" = "อ่านส่วนหัวคุกกี้จาก stdin";
+"User-Agent" = "User-Agent";
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "ไม่บังคับ วางค่า User-Agent จากคำขอเดียวกับที่มีส่วนหัว Cookie";
+"Paste the WorkBuddy User-Agent as a single request header value." = "วาง User-Agent ของ WorkBuddy เป็นค่าฮีเดอร์คำขอเพียงค่าเดียว";
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "ไม่สามารถอ่านภาพรวมการเรียกเก็บเงินของ TypeSafe ได้ เปิด https://console.typesafe.ai/billing เพื่อตรวจสอบการเข้าถึง หากเปิดหน้าได้ ให้รายงานข้อผิดพลาดในการเชื่อมต่อระบบ";
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "ไม่พบคุกกี้เซสชันของ TypeSafe ลงชื่อเข้าใช้ที่ console.typesafe.ai/billing หรือวางส่วนหัว Cookie";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "แสดงการใช้งาน Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"Tripo request failed. Try refreshing later." = "คำขอ Tripo ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"Tripo returned an unrecognized response. Update CodexBar and try again." = "Tripo ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต CodexBar แล้วลองอีกครั้ง";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "อนุญาตรหัสอุปกรณ์ของ GitHub เพื่อบันทึกบัญชีโทเค็น Copilot";
+"Supply a GitHub token accepted by the Copilot usage API." = "ระบุโทเค็น GitHub ที่ API การใช้งาน Copilot ยอมรับ";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "งบประมาณเสริมสำหรับ github.com สาธารณะเท่านั้น โดยไม่รับประกันผล เปิดส่วนเสริมงบประมาณในแอป macOS และให้เซสชันเบราว์เซอร์ตรงกับบัญชีโทเค็น การดูโควตาไม่ต้องใช้คุกกี้";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "ในแอป macOS ให้เลือกแหล่งคุกกี้แบบกำหนดเองและระบุส่วนหัว Cookie ของ GitHub ที่ตรงกัน";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "ลงชื่อเข้าใช้ GitHub ในเบราว์เซอร์ที่รองรับ แล้วเลือกนำเข้าคุกกี้อัตโนมัติในแอป macOS";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "ใช้คีย์ Admin API ขององค์กรเพื่อดูค่าใช้จ่ายและการใช้งานขององค์กร คีย์โครงการหรือบัญชีบริการไม่สามารถอ่านเอนด์พอยต์เหล่านี้ได้";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "คีย์ API ทั่วไปรองรับเพียงการอ่านยอดคงเหลือแบบเก่าเป็นทางสำรองโดยไม่รับประกันผล ไม่รองรับการใช้งานขององค์กร คีย์ที่กำหนดขอบเขตโครงการจะไม่ใช้ทางสำรองนี้";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "ระบุคีย์ เอนด์พอยต์ทรัพยากร HTTPS และชื่อการปรับใช้ เวอร์ชัน API เป็นตัวเลือก การรีเฟรชจะส่งคำขอตรวจสอบที่อาจมีค่าใช้จ่าย ไม่ใช่การค้นหาประวัติการใช้งาน";
+"Mistral session expired or invalid." = "เซสชัน Mistral หมดอายุหรือไม่ถูกต้อง";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "คำสั่งนี้อ่านคีย์ API ที่ส่งผ่านไปป์และบันทึกเป็นคีย์แยกต่างหาก บัญชีโทเค็น API ที่เลือกจะมีลำดับความสำคัญเหนือคีย์แยกต่างหาก";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "ใช้คีย์ API ที่มีสิทธิ์ user_read เพื่อดูการใช้งานการสมัครสมาชิก คำสั่งจะบันทึกคีย์แยกต่างหาก โดยบัญชีคีย์ API ที่เลือกจะมีลำดับความสำคัญสูงกว่า";
+"Web" = "เว็บ";
+"Credits per million tokens" = "เครดิตต่อล้านโทเค็น";
+"Paused during grace period" = "หยุดชั่วคราวในช่วงผ่อนผัน";
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program แสดงเครดิต Cloud รายเดือนปัจจุบัน ไม่ใช่ประวัติค่าใช้จ่ายโทเค็นในเครื่อง";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "วางส่วนหัว Cookie ของ me.developers.google.com จากบัญชี Google ที่ลงชื่อเข้าใช้อยู่";
+"Billing account" = "บัญชีสำหรับการเรียกเก็บเงิน";
+"Granted" = "วันที่ได้รับ";
+"Not applied" = "ยังไม่ได้ใช้กับบัญชี";
+"%@ of %@ left" = "เหลือ %@ จาก %@";
+"No Cloud credit found. Check your Google Developer Program benefits." = "ไม่พบเครดิต Cloud โปรดตรวจสอบสิทธิประโยชน์ Google Developer Program ของคุณ";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "เซสชันเบราว์เซอร์";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"Google Developer Program request failed. Try refreshing later." = "คำขอ Google Developer Program ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"Google Developer Program returned an unrecognized response. Update CodexBar and try again." = "Google Developer Program ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต CodexBar แล้วลองอีกครั้ง";
+"Google session expired or invalid." = "เซสชัน Google หมดอายุหรือไม่ถูกต้อง";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "ไม่พบคุกกี้เซสชันของ Google Developer Program ลงชื่อเข้าใช้ที่ me.developers.google.com/benefits หรือวางส่วนหัว Cookie";
+
+"Enterprise" = "Enterprise";
+"Personal credits" = "เครดิตส่วนบุคคล";
+"Standard remaining" = "Standard คงเหลือ";
+"Select remaining" = "Select คงเหลือ";
+"Remaining credits" = "เครดิตคงเหลือ";
+"Notion Credits" = "เครดิต Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage for the selected workspace in Notion, then refresh CodexBar again." = "Notion ไม่ได้ส่งโควตา AI ส่วนบุคคลที่ใช้ได้สำหรับพื้นที่ทำงานนี้ โปรดตรวจสอบการใช้ AI ของพื้นที่ทำงานที่เลือกใน Notion แล้วรีเฟรช CodexBar อีกครั้ง";
+"Select" = "Select";
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "แสดงการใช้งาน TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"TrustedRouter request failed. Try refreshing later." = "คำขอ TrustedRouter ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"TrustedRouter returned an unrecognized response. Update CodexBar and try again." = "TrustedRouter ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต CodexBar แล้วลองอีกครั้ง";
+"MiMo returned an unrecognized response. Update CodexBar and try again." = "MiMo ส่งการตอบกลับที่ไม่รู้จัก โปรดอัปเดต CodexBar แล้วลองอีกครั้ง";
+"China mainland" = "จีนแผ่นดินใหญ่";
+"Singapore" = "สิงคโปร์";
+"MiMo is rate limiting requests. Try again later." = "MiMo กำลังจำกัดความถี่ของคำขอ ลองอีกครั้งในภายหลัง";
+"MiMo request failed. Try refreshing later." = "คำขอ MiMo ล้มเหลว ลองรีเฟรชอีกครั้งในภายหลัง";
+"Skip cost refresh" = "ข้ามการรีเฟรชค่าใช้จ่าย";

@@ -42,7 +42,8 @@ extension CostUsageScanner {
         let hasPriorityTokens = !(usage.codexPriorityTokens?.isEmpty ?? true)
 
         // Token maps are also the completion marker for models with no known pricing.
-        guard hasStandardTokens || hasPriorityTokens else { return true }
+        guard hasStandardTokens || hasPriorityTokens
+            || usage.codexRows?.contains(where: { $0.pricingMode == "ultrafast" }) == true else { return true }
         return (hasStandardCost && !hasStandardTokens) || (hasPriorityCost && !hasPriorityTokens)
     }
 
@@ -113,6 +114,10 @@ extension CostUsageScanner {
                 row.pricingModel = row.pricingModel ?? previous.pricingModel
                 row.pricingMode = row.pricingMode ?? previous.pricingMode
             }
+            if row.pricingMode == "ultrafast" {
+                row.pricingModel = row.pricingModel ?? row.model
+                return row
+            }
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
             let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
             row.pricingModel = priorityMetadata.map { Self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
@@ -153,6 +158,7 @@ extension CostUsageScanner {
             guard CostUsageDayRange.isInRange(dayKey: row.day, since: range.sinceKey, until: range.untilKey)
             else { continue }
 
+            guard row.pricingMode != "ultrafast" else { continue }
             guard let tokenCount = CheckedSum.integers([row.input, row.output]) else { return (nil, nil) }
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
             let isPriority = priorityMetadata != nil || row.pricingMode == "priority"

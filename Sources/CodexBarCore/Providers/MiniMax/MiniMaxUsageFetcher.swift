@@ -792,8 +792,10 @@ enum MiniMaxUsageParser {
         let baseResponse = payload.data.baseResp ?? payload.baseResp
         if let status = baseResponse?.statusCode, status != 0 {
             let message = baseResponse?.statusMessage ?? "status_code \(status)"
-            let lower = message.lowercased()
-            if status == 1004 || lower.contains("cookie") || lower.contains("log in") || lower.contains("login") {
+            let lower = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if status == 1004 || lower == "invalid api key" || lower.contains("cookie") ||
+                lower.contains("log in") || lower.contains("login")
+            {
                 throw MiniMaxUsageError.invalidCredentials
             }
             throw MiniMaxUsageError.apiError(message)
@@ -1134,12 +1136,10 @@ enum MiniMaxUsageParser {
         targetComponents.year = nowComponents.year
         targetComponents.month = nowComponents.month
         targetComponents.day = nowComponents.day
-        guard var candidate = calendar.date(from: targetComponents) else { return nil }
-
-        if candidate < now {
-            candidate = calendar.date(byAdding: .day, value: 1, to: candidate) ?? candidate
-        }
-        return candidate
+        guard let candidate = calendar.date(from: targetComponents) else { return nil }
+        guard candidate < now else { return candidate }
+        targetComponents.day = calendar.component(.day, from: now) + 1
+        return calendar.date(from: targetComponents)
     }
 
     private static func minutes(from value: Double, unit: String) -> Int? {

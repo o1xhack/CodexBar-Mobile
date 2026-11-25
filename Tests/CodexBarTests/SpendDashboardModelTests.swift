@@ -3,6 +3,8 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
+// Keep the snapshot builders and coverage assertions together.
+// swiftlint:disable file_length
 struct SpendDashboardModelTests {
     @Test
     func `count labels avoid plural agreement and localize numbers`() {
@@ -75,6 +77,7 @@ struct SpendDashboardModelTests {
             .vertexai,
             .openai,
             .mistral,
+            .deepseek,
             .bedrock,
             .cursor,
             .grok,
@@ -814,6 +817,77 @@ extension SpendDashboardModelTests {
     }
 
     @Test
+    func `models lens ranks fully attributed unpriced Claude currency group by tokens`() throws {
+        let claude = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-15", cost: nil, tokens: 2_800_000, model: "claude-sonnet-4-5"),
+                Self.entry(day: "2026-07-16", cost: nil, tokens: 920_000, model: "claude-opus-4-5"),
+            ]))
+        let group = try #require(Self.model(inputs: [claude], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(group.currencyCode == "USD")
+        #expect(group.totalCost == nil)
+        #expect(group.modelHistoryCompleteness == .incomplete) // Pricing is still incomplete.
+        #expect(ranking.basis == .tokens)
+        #expect(!ranking.isPartial)
+        #expect(ranking.rows.map(\.model.modelName) == ["claude-sonnet-4-5", "claude-opus-4-5"])
+        #expect(ranking.rows.map(\.value) == [2_800_000, 920_000])
+        #expect(ranking.rows.map(\.share) == [2_800_000.0 / 3_720_000, 920_000.0 / 3_720_000])
+    }
+
+    @Test
+    func `models lens withholds token shares for unattributed currency group history`() throws {
+        let named = SpendDashboardModel.ProviderInput(
+            id: "named",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-15", cost: nil, tokens: 40, model: "example-unpriced-model"),
+            ]))
+        let unattributed = SpendDashboardModel.ProviderInput(
+            id: "unattributed",
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(currency: "USD", entries: [
+                Self.entry(day: "2026-07-16", cost: 3, tokens: 60, model: nil),
+            ]))
+        let group = try #require(Self.model(inputs: [named, unattributed], requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        #expect(group.totalTokens == 100)
+        #expect(ranking.basis == .tokens)
+        #expect(ranking.isPartial)
+        #expect(ranking.rows.map(\.value) == [40])
+        #expect(ranking.rows.allSatisfy { $0.share == nil })
+    }
+
+    @Test
+    func `models lens withholds shares when model history is partial`() throws {
+        let codex = SpendDashboardModel.ProviderInput(
+            provider: .codex,
+            displayName: "Codex",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [
+                    Self.entry(day: "2026-07-15", cost: 2, model: "gpt-5.2-codex"),
+                    Self.entry(day: "2026-07-16", cost: 3, model: nil),
+                ]))
+        let group = try #require(Self.model(
+            inputs: [codex],
+            requestedDays: 7).groups.first)
+        let ranking = try #require(SpendModelRanking.make(group))
+
+        // $3 of the $5 has no model, so the one named model must not claim 100%.
+        #expect(ranking.isPartial)
+        #expect(ranking.rows.map(\.model.modelName) == ["gpt-5.2-codex"])
+        #expect(ranking.rows.allSatisfy { $0.share == nil })
+        #expect(ranking.rows.map(\.value) == [2])
+    }
+
+    @Test
     func `unpriced Codex routing row retains priced model rows as partial`() throws {
         let codex = SpendDashboardModel.ProviderInput(
             provider: .codex,
@@ -1050,6 +1124,31 @@ extension SpendDashboardModelTests {
         #expect(westDays == ["2026-07-16"])
         #expect(eastDays == ["2026-07-16"])
         #expect(west.groups[0].totalCost == east.groups[0].totalCost)
+    }
+
+    @Test
+    func `lagged plugin reports use the declared civil end day`() throws {
+        let now = Date(timeIntervalSince1970: 1_784_220_600)
+        let providerID = try #require(ProviderInstanceID(rawValue: "fixture-provider"))
+        let input = SpendDashboardModel.ProviderInput(
+            id: "fixture-provider",
+            providerID: providerID,
+            displayName: "Fixture provider",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [Self.entry(day: "2026-07-14", cost: 4)],
+                historyDays: 1,
+                updatedAt: now,
+                bucketTimeZoneIdentifier: "Asia/Tokyo",
+                windowEndDayKey: "2026-07-14"))
+
+        var display = Calendar(identifier: .gregorian)
+        display.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let model = SpendDashboardModel.build(inputs: [input], requestedDays: 7, now: now, calendar: display)
+        let group = try #require(model.groups.first)
+        #expect(group.totalCost == 4)
+        let last = try #require(group.dailyPoints.last)
+        #expect(CostUsageLocalDay.key(from: last.day, calendar: display) == "2026-07-13")
     }
 
     @Test
@@ -1506,7 +1605,8 @@ extension SpendDashboardModelTests {
         historyDays: Int = 30,
         projects: [CostUsageProjectBreakdown] = [],
         updatedAt: Date = now,
-        bucketTimeZoneIdentifier: String? = nil) -> CostUsageTokenSnapshot
+        bucketTimeZoneIdentifier: String? = nil,
+        windowEndDayKey: String? = nil) -> CostUsageTokenSnapshot
     {
         CostUsageTokenSnapshot(
             sessionTokens: nil,
@@ -1518,6 +1618,7 @@ extension SpendDashboardModelTests {
             daily: entries,
             projects: projects,
             bucketTimeZoneIdentifier: bucketTimeZoneIdentifier,
+            windowEndDayKey: windowEndDayKey,
             updatedAt: updatedAt)
     }
 
@@ -1582,3 +1683,5 @@ extension SpendDashboardModelTests {
         #expect(first.id != second.id)
     }
 }
+
+// swiftlint:enable file_length

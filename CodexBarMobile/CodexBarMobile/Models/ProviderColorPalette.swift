@@ -151,6 +151,10 @@ enum ProviderColorPalette {
         if normalized == "parallel" { return "1D1C1A" }
         if normalized == "futureagi" { return "7857FC" }
         if normalized == "munito" { return "702CF6" }
+        if normalized == "siliconflow" { return "6E29F5" }
+        if normalized == "tripo" { return "F8CF00" }
+        if normalized == "googledeveloper" { return "5B8DEF" }
+        if normalized == "trustedrouter" { return "A9CDB9" }
         return nil
     }
 

@@ -65,11 +65,14 @@ enum CostFormatting {
 /// Single source of truth shared by the Cost dashboard's Model Mix, the
 /// Codex provider detail's daily-spend hover, and the Raw Sync Data inspector.
 enum CodexCostSplit {
-    static func subtitle(standardCostUSD: Double?, priorityCostUSD: Double?) -> String? {
+    static func subtitle(standardCostUSD: Double?, priorityCostUSD: Double?, totalCostUSD: Double) -> String? {
+        guard totalCostUSD.isFinite else { return nil }
         guard standardCostUSD != nil || priorityCostUSD != nil else { return nil }
         let std = standardCostUSD ?? 0
         let fast = priorityCostUSD ?? 0
         guard std > 0 || fast > 0 else { return nil }
+        let tolerance = max(1e-8, abs(totalCostUSD) * 1e-12)
+        guard abs(std + fast - totalCostUSD) <= tolerance else { return nil }
         return String(
             format: String(localized: "Std %1$@ · Fast %2$@"),
             CostFormatting.usd(std),
@@ -88,6 +91,9 @@ enum CodexCostSplit {
             fast += breakdown.priorityCostUSD ?? 0
         }
         guard hasSplit else { return nil }
-        return self.subtitle(standardCostUSD: std, priorityCostUSD: fast)
+        return self.subtitle(
+            standardCostUSD: std,
+            priorityCostUSD: fast,
+            totalCostUSD: breakdowns.reduce(0) { $0 + $1.costUSD })
     }
 }

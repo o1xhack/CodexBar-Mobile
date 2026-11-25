@@ -1165,7 +1165,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=...\n\n或只貼上 session_id 值";
 "Clear" = "清除";
 "No matching providers" = "沒有相符的提供者";
-"Search providers" = "搜尋提供者";
+"No matching settings or providers" = "沒有相符的設定或提供者";
+"Search settings" = "搜尋設定";
 
 "language_vietnamese" = "越南語";
 "reset_tomorrow_format" = "明天 %@";
@@ -1614,7 +1615,7 @@
 "mobile_dev_restored" = "Restored";
 "mobile_sync_status_last_attempt_format" = "Last attempt: %@";
 "mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_toggle_mock_subtitle" = "每次同步會推送 126 個穩定的模擬快照，涵蓋 116 個 provider ID，包括多帳號、sub2api、Wayfinder 和未知 provider 的備援情境。模擬信箱使用 `.test` TLD，因此 iPhone 會顯示 MOCK 徽章。關閉後，CloudKit 會在大約一個同步週期內移除模擬記錄。預設關閉。";
+"mobile_toggle_mock_subtitle" = "每次同步會推送 130 個穩定的模擬快照，涵蓋 120 個 provider ID，包括多帳號、sub2api、Wayfinder 和未知 provider 的備援情境。模擬信箱使用 `.test` TLD，因此 iPhone 會顯示 MOCK 徽章。關閉後，CloudKit 會在大約一個同步週期內移除模擬記錄。預設關閉。";
 "mobile_dev_depleted" = "Depleted";
 "mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
 "mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
@@ -1673,7 +1674,7 @@
 "7-day usage" = "7 天用量";
 "Total usage" = "總用量";
 "claude_oauth_keychain_access_disabled" = "Keychain 存取已停用，因此 CodexBar 無法讀取 Claude 的登入資訊。";
-"claude_oauth_keychain_access_revoked" = "Claude Code 輪替權杖後撤銷了 Claude 鑰匙圈的存取權。按一下「重新整理」以重新授權，或將 Claude 使用量來源切換為 CLI/Web。";
+"claude_oauth_keychain_access_revoked" = "CodexBar 目前無法存取 Claude OAuth 憑證。按一下「重新整理」以重新嘗試存取，或將 Claude 使用量來源切換為 CLI/Web。";
 "claude_showing_last_known_usage" = "正在顯示於 %@ 擷取的最後已知使用量。";
 "claude_limited_usage_detail" = "使用量詳細資訊有限";
 /* Spend dashboard cost analysis */
@@ -1861,7 +1862,7 @@
 "Automatic imports longcat.chat cookies from your browser." = "自動從瀏覽器匯入 longcat.chat cookies。";
 "Automatically imports browser cookies for budget extras." = "自動導入瀏覽器 Cookie，以讀取預算附加信息。";
 "Automatically imports browser cookies for github.com budget extras." = "自動導入 github.com 的瀏覽器 Cookie，以讀取預算附加信息。";
-"Automatically imports the app.devin.ai session from Chromium browsers." = "自動從 Chromium 瀏覽器匯入 app.devin.ai 會話。";
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "自動從 Devin 應用程式或 Chromium 瀏覽器匯入 app.devin.ai 會話。";
 "Automatically imports the browser session cookie." = "自動匯入瀏覽器會話 cookie。";
 "Automatically signs in using your ZoomMate session cookies from Chrome." = "使用 Chrome 中的 ZoomMate 會話 cookies 自動登入。";
 "BY USAGE" = "按用量排序";
@@ -2859,3 +2860,81 @@
 "Leave blank to use the default name." = "留空以使用預設名稱。";
 "Rewards" = "獎勵";
 "Reward expiry" = "獎勵到期日期";
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "預設為中國區（人民幣）。國際帳號請使用 https://api.siliconflow.com（美元）。";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "SiliconFlow API 來源必須是 https://api.siliconflow.cn 或 https://api.siliconflow.com。";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow 拒絕了餘額查詢。請在 SiliconFlow 控制台中查看餘額。";
+
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "顯示 SiliconFlow 用量";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow 正在限制請求頻率。請稍後再試。";
+"SiliconFlow request failed. Try refreshing later." = "SiliconFlow 請求失敗。請稍後嘗試重新整理。";
+"SiliconFlow returned an unrecognized response. Update CodexBar and try again." = "SiliconFlow 傳回了無法辨識的回應。請更新 CodexBar 後再試。";
+"Sign in to cloud.siliconflow.cn in your browser, then refresh CodexBar." = "在瀏覽器中登入 cloud.siliconflow.cn，然後重新整理 CodexBar。";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "SiliconFlow 中國站餘額 API 已停用。請將 SiliconFlow 來源切換為 網頁，並登入 cloud.siliconflow.cn。";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow 拒絕存取主控台餘額（HTTP 403）。請開啟 cloud.siliconflow.cn，確認此帳戶可以檢視帳單，然後重新整理。";
+"Claude Platform session validated and saved." = "已驗證並儲存 Claude Platform 工作階段。";
+"Use %@ or %@." = "請使用 %@ 或 %@。";
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "請登入 %@。將包含 sessionKey 的 Cookie 請求標頭私密地傳給 %@，然後執行 %@。";
+"Read cookie header from stdin" = "從 stdin 讀取 Cookie 請求標頭";
+"User-Agent" = "User-Agent";
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "選填。貼上與 Cookie 來自同一請求的 User-Agent 值。";
+"Paste the WorkBuddy User-Agent as a single request header value." = "將 WorkBuddy 的 User-Agent 貼上為單一請求標頭值。";
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "無法讀取 TypeSafe 帳單總覽。請開啟 https://console.typesafe.ai/billing 檢查存取權限；如果頁面可以開啟，請回報整合錯誤。";
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "找不到 TypeSafe 工作階段 Cookie。請在 console.typesafe.ai/billing 登入或貼上 Cookie 標頭。";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "顯示 Tripo 用量";
+"Tripo is rate limiting requests. Try again later." = "Tripo 正在限制請求頻率。請稍後再試。";
+"Tripo request failed. Try refreshing later." = "Tripo 請求失敗。請稍後嘗試重新整理。";
+"Tripo returned an unrecognized response. Update CodexBar and try again." = "Tripo 傳回了無法辨識的回應。請更新 CodexBar 後再試。";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "授權 GitHub 裝置代碼以儲存 Copilot 權杖帳號。";
+"Supply a GitHub token accepted by the Copilot usage API." = "提供 Copilot 用量 API 接受的 GitHub 權杖。";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "僅為公開的 github.com 提供選用的預算查詢，不保證成功。在 macOS App 中啟用預算附加功能；瀏覽器工作階段必須與權杖帳號相符。配額查詢不需要 Cookie。";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "在 macOS App 中選擇手動 Cookie 來源，並提供相符的 GitHub Cookie 標頭。";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "在支援的瀏覽器中登入 GitHub，並在 macOS App 中選擇自動匯入 Cookie。";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "使用組織的 Admin API 金鑰查詢組織費用與用量。專案或服務帳號金鑰無法讀取這些端點。";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "一般 API 金鑰僅支援盡力查詢舊版餘額，不支援組織用量。設定了專案範圍的金鑰不會使用此備援方式。";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "提供金鑰、HTTPS 資源端點與部署名稱。API 版本為選填。重新整理會傳送可能計費的驗證請求，而非用量歷史查詢。";
+"Mistral session expired or invalid." = "Mistral 工作階段已過期或無效。";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "此指令讀取透過管線傳入的 API 金鑰，並將其儲存為獨立金鑰。所選的 API 權杖帳戶優先於獨立金鑰。";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "使用具有 user_read 權限的 API 金鑰查看訂閱用量。此命令會儲存獨立金鑰；所選的 API 金鑰帳號優先。";
+"Web" = "網頁";
+"Credits per million tokens" = "每百萬 token 的額度";
+"Paused during grace period" = "寬限期內已暫停";
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program 顯示目前每月 Cloud 額度，而非本機 token 費用記錄。";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "貼上已登入 Google 帳號的 me.developers.google.com Cookie 標頭。";
+"Billing account" = "帳單帳戶";
+"Granted" = "核發日期";
+"Not applied" = "尚未套用";
+"%@ of %@ left" = "剩餘 %@，共 %@";
+"No Cloud credit found. Check your Google Developer Program benefits." = "找不到 Cloud 抵免額。請檢查你的 Google Developer Program 權益。";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "瀏覽器工作階段";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program 正在限制請求頻率。請稍後再試。";
+"Google Developer Program request failed. Try refreshing later." = "Google Developer Program 請求失敗。請稍後嘗試重新整理。";
+"Google Developer Program returned an unrecognized response. Update CodexBar and try again." = "Google Developer Program 傳回了無法辨識的回應。請更新 CodexBar 後再試。";
+"Google session expired or invalid." = "Google 工作階段已過期或無效。";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "找不到 Google Developer Program 工作階段 Cookie。請在 me.developers.google.com/benefits 登入或貼上 Cookie 標頭。";
+
+"Enterprise" = "Enterprise";
+"Personal credits" = "個人額度";
+"Standard remaining" = "Standard 剩餘額度";
+"Select remaining" = "Select 剩餘額度";
+"Remaining credits" = "剩餘額度";
+"Notion Credits" = "Notion 額度";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage for the selected workspace in Notion, then refresh CodexBar again." = "Notion 未提供此工作區可用的個人 AI 額度。請在 Notion 中檢查所選工作區的 AI 用量，然後重新整理 CodexBar。";
+"Select" = "Select";
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "顯示 TrustedRouter 用量";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter 正在限制請求頻率。請稍後再試。";
+"TrustedRouter request failed. Try refreshing later." = "TrustedRouter 請求失敗。請稍後嘗試重新整理。";
+"TrustedRouter returned an unrecognized response. Update CodexBar and try again." = "TrustedRouter 傳回了無法辨識的回應。請更新 CodexBar 後再試。";
+"MiMo returned an unrecognized response. Update CodexBar and try again." = "MiMo 傳回了無法辨識的回應。請更新 CodexBar 後再試。";
+"China mainland" = "中國大陸";
+"Singapore" = "新加坡";
+"MiMo is rate limiting requests. Try again later." = "MiMo 正在限制請求頻率。請稍後再試。";
+"MiMo request failed. Try refreshing later." = "MiMo 請求失敗。請稍後嘗試重新整理。";
+"Skip cost refresh" = "略過費用重新整理";

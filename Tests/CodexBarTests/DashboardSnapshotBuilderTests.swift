@@ -861,7 +861,7 @@ struct DashboardSnapshotBuilderTests {
         #expect(projected.last30DaysIncompleteRequestCount == nil)
     }
 
-    private func identityPayload(email: String) -> ProviderPayload {
+    private func identityPayload(email: String, primary: RateWindow? = nil) -> ProviderPayload {
         ProviderPayload(
             provider: .claude,
             account: nil,
@@ -869,7 +869,7 @@ struct DashboardSnapshotBuilderTests {
             source: "web",
             status: nil,
             usage: UsageSnapshot(
-                primary: nil,
+                primary: primary,
                 secondary: nil,
                 tertiary: nil,
                 updatedAt: Date(timeIntervalSince1970: 0),
@@ -941,6 +941,81 @@ struct DashboardSnapshotBuilderTests {
         let json = try #require(CodexBarCLI.encodeJSON(payload, pretty: false))
         let data = try #require(json.data(using: .utf8))
         return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+}
+
+extension DashboardSnapshotBuilderTests {
+    @Test(arguments: [DashboardIdentityMode.full, .redacted, .none])
+    func `partial model warning never exports provider notice text`(identityMode: DashboardIdentityMode) throws {
+        let privateNotice = "rate limited for private@example.test in /Users/private/workspace"
+        let usage = try UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 40, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            details: [ProviderDetailSection(rows: [
+                ProviderDetailSection.Row(
+                    id: ClaudeStatusProbe.modelBreakdownDetailRowID, label: "Status", value: privateNotice),
+            ])],
+            updatedAt: Date(timeIntervalSince1970: 0))
+        let payload = ProviderPayload(
+            provider: .claude,
+            account: nil,
+            version: nil,
+            source: "cli",
+            status: nil,
+            usage: usage,
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [payload],
+            costPayloads: [],
+            config: CodexBarConfig(providers: []),
+            identityMode: identityMode,
+            generatedAt: Date(timeIntervalSince1970: 0),
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let row = try #require(snapshot.providers.first)
+        #expect(row.warnings == [.modelBreakdownUnavailable])
+        #expect(row.windows.map(\.usedPercent) == [25, 40])
+        #expect(row.error == nil)
+        let json = try #require(String(data: JSONEncoder().encode(snapshot), encoding: .utf8))
+        #expect(json.contains("model-breakdown-unavailable"))
+        #expect(!json.contains(privateNotice))
+        #expect(!json.contains("private@example.test"))
+        #expect(!json.contains("/Users/private"))
+    }
+}
+
+extension DashboardSnapshotBuilderTests {
+    @Test
+    func `quota only dashboard never invokes cost collection`() async throws {
+        let recorder = DashboardCostConfigRecorder()
+        let usage = self.identityPayload(
+            email: "synthetic@example.com",
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil))
+        let producer = DashboardSnapshotProducer(
+            collectUsage: { _ in
+                var output = UsageCommandOutput()
+                output.payload = [usage]
+                return output
+            },
+            collectCost: { providers, config in
+                await recorder.record(providers: providers, config: config)
+                return []
+            },
+            now: { Date(timeIntervalSince1970: 1_800_000_000) })
+
+        let result = try await producer.collect(
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            refreshInterval: 0,
+            codexBarVersion: "0.0.0-test",
+            includeCost: false)
+
+        #expect(await recorder.call() == nil)
+        #expect(result.payload.providers.first?.windows.isEmpty == false)
+        #expect(result.payload.providers.first?.cost == nil)
     }
 }
 

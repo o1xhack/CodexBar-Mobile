@@ -85,7 +85,8 @@ struct CodexBarAccountTimelineProvider: AppIntentTimelineProvider {
             return self.placeholder(in: context)
         }
         return Self.makeEntry(
-            snapshot: WidgetSnapshotStore.load() ?? WidgetPreviewData.emptySnapshot(),
+            snapshot: WidgetSnapshotStore.load(provider: configuration.provider.provider) ?? WidgetPreviewData
+                .emptySnapshot(),
             provider: configuration.provider.provider,
             accountID: configuration.account?.id,
             now: Date())
@@ -96,7 +97,8 @@ struct CodexBarAccountTimelineProvider: AppIntentTimelineProvider {
         in context: Context) async -> Timeline<CodexBarAccountWidgetEntry>
     {
         let entry = Self.makeEntry(
-            snapshot: WidgetSnapshotStore.load() ?? WidgetPreviewData.emptySnapshot(),
+            snapshot: WidgetSnapshotStore.load(provider: configuration.provider.provider) ?? WidgetPreviewData
+                .emptySnapshot(),
             provider: configuration.provider.provider,
             accountID: configuration.account?.id,
             now: Date())
@@ -305,7 +307,11 @@ struct AccountsOverviewTile: View {
                 }
             }
             if self.family == .systemLarge, remaining != nil {
-                QuotaBar(percent: displayed, color: WidgetColors.color(for: self.entry.provider.instanceID), height: 3)
+                QuotaBar(
+                    percent: displayed,
+                    color: WidgetColors.color(for: self.entry.provider.instanceID),
+                    isLow: QuotaSeverity.isLow(remaining: remaining),
+                    height: 3)
             }
         }
     }

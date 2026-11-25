@@ -161,13 +161,15 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      above. This keeps billing visible when
      `grok agent stdio` returns `Method not found`.
 5) **Local session signals** (informational fallback)
-   - Quota fetches scan `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` for the last 30 local calendar days,
-     including today. Files dated outside that window are excluded so daily buckets and aggregate totals agree.
-   - Discovery stops at each session directory and reads only its direct `signals.json`; artifact subtrees are not
-     traversed, and nested signal files do not count as sessions. Quota enrichment and billing-failure fallback share
-     this bounded scan.
-   - Aggregates `totalTokensBeforeCompaction`, `contextTokensUsed`, `modelsUsed`,
-     and the most recent session timestamp.
+   - Quota fetches scan `~/.grok/sessions/<encoded-cwd>/<session-id>/` for the last 30 local calendar days,
+     including today. Turns and files dated outside that window are excluded so daily buckets and aggregate totals agree.
+   - Discovery stops at each session directory and reads only its direct `usage.json` and `signals.json`; artifact
+     subtrees are not traversed, and nested files do not count as sessions. Quota enrichment and billing-failure
+     fallback share this bounded scan.
+   - `usage.json` is preferred because it records every turn: each turn's `totalTokens` and models count on the day
+     of its `endedAt`. Its `costUsdTicks` is not read, so Grok still shows no dollars.
+   - Without a readable `usage.json`, the session falls back to `signals.json`: `totalTokensBeforeCompaction`,
+     `contextTokensUsed`, `modelsUsed`, and its modification time. That figure undercounts sessions that compacted.
 
 ## OAuth credentials
 
@@ -346,6 +348,11 @@ remain token-only; they do not establish completed-turn counts or dollar spend.
 Grok quota icons show a visor and twin antennae in both single- and two-meter layouts.
 Enable **Hide Critters** to use plain quota bars. Status badges retain their normal placement.
 
+Weekly reset celebrations, hooks, and notifications require a high-to-low usage crossing after the previously
+observed weekly boundary has elapsed, with a later boundary that has not already been announced. Transient zero
+readings before rollover do not count. The detector keeps confirmed periods across refreshes and restarts, while
+allowing an unconfirmed initial or legacy boundary to recover from a transient reading.
+
 ## Status
 
 xAI has not exposed a Statuspage-style status feed yet. The "View Status" link
@@ -375,3 +382,7 @@ from the included quota; the balance-only snapshot has neutral `used`/`limit` va
 does not infer a spending limit, consumed amount, or reset period.
 
 Unit contract: [official Grok billing source](https://github.com/xai-org/grok-build/blob/2bdd1d6a6369de0e8c68132ea4539e9abd9e14a8/crates/codegen/xai-grok-shell/src/extensions/billing.rs).
+
+The menu bar layout **Balance** element displays this reported prepaid wallet alongside the weekly quota.
+It follows **Show optional credits and extra usage**, including for a retained snapshot. Reported zero remains
+`$0.00`; missing balance stays unavailable. Automatic percentage text continues to show the subscription quota.

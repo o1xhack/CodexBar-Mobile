@@ -256,7 +256,6 @@ struct CostHistoryChartMenuView: View {
                             Text(L("Refreshing"))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                                .accessibilityLabel(L("Refreshing"))
                         }
                         Spacer(minLength: 0)
                         if availableMetrics.count > 1 {
@@ -329,6 +328,7 @@ struct CostHistoryChartMenuView: View {
                                     .frame(height: model.detailRowHeight, alignment: .leading)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .scrollIndicators(
                             Self.detailRowsNeedScrolling(itemCount: detail.rows.count) ? .visible : .hidden)
@@ -1277,6 +1277,12 @@ extension CostHistoryChartMenuView {
         let models: [VisibleModelBreakdownFingerprint]
     }
 
+    /// Providers whose local session ledgers publish project and conversation rows.
+    nonisolated static func showsLocalBreakdowns(provider: UsageProvider) -> Bool {
+        // Provider-specific by design: only Codex, Claude, and Pi session ledgers carry project/session rows.
+        provider == .codex || provider == .claude || provider == .pi
+    }
+
     static func renderFingerprint(
         from snapshot: CostUsageTokenSnapshot,
         provider: UsageProvider,
@@ -1284,8 +1290,9 @@ extension CostHistoryChartMenuView {
         displayCurrencyCode: String? = nil,
         displayCostMultiplier: Double = 1.0) -> RenderFingerprint
     {
-        let projects = provider == .codex ? snapshot.projects : []
-        let sessions = provider == .codex ? snapshot.sessions : []
+        let showsBreakdowns = Self.showsLocalBreakdowns(provider: provider)
+        let projects = showsBreakdowns ? snapshot.projects : []
+        let sessions = showsBreakdowns ? snapshot.sessions : []
         return RenderFingerprint(
             hidePersonalInfo: hidePersonalInfo,
             currencyCode: displayCurrencyCode ?? snapshot.currencyCode,

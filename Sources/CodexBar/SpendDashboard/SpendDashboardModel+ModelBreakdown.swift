@@ -4,8 +4,13 @@ import Foundation
 /// Per-model breakdown aggregation and the completeness policy that decides whether
 /// model rows are trustworthy enough to display, rank, or retain as a partial view.
 extension SpendDashboardModel {
+    enum ModelHistoryCompleteness: Equatable, Sendable {
+        case complete
+        case incomplete
+    }
+
     private struct ModelKey: Hashable {
-        let provider: UsageProvider
+        let provider: ProviderInstanceID
         let modelName: String
     }
 
@@ -26,15 +31,27 @@ extension SpendDashboardModel {
     struct ModelSummary {
         let rows: [ModelRow]
         let completeness: ModelHistoryCompleteness
+        let tokenAttributionCompleteness: ModelHistoryCompleteness
+
+        func tokenCompleteness(retained: Int, scoped: [InputSummary]) -> ModelHistoryCompleteness {
+            retained == scoped.count && self.tokenAttributionCompleteness == .complete &&
+                !scoped.contains(where: \.historyScanIsPartial) ? .complete : .incomplete
+        }
     }
 
     static func modelSummary(summaries: [InputSummary]) -> ModelSummary {
         var aggregates: [ModelKey: ModelAccumulator] = [:]
         var completeness = ModelHistoryCompleteness.complete
+        var tokenAttributionCompleteness = ModelHistoryCompleteness.complete
         for summary in summaries {
             let input = summary.input
             let hasCompleteTokenHistory = summary.totalTokens != nil && summary.entries.allSatisfy {
                 Self.hasCompleteModelTokenCoverage($0.entry) || $0.entry.incompleteRequestCount > 0
+            }
+            if summary.totalTokens == nil || !summary.entries.allSatisfy({
+                Self.hasCompleteModelTokenCoverage($0.entry)
+            }) {
+                tokenAttributionCompleteness = .incomplete
             }
             for windowEntry in summary.entries {
                 let entry = windowEntry.entry
@@ -96,6 +113,12 @@ extension SpendDashboardModel {
             completeness = .incomplete
         }
 
+        if aggregates.values.contains(where: {
+            !$0.sawTokens || $0.invalidTokens || $0.overflowedTokens || $0.tokens == nil
+        }) {
+            tokenAttributionCompleteness = .incomplete
+        }
+
         let rows = aggregates.map { key, value in
             ModelRow(
                 rank: 0,
@@ -131,7 +154,10 @@ extension SpendDashboardModel {
                 tokenMix: row.tokenMix,
                 incompleteRequestCount: row.incompleteRequestCount)
         }
-        return ModelSummary(rows: rows, completeness: completeness)
+        return ModelSummary(
+            rows: rows,
+            completeness: completeness,
+            tokenAttributionCompleteness: tokenAttributionCompleteness)
     }
 
     static func canRetainPartialCodexModelHistory(_ summary: InputSummary) -> Bool {
@@ -256,7 +282,7 @@ extension SpendDashboardModel {
 
     /// Provider-specific by design: Cursor usage events can omit totalCents without voiding priced rows.
     static func hasExplicitlyUnpriceableLedgerCost(
-        _ provider: UsageProvider,
+        _ provider: ProviderInstanceID,
         _ entry: CostUsageDailyReport.Entry) -> Bool
     {
         switch provider {

@@ -7,13 +7,11 @@ extension StatusItemController {
         captureMenu: NSMenu,
         context: MenuCardContext)
     {
+        defer { self.addAccountAgnosticCostMenuSection(to: menu, context: context) }
         let accounts = self.store.claudeSwapAccountSnapshots
-        let display = ClaudeSwapAccountMenuDisplay(
-            accounts: accounts,
-            layout: self.settings.multiAccountMenuLayout,
-            switchingAccountID: self.store.claudeSwapTransientState.switchingAccountID,
-            errorAccountID: self.store.claudeSwapTransientState.lastErrorAccountID,
-            inspectedAccountID: self.claudeSwapInspectedAccountID)
+        guard let display = self.store.claudeSwapMenuDisplay(
+            for: .claude, inspectedAccountID: self.claudeSwapInspectedAccountID)
+        else { return }
         // tcr picks the account for each request, so it never switches and never reports an active account.
         // Keyed on the rows being drawn, not the setting, so a list read before a source change keeps its wording.
         let readsFromTcr = accounts.contains { ClaudeSwapAccountSource(identitySource: $0.id.source) == .tcr }
@@ -138,40 +136,30 @@ extension StatusItemController {
         captureMenu: NSMenu,
         context: MenuCardContext)
     {
-        let cardRows = accounts.compactMap { account ->
-            (account: ProviderAccountUsageSnapshot, model: UsageMenuCardView.Model)? in
-            guard let model = self.claudeSwapCardModel(for: account) else { return nil }
-            return (account, model)
-        }
         self.addStackedMenuCards(
-            cardRows.map(\.model),
+            accounts.map { self.claudeSwapCardModel(for: $0) },
             to: menu,
             context: context,
             planAction: { [weak self] index in
-                guard cardRows.indices.contains(index) else { return nil }
-                return self?.claudeSwapAccountSwitchAction(cardRows[index].account, menu: captureMenu)
+                self?.claudeSwapAccountSwitchAction(accounts[index], menu: captureMenu)
             })
     }
 
-    private func claudeSwapCardModel(for account: ProviderAccountUsageSnapshot) -> UsageMenuCardView.Model? {
-        self.menuCardModel(
+    private func claudeSwapCardModel(for account: ProviderAccountUsageSnapshot) -> UsageMenuCardView.Model {
+        self.store.menuCardModel(
             for: .claude,
             context: ClaudeSwapAccountMenuDisplay.cardContext(
                 for: account,
-                planLabel: self.claudeSwapAccountActionLabel(account),
+                planLabel: ClaudeSwapAccountMenuDisplay.actionLabel(
+                    for: account,
+                    switchingAccountID: self.store.claudeSwapTransientState.switchingAccountID,
+                    switchInFlight: self.store.claudeSwapTransientState.task != nil,
+                    switchPhase: self.store.claudeSwapTransientState.switchPhase),
                 adapterError: self.store.claudeSwapLastError,
                 switchError: self.store.claudeSwapTransientState.lastErrorAccountID == account.id
                     ? self.store.claudeSwapTransientState.lastError
                     : nil,
                 historySelection: self.store.claudeSwapPlanUtilizationHistorySelection(for: account)))
-    }
-
-    private func claudeSwapAccountActionLabel(_ account: ProviderAccountUsageSnapshot) -> String? {
-        ClaudeSwapAccountMenuDisplay.actionLabel(
-            for: account,
-            switchingAccountID: self.store.claudeSwapTransientState.switchingAccountID,
-            switchInFlight: self.store.claudeSwapTransientState.task != nil,
-            switchPhase: self.store.claudeSwapTransientState.switchPhase)
     }
 
     func claudeSwapAccountSwitchAction(

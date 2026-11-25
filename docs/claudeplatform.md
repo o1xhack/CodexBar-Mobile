@@ -33,6 +33,32 @@ Why cookies: the Anthropic Admin API (`sk-ant-admin…`) is unavailable for indi
 API keys cannot read billing. The Console session is the only credential that can read an individual organization's
 balance.
 
+### Validated CLI import and renewal
+
+Sign in normally at <https://platform.claude.com>, then obtain a Cookie request header containing `sessionKey`.
+Pipe the single-line header privately into:
+
+```bash
+codexbar config login --provider claudeplatform --stdin --json
+```
+
+The `claude-platform` alias works identically. The command reads stdin until EOF; it accepts no cookie-bearing
+command-line option and never opens a browser or reads browser stores. It validates only the supplied candidate
+through the bundled provider in web/manual mode, without using existing config cookies, environment credentials,
+or cached usage. Validation uses the organization-selection rules below: the first readable API organization wins.
+A valid zero balance succeeds; optional spend failure does not reject an otherwise valid session.
+
+After validation, the command privately saves the header, selects Manual, and enables Claude Platform. It preserves
+unrelated settings and accounts. Invalid sessions, required-request failures, cancellation, concurrent config edits,
+and write failures keep the current config unchanged. JSON success is `{"status":"authorized"}`; validation or
+storage failure returns `{"status":"failed","error":"..."}` and a nonzero exit code. Input errors use the normal
+CLI argument-error envelope. The cookie and upstream response bodies are never printed.
+
+Then run `codexbar usage --provider claudeplatform --source web --json`. Repeat the import with a fresh header when
+the Console session expires. There is no supported refresh-token exchange for these cookies; human sign-in may be
+required again. Scheduled usage never starts login or reads stdin. The existing `config set-cookie` command remains
+available for storage without validation.
+
 ## Data
 
 These are undocumented Console endpoints used by the platform.claude.com billing page, so they may change without
@@ -58,8 +84,8 @@ The menu card shows:
   the menu bar falls back to purchased credit.
 - **Purchased credit**: the soonest-expiring purchased grant that still has credit (or, when all are exhausted, the
   soonest one), in the same format.
-- **Other credit grants**: every other unexpired grant, including exhausted subscription grants, with its own amounts
-  and expiry.
+- **Other credit grants**: other unexpired grants, including exhausted subscription grants, with amounts and expiry.
+  The list shows at most 24 entries in expiry order; the reported total wallet balance is unchanged.
 - **Prepaid credits**: the total balance, which the menu bar **Balance** element also shows.
 - **Billing**: **This month (UTC)** with month-to-date spend, or **Spend: Unavailable**.
 

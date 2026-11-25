@@ -58,6 +58,19 @@ Project scoping is tied to the configured Admin API key. Selected OpenAI token a
 API failures with a configured Admin key or `OPENAI_ADMIN_KEY` do not fall back to the legacy billing endpoint, because
 that endpoint is not project-filtered. The legacy `OPENAI_API_KEY` environment path retains its existing balance fallback.
 
+For the legacy balance fallback, an optional `OPENAI_ORGANIZATION_ID` selects the organization sent in the
+`OpenAI-Organization` header. Configure it under the OpenAI provider's `pluginSettings`:
+
+```json
+{"id": "openai", "pluginSettings": {"OPENAI_ORGANIZATION_ID": "org-..."}}
+```
+
+The saved setting takes precedence over environment values. Without it, `OPENAI_ORGANIZATION_ID` takes precedence
+over the SDK alias `OPENAI_ORG_ID`; blank values are ignored. Only the legacy balance request receives this header:
+Admin API costs, usage, live usage, and project requests retain their existing credential scope. Selected token
+accounts clear both organization environment keys and do not inherit the provider's configured organization,
+matching project isolation. With no organization setting, the balance endpoint uses its existing default behavior.
+
 ## Menu display
 
 - Admin API data renders a **Tokens / min · last hour** chart above the daily spend dashboard, with the latest reported minute, peak, and (when configured) the highest manual org-limit utilization across all models. Pending minutes are shaded. Click **Live Usage…** to open the detailed window.
@@ -66,7 +79,7 @@ that endpoint is not project-filtered. The legacy `OPENAI_API_KEY` environment p
 - Daily Admin API data renders inline Today/7d/configured-window KPIs plus a compact spend chart.
 - The inline usage card opens a hosted chart submenu with daily spend, token, and request trends plus selected-day detail.
 - Top model and top spend labels come from the configured completion/cost buckets when the Admin API returns them.
-- Legacy balance data keeps the older available/used credit summary and does not show organization graphs.
+- Legacy balance data keeps the older available/used credit summary and does not show organization graphs. The already reported available amount is also exported as `usage.providerCost.balance` in API snapshots; this aggregate does not identify subscription grants or add another authentication source.
 - Project-scoped Admin API data labels the account as `Admin API: <project>` and the organization line as
   `Project: <project>`.
 
@@ -86,8 +99,9 @@ the daily card can fall back to a legacy balance. Credentials and optional `proj
 and selected-account rules as the daily view.
 
 While open, the window polls every 30 seconds and supports Refresh (⌘R). Rate limiting doubles the polling interval
-up to 5 minutes; a successful fetch restores 30 seconds. Closing the window stops polling. Failed requests keep the
-last successful snapshot visible with an inline error. The data is near-realtime: buckets commonly arrive 2–3 minutes late.
+up to 5 minutes; a successful fetch restores 30 seconds. Closing the window stops polling and pauses its
+display clocks; reopening resumes them. Failed requests keep the last successful snapshot visible with an inline error.
+The data is near-realtime: buckets commonly arrive 2–3 minutes late.
 **Latest** shows the newest complete minute with any reported tokens across all models, searched within the last
 10 complete minutes. Its timestamp identifies that reporting frontier; the five-minute average ends there too.
 Selecting a model keeps the same frontier, so a model idle at that minute correctly shows zero. If all ten minutes

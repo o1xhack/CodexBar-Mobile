@@ -1303,7 +1303,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=...\n\nили вставьте только значение session_id";
 "Clear" = "Очистить";
 "No matching providers" = "Нет подходящих провайдеров";
-"Search providers" = "Поиск провайдеров";
+"No matching settings or providers" = "Нет подходящих настроек или провайдеров";
+"Search settings" = "Поиск в настройках";
 
 "language_vietnamese" = "Tiếng Việt";
 "language_indonesian" = "Bahasa Indonesia";
@@ -1644,7 +1645,7 @@
 "7-day usage" = "Использование за 7 дней";
 "Total usage" = "Общее использование";
 "claude_oauth_keychain_access_disabled" = "Доступ к Keychain отключён, поэтому CodexBar не может прочитать данные входа в Claude.";
-"claude_oauth_keychain_access_revoked" = "Доступ к Связке ключей Claude был отозван из-за ротации токена в Claude Code. Нажмите «Обновить», чтобы повторно предоставить доступ, или переключите источник использования Claude на CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Учётные данные OAuth Claude сейчас недоступны для CodexBar. Нажмите «Обновить», чтобы повторить попытку доступа, или переключите источник использования Claude на CLI/Web.";
 "claude_showing_last_known_usage" = "Показаны последние известные данные об использовании (получены %@).";
 "claude_limited_usage_detail" = "Ограниченная детализация использования";
 /* Spend dashboard cost analysis */
@@ -1831,7 +1832,7 @@
 "Automatic imports longcat.chat cookies from your browser." = "Автоматический импорт longcat.chat cookies из вашего браузера.";
 "Automatically imports browser cookies for budget extras." = "Автоматически импортирует браузер cookies для бюджетных дополнительных возможностей.";
 "Automatically imports browser cookies for github.com budget extras." = "Автоматически импортирует браузер cookies для бюджетных дополнений github.com.";
-"Automatically imports the app.devin.ai session from Chromium browsers." = "Автоматически импортирует сеанс app.devin.ai из браузеров Chromium.";
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Автоматически импортирует сеанс app.devin.ai из приложения Devin или браузеров Chromium.";
 "Automatically imports the browser session cookie." = "Автоматически импортирует сеанс браузера cookie.";
 "Automatically signs in using your ZoomMate session cookies from Chrome." = "Автоматический вход в систему с использованием сеанса ZoomMate cookies из Chrome.";
 "BY USAGE" = "Рейтинг по использованию";
@@ -2880,3 +2881,81 @@
 "Leave blank to use the default name." = "Оставьте поле пустым, чтобы использовать имя по умолчанию.";
 "Rewards" = "Награды";
 "Reward expiry" = "Срок действия наград";
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "По умолчанию — Китай (CNY). Международные аккаунты используют https://api.siliconflow.com (USD).";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "Адрес API SiliconFlow должен быть https://api.siliconflow.cn или https://api.siliconflow.com.";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow отклонил запрос баланса. Проверьте баланс в консоли SiliconFlow.";
+
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "Показывать использование SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow ограничивает частоту запросов. Повторите попытку позже.";
+"SiliconFlow request failed. Try refreshing later." = "Запрос к SiliconFlow не выполнен. Попробуйте обновить позже.";
+"SiliconFlow returned an unrecognized response. Update CodexBar and try again." = "SiliconFlow вернул неизвестный ответ. Обновите CodexBar и повторите попытку.";
+"Sign in to cloud.siliconflow.cn in your browser, then refresh CodexBar." = "Войдите в cloud.siliconflow.cn в браузере, затем обновите CodexBar.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API баланса SiliconFlow для Китая отключён. Выберите источник Веб для SiliconFlow и войдите в cloud.siliconflow.cn.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow отказал в доступе к балансу консоли (HTTP 403). Откройте cloud.siliconflow.cn, убедитесь, что этой учётной записи доступен биллинг, затем обновите.";
+"Claude Platform session validated and saved." = "Сеанс Claude Platform проверен и сохранён.";
+"Use %@ or %@." = "Используйте %@ или %@.";
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Войдите на %@. Конфиденциально передайте заголовок Cookie с sessionKey в %@. Затем выполните %@.";
+"Read cookie header from stdin" = "Читать заголовок Cookie из stdin";
+"User-Agent" = "User-Agent";
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Необязательно. Вставьте значение User-Agent из того же запроса, что и заголовок Cookie.";
+"Paste the WorkBuddy User-Agent as a single request header value." = "Вставьте User-Agent WorkBuddy как одно значение заголовка запроса.";
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "Не удалось прочитать сводку платежей TypeSafe. Откройте https://console.typesafe.ai/billing, чтобы проверить доступ. Если страница открывается, сообщите об ошибке интеграции.";
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Файлы cookie сеанса TypeSafe не найдены. Войдите на console.typesafe.ai/billing или вставьте заголовок Cookie.";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "Показывать использование Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo ограничивает частоту запросов. Повторите попытку позже.";
+"Tripo request failed. Try refreshing later." = "Запрос к Tripo не выполнен. Попробуйте обновить позже.";
+"Tripo returned an unrecognized response. Update CodexBar and try again." = "Tripo вернул неизвестный ответ. Обновите CodexBar и повторите попытку.";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "Подтвердите код устройства GitHub, чтобы сохранить учётную запись с токеном Copilot.";
+"Supply a GitHub token accepted by the Copilot usage API." = "Укажите токен GitHub, принимаемый API использования Copilot.";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "Необязательные бюджеты без гарантий, только для публичного github.com. Включите дополнения бюджета в приложении macOS; сеанс браузера должен соответствовать учётной записи токена. Для квот cookie не нужны.";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "В приложении macOS выберите ручной источник cookie и укажите соответствующий заголовок Cookie GitHub.";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "Войдите в GitHub в поддерживаемом браузере и выберите автоматический импорт cookie в приложении macOS.";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Используйте ключ Admin API организации для её расходов и использования. Ключи проектов и служебных учётных записей не могут читать эти конечные точки.";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Обычный ключ API поддерживает лишь резервное получение прежнего баланса без гарантий, но не использования организации. Настроенные ключи с ограничением по проекту не используют этот вариант.";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Укажите ключ, HTTPS-адрес ресурса и имя развёртывания. Версия API необязательна. Обновление отправляет потенциально платный запрос проверки, а не запрос истории использования.";
+"Mistral session expired or invalid." = "Срок действия сеанса Mistral истёк или сеанс недействителен.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Команда считывает ключ API, переданный через канал, и сохраняет его как отдельный ключ. Выбранная учётная запись с токеном API имеет приоритет над отдельным ключом.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Для просмотра использования подписки используйте ключ API с разрешением user_read. Команда сохраняет отдельный ключ; выбранная учетная запись ключа API имеет приоритет.";
+"Web" = "Веб";
+"Credits per million tokens" = "Кредиты за миллион токенов";
+"Paused during grace period" = "Приостановлено на время льготного периода";
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program показывает текущий ежемесячный кредит Cloud, а не локальную историю стоимости токенов.";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "Вставьте заголовок Cookie с me.developers.google.com из аккаунта Google, в который выполнен вход.";
+"Billing account" = "Платёжный аккаунт";
+"Granted" = "Предоставлено";
+"Not applied" = "Не применено";
+"%@ of %@ left" = "Осталось %@ из %@";
+"No Cloud credit found. Check your Google Developer Program benefits." = "Кредиты Cloud не найдены. Проверьте свои преимущества Google Developer Program.";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "Сеанс браузера";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program ограничивает частоту запросов. Повторите попытку позже.";
+"Google Developer Program request failed. Try refreshing later." = "Запрос к Google Developer Program не выполнен. Попробуйте обновить позже.";
+"Google Developer Program returned an unrecognized response. Update CodexBar and try again." = "Google Developer Program вернул неизвестный ответ. Обновите CodexBar и повторите попытку.";
+"Google session expired or invalid." = "Срок действия сеанса Google истёк или сеанс недействителен.";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Файлы cookie сеанса Google Developer Program не найдены. Войдите на me.developers.google.com/benefits или вставьте заголовок Cookie.";
+
+"Enterprise" = "Enterprise";
+"Personal credits" = "Личные кредиты";
+"Standard remaining" = "Остаток Standard";
+"Select remaining" = "Остаток Select";
+"Remaining credits" = "Оставшиеся кредиты";
+"Notion Credits" = "Кредиты Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage for the selected workspace in Notion, then refresh CodexBar again." = "Notion не предоставил доступные личные лимиты ИИ для этого рабочего пространства. Проверьте использование ИИ для выбранного рабочего пространства в Notion, затем обновите CodexBar ещё раз.";
+"Select" = "Select";
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Показывать использование TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter ограничивает частоту запросов. Повторите попытку позже.";
+"TrustedRouter request failed. Try refreshing later." = "Запрос к TrustedRouter не выполнен. Попробуйте обновить позже.";
+"TrustedRouter returned an unrecognized response. Update CodexBar and try again." = "TrustedRouter вернул неизвестный ответ. Обновите CodexBar и повторите попытку.";
+"MiMo returned an unrecognized response. Update CodexBar and try again." = "MiMo вернул неизвестный ответ. Обновите CodexBar и повторите попытку.";
+"China mainland" = "Материковый Китай";
+"Singapore" = "Сингапур";
+"MiMo is rate limiting requests. Try again later." = "MiMo ограничивает частоту запросов. Повторите попытку позже.";
+"MiMo request failed. Try refreshing later." = "Запрос к MiMo не выполнен. Попробуйте обновить позже.";
+"Skip cost refresh" = "Пропустить обновление стоимости";

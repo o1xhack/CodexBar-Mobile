@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-CodexBar currently registers 111 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+CodexBar currently registers 115 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -123,7 +123,7 @@ complete when the available scan window covers fewer days.
 | Synthetic | API key from config/env → quota API (`api`). |
 | OpenRouter | API token (config, overrides env) → key quota and credits APIs; a management key enables account Activity on the official API (`api`). |
 | Perplexity | Browser cookies/manual cookie/env session token → credits API (`web`). |
-| Xiaomi MiMo | Browser cookies → balance/token plan endpoints (`web`). |
+| Xiaomi MiMo | Token Plan API key (`api`), or browser cookies → balance/token plan endpoints (`web`). |
 | Doubao | API key from config/env → Volcengine Ark chat-completions probe (`api`). |
 | Sakana AI | Manual Cookie header → billing page parser for 5-hour/weekly quota windows plus a best-effort pay-as-you-go credit balance (`web`). |
 | Abacus AI | Browser cookies → compute points + billing API (`web`). |
@@ -156,7 +156,7 @@ complete when the available scan window covers fewer days.
 | Poe | API key → current point balance and best-effort points history (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
 | Neuralwatt | API key from config/env → `/v1/quota` subscription kWh usage and prepaid balance (`api`). |
-| Helmcode | Browser or manual dashboard cookies → tenant-scoped model quotas, explicit premium rolling tiers, and Cloud-only prepaid balance (`web`). |
+| Helmcode | Browser or manual dashboard cookies → tenant-scoped credit plans or model quotas, explicit premium rolling tiers, and Cloud-only prepaid balance (`web`). |
 | [ZenMux](zenmux.md) | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
 | ai& | API key from config/env → 30-day organization spend summed from the request logs API (`api`). |
 | xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
@@ -165,6 +165,8 @@ complete when the available scan window covers fewer days.
 | [IBM Bob](ibm-bob.md) | API key from config/env → profile and per-team Bobcoin budget APIs (`api`). |
 | [Pi](pi.md) | Local Pi/OMP assistant transcripts → token history and API-rate cost estimates (`local`); no subscription quota. |
 <!-- Generated provider additions: Scripts/regenerate-provider-docs.mjs -->
+
+Additional providers, generated from each provider's documentation:
 
 | Provider | Source |
 |---|---|
@@ -191,6 +193,10 @@ complete when the available scan window covers fewer days.
 | [Chatbox AI](chatbox.md) | License key for plan points, reward credits, top-up credits, and image quotas. |
 | [abliteration.ai](abliteration.md) | API key for prepaid USD credits and cumulative usage. |
 | [OpenDesign](opendesign.md) | Browser or manual session cookies for the active workspace's five-hour and weekly subscription allowance. |
+| [SiliconFlow](siliconflow.md) | API key in Auto/API; explicit Web for the China (CNY) console balance. International API balances use USD. |
+| [Tripo](tripo.md) | API key for available and reserved account credits from the official account balance endpoint. |
+| [Google Developer Program](googledeveloper.md) | Browser or manual me.developers.google.com session cookies for the current monthly Gen AI & Cloud credit of Google AI Pro and Ultra. |
+| [TrustedRouter](trustedrouter.md) | API key for the key's remaining limit and daily, weekly, monthly, and total spend. |
 
 <!-- End generated provider additions -->
 
@@ -497,8 +503,9 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 
 ## Synthetic
 - API key from `~/.codexbar/config.json` (`providers[].apiKey`) or `SYNTHETIC_API_KEY`.
-- The menu card shows rolling five-hour, weekly token, and search-hourly quota lanes when present. The compact menu bar
-  metric uses the five-hour or weekly lane; weekly credit regeneration details appear when returned.
+- The menu card shows weekly credit and search-hourly quota lanes for current plans, including weekly regeneration
+  details when returned. Older plans can also supply a rolling five-hour quota. Known lanes suppress the legacy
+  subscription request counter; a subscription-only response remains supported.
 - External status page: `https://status.synthetic.new` (not linked or auto-polled by CodexBar).
 - Details: `docs/synthetic.md`.
 
@@ -518,6 +525,7 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Details: `docs/perplexity.md`.
 
 ## Xiaomi MiMo
+- Dedicated Token Plan API keys read quota from the selected mainland China or Singapore endpoint on macOS and Linux.
 - Browser cookies from automatic import or manual `Cookie:` header for `platform.xiaomimimo.com` balance and token-plan endpoints.
 - Optional testing override via `MIMO_API_URL`; overrides must be HTTPS or bare hosts normalized to HTTPS, and invalid
   overrides fail closed instead of falling back to local MiMo usage accounting.
@@ -773,7 +781,10 @@ failures. Authentication failures and invalidated account scopes do not restore 
 
 ## Helmcode
 
-[Helmcode](helmcode.md) reads model quotas from a browser dashboard session for Helmcode Cloud or NaN Builders. Cloud is preferred when both tenants are signed in; Manual cookie source uses the selected tenant. Prepaid balance is Cloud-only.
+[Helmcode](helmcode.md) reads model quotas from a browser dashboard session for Helmcode Cloud or NaN Builders. A
+tenant that meters inference in credits reports its plan instead: one **Credits** window for the allowance, with each
+model's weight as detail. Cloud is preferred when both tenants are signed in; Manual cookie source uses the selected
+tenant. Prepaid balance is Cloud-only.
 
 ## GitKraken AI
 

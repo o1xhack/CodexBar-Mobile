@@ -400,14 +400,22 @@ final class SummaryTabUITests: XCTestCase {
                 self.scroll(list, viewport: viewport, upward: row.frame.midY > viewport.midY)
                 continue
             }
-            let preceding = list.cells.allElementsBoundByIndex.filter {
-                $0.isHittable && $0.frame.minY >= viewport.minY && $0.frame.maxY <= viewport.maxY
-                    && $0.frame.minY < row.frame.minY - 1
+            // The first row can start exactly at the sheet header's bottom.
+            // Require a visible drop point in its upper half, even if the
+            // viewport's gesture margin clips a few points from the row itself.
+            let preceding = list.cells.allElementsBoundByIndex.compactMap { cell
+                -> (cell: XCUIElement, frame: CGRect, dropY: CGFloat)? in
+                let frame = cell.frame
+                let dropY = max(frame.minY + frame.height * 0.1, viewport.minY + 1)
+                guard cell.isHittable, frame.minY < row.frame.minY - 1,
+                      dropY < frame.midY, dropY < viewport.maxY
+                else { return nil }
+                return (cell, frame, dropY)
             }
             if let target = preceding.min(by: { $0.frame.minY < $1.frame.minY }) {
-                row.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
-                    .press(forDuration: 0.7, thenDragTo: target.coordinate(
-                        withNormalizedOffset: CGVector(dx: 0.95, dy: 0.1)))
+                row.coordinate(withNormalizedOffset: CGVector(dx: 0.91, dy: 0.5))
+                    .press(forDuration: 0.7, thenDragTo: target.cell.coordinate(withNormalizedOffset: CGVector(
+                        dx: 0.91, dy: (target.dropY - target.frame.minY) / target.frame.height)))
                 hasMovedModuleUp = true
             } else {
                 self.scroll(list, viewport: viewport, upward: false)

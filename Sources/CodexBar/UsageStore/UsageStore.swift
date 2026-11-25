@@ -264,6 +264,8 @@ final class UsageStore {
     @ObservationIgnored var lastOpenAIDashboardCookieImportEmail: String?
     @ObservationIgnored var lastCodexAccountScopedRefreshGuard: CodexAccountScopedRefreshGuard?
     @ObservationIgnored var lastCodexUsagePublicationGuard: CodexAccountScopedRefreshGuard?
+    @ObservationIgnored var codexWeeklyResetFollowUps:
+        [String: (createdAt: Date, task: Task<Void, Never>)] = [:]
     @ObservationIgnored var lastKnownLiveSystemCodexEmail: String?
     @ObservationIgnored var openAIWebAccountDidChange: Bool = false
     @ObservationIgnored var creditsRefreshTask: Task<Void, Never>?
@@ -358,6 +360,7 @@ final class UsageStore {
         TimeInterval) async throws -> Void)?
     @ObservationIgnored var widgetSnapshotPersistTask: Task<Void, Never>?
     @ObservationIgnored var lastQueuedWidgetSnapshot: WidgetSnapshot?
+    @ObservationIgnored var lastPublishedWidgetSnapshot: WidgetSnapshotPublication?
     @ObservationIgnored var invalidatedQueuedWidgetProviders: Set<ProviderInstanceID> = []
     @ObservationIgnored var lastWidgetSourceSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
     @ObservationIgnored let widgetSnapshotURL: URL?
@@ -451,7 +454,6 @@ final class UsageStore {
     @ObservationIgnored var lastStorageRefreshRequestKey: String?
     @ObservationIgnored var lastStorageRefreshAt: Date?
     @ObservationIgnored var managedCodexAccountsForStorageOverride: [ManagedCodexAccount]?
-    @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?
     @ObservationIgnored var resetBoundaryRefreshTask: Task<Void, Never>?
     @ObservationIgnored var scheduledResetBoundaryRefreshAt: Date?
     @ObservationIgnored var attemptedResetBoundaryRefreshes: Set<Date> = []
@@ -610,25 +612,12 @@ final class UsageStore {
         }
         self.pruneUserPluginHookState()
         self.observeSettingsChanges()
-        self.pathDebugInfo = PathDebugSnapshot(
-            codexBinary: nil,
-            claudeBinary: nil,
-            geminiBinary: nil,
-            effectivePATH: PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling]),
-            loginShellPATH: LoginShellPathCache.shared.current?.joined(separator: ":"))
         guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
         self.hydrateCachedTokenSnapshots()
         self.startSharedSpendDashboardPublication()
         self.detectVersions()
         self.updateProviderRuntimes()
-        Task { @MainActor [weak self] in
-            self?.schedulePathDebugInfoRefresh()
-        }
-        LoginShellPathCache.shared.captureOnce { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.schedulePathDebugInfoRefresh()
-            }
-        }
+        LoginShellPathCache.shared.captureOnce()
         Task { @MainActor [weak self] in
             await self?.refreshHistoricalDatasetIfNeeded()
         }
@@ -783,10 +772,9 @@ final class UsageStore {
     @ObservationIgnored private(set) var completedRefreshCountForTesting = 0
     #endif
 
+    /// The provider/plugin refresh orchestration intentionally keeps cancellation,
+    /// enrichment, and publication authority in one transaction boundary.
     @discardableResult
-    // The provider/plugin refresh orchestration intentionally keeps cancellation,
-    // enrichment, and publication authority in one transaction boundary.
-    // swiftlint:disable:next cyclomatic_complexity
     func runRefresh(
         enrichmentMode: RefreshEnrichmentMode = .automatic,
         startupConnectivityRetryAttempt: Int?,
@@ -799,8 +787,8 @@ final class UsageStore {
                 coalesceProviderRefreshesOverride: coalesceProviderRefreshesOverride)
         }
 
-        guard !self.isRefreshing else { return false }
-        guard enrichmentMode != .automatic || !self.hasForcedRefreshEnrichmentInFlight else { return false }
+        guard !self.isRefreshing,
+              enrichmentMode != .automatic || !self.hasForcedRefreshEnrichmentInFlight else { return false }
         let forcedBackgroundGeneration: UInt64?
         if enrichmentMode == .forcedBackground {
             self.forcedRefreshEnrichmentGeneration &+= 1
@@ -1025,6 +1013,7 @@ final class UsageStore {
     }
 
     deinit {
+        self.codexWeeklyResetFollowUps.values.forEach { $0.task.cancel() }
         self.timerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
         self.codexCostCatchUpTask?.cancel()
@@ -1230,11 +1219,15 @@ extension UsageStore {
         fallbackCookieHeader: String) async -> ClaudeDebugLogConfiguration
     {
         await MainActor.run {
-            let sourceMode = self.sourceMode(for: .claude)
-            let snapshot = ProviderRegistry.makeSettingsSnapshot(settings: self.settings, tokenOverride: nil)
+            let provider: UsageProvider = .claude
+            let sourceMode = self.sourceMode(for: provider)
+            let snapshot = ProviderRegistry.makeSettingsSnapshot(
+                provider: provider,
+                settings: self.settings,
+                tokenOverride: nil)
             let environment = ProviderRegistry.makeEnvironment(
                 base: self.environmentBase,
-                provider: .claude,
+                provider: provider,
                 settings: self.settings,
                 tokenOverride: nil)
             let claudeSettings = snapshot.claude ?? ProviderSettingsSnapshot.ClaudeProviderSettings(
@@ -1342,11 +1335,8 @@ extension UsageStore {
 
             do {
                 let probe = CursorStatusProbe(browserDetection: browserDetection)
-                let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual,
-                                                        let normalizedHeader = CookieHeaderNormalizer
-                                                            .normalize(cursorCookieHeader)
-                {
-                    try await probe.fetchWithManualCookies(normalizedHeader)
+                let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual {
+                    try await probe.fetch(cookieHeaderOverride: cursorCookieHeader)
                 } else {
                     try await probe.fetch { msg in lines.append("[cursor-cookie] \(msg)") }
                 }
@@ -1480,19 +1470,6 @@ extension UsageStore {
         }
     }
 
-    @MainActor
-    private func schedulePathDebugInfoRefresh() {
-        self.pathDebugRefreshTask?.cancel()
-        self.pathDebugRefreshTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: 150_000_000)
-            } catch {
-                return
-            }
-            await self?.refreshPathDebugInfo()
-        }
-    }
-
     func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.resetTokenUsageState(for: provider)
@@ -1525,9 +1502,8 @@ extension UsageStore {
             return
         }
 
-        guard await self.refreshPiHistoryScope(for: provider) else { return }
-
-        guard !self.tokenRefreshInFlight.contains(provider.instanceID) else { return }
+        guard await self.refreshPiHistoryScope(for: provider),
+              !self.tokenRefreshInFlight.contains(provider.instanceID) else { return }
 
         let now = Date()
         let historyDays = self.settings.costReportingPeriod.days(

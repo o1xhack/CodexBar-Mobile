@@ -1,0 +1,58 @@
+{
+  "archivePath": "/Volumes/StudioSSD/Developer/CodexWorktrees/codexbar-v085-sync/CodexBarMobile/build/upstream-v085/CodexBarMobile-3.6.0-264.xcarchive",
+  "archiveZipSHA256": "f6834f85154ea6f094cda116e22ca35634cb36f0a57b50dc1b0b1b6e45400076",
+  "sourceCommit": "2891161065c1ddd6bf2d296ff97c15b36989bb0d",
+  "bundles": [
+    {
+      "role": "CodexBarMobile.app",
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile",
+      "version": "3.6.0",
+      "build": "264",
+      "team": "3TUERHN53E",
+      "signing": "Apple Development",
+      "cloudKitEnvironment": "Production",
+      "binarySHA256": "dba2a8c825a6b6821359abbf185e39a660c27e7b6bbd6d5631b866ec13d35c85"
+    },
+    {
+      "role": "CodexBarMobilePushExtension.appex",
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.pushextension",
+      "version": "3.6.0",
+      "build": "264",
+      "team": "3TUERHN53E",
+      "signing": "Apple Development",
+      "cloudKitEnvironment": "Production",
+      "binarySHA256": "5ab243077d515d4376bf2b0793be2b41493c56e5c51844bab56c7981505f2fc1"
+    },
+    {
+      "role": "CodexBarMobileWidgetOptions.appex",
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgetoptions",
+      "version": "3.6.0",
+      "build": "264",
+      "team": "3TUERHN53E",
+      "signing": "Apple Development",
+      "cloudKitEnvironment": null,
+      "binarySHA256": "db9a660fa93579162e4040e564c8975a680774f403db1954a6efb6ce7b3eb891"
+    },
+    {
+      "role": "CodexBarMobileWidgets.appex",
+      "bundleIdentifier": "com.o1xhack.codexbar.mobile.widgets",
+      "version": "3.6.0",
+      "build": "264",
+      "team": "3TUERHN53E",
+      "signing": "Apple Development",
+      "cloudKitEnvironment": "Production",
+      "binarySHA256": "9b45610b86069e9e0b945961d4c7cb9633b4c4f3fb1dda0b2eb83cba6416a6b8"
+    }
+  ],
+  "uploaded": false,
+  "shippingTreeIdentities": {
+    "Shared": "8d70f3988b7bd9c2899d101976fc7cdc67bfd477",
+    "CodexBarMobile/project.yml": "ab523569e3adb5c49787e2e66e379fbfcb4f00e7",
+    "CodexBarMobile/CodexBarMobile.xcodeproj": "45bfbb4b0235e2d9cccf002952a8d3ec8d40cc4b",
+    "CodexBarMobile/CodexBarMobile": "ec64d1b46264af183c0594c0f9edebcd88005a89",
+    "CodexBarMobile/CodexBarMobileWidgets": "1aafd6aa62d1daf0269d8eb76dae1f807ebf0bff",
+    "CodexBarMobile/CodexBarMobilePushExtension": "d8e0cf428599e2b51c52863ae8e3cde18583933b",
+    "CodexBarMobile/CodexBarMobileWidgetOptions": "b396848e31f3a62431d57f4dfd02f5cdc6f93bc1",
+    "CodexBarMobile/CodexBarWidgetShared": "57c7bedb91935b180ace3e71d6deab5eef7dea26"
+  }
+}

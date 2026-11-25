@@ -2855,7 +2855,7 @@ struct CostDashboardInsights: Sendable {
                     label: label,
                     amountUSD: amount,
                     subtitle: splits[label].flatMap {
-                        CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast)
+                        CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast, totalCostUSD: amount)
                     },
                     color: palette.color(for: label))
             }
@@ -3168,7 +3168,7 @@ private struct BudgetRowView: View {
                     .fontWeight(.semibold)
                 Spacer()
                 if let method = row.provider.loginMethod {
-                    Text(method)
+                    Text(ProviderDetailLocalization.localizedValue(method, providerID: self.row.provider.providerID))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -4328,7 +4328,8 @@ private struct RawProviderDetailView: View {
                     LabeledContent("Account", value: email)
                 }
                 if let login = self.provider.loginMethod {
-                    LabeledContent("Login", value: login)
+                    LabeledContent(
+                        "Login", value: ProviderDetailLocalization.localizedValue(login, providerID: self.provider.providerID))
                 }
                 LabeledContent(
                     "Last Updated",
@@ -4457,7 +4458,8 @@ private struct RawDailyPointRow: View {
                     LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
                     if let split = CodexCostSplit.subtitle(
                         standardCostUSD: item.standardCostUSD,
-                        priorityCostUSD: item.priorityCostUSD)
+                        priorityCostUSD: item.priorityCostUSD,
+                        totalCostUSD: item.costUSD)
                     {
                         Text(split)
                             .font(.caption2)
@@ -5094,8 +5096,20 @@ private struct NSEInvocationLogSection: View {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "3.5.0",
+            version: "3.6.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "More services and updated cost estimates"),
+            highlights: [
+                .init(
+                    id: "upstream-085", symbol: "arrow.triangle.2.circlepath",
+                    title: String(localized: "More services and clearer credits"),
+                    detail: String(
+                        localized: "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage from your Mac. Credit details follow your phone’s language, and Codex and Claude cost estimates are updated.")),
+            ],
+            sections: []),
+        ReleaseNotesVersion(
+            version: "3.5.0",
+            status: "",
             summary: String(localized: "Choose the limit each widget tile shows"),
             highlights: [
                 .init(

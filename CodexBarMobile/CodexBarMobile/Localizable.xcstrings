@@ -1,6 +1,72 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Personal credits": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Personal credits"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "个人额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "個人額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "個人クレジット"}}}},
+    "Standard remaining": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Standard remaining"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Standard 剩余额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "Standard 剩餘額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "Standard の残り"}}}},
+    "Select remaining": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Select remaining"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Select 剩余额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "Select 剩餘額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "Select の残り"}}}},
+    "Notion Credits": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Notion Credits"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "Notion 额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "Notion 額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "Notion クレジット"}}}},
+    "Remaining credits": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Remaining credits"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "剩余额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "剩餘額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "残りのクレジット"}}}},
+    "Billing account": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Billing account"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "结算账号"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "帳單帳戶"}}, "ja": {"stringUnit": {"state": "translated", "value": "請求先アカウント"}}}},
+    "Bonus": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Bonus"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "赠送额度"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "贈送額度"}}, "ja": {"stringUnit": {"state": "translated", "value": "ボーナスクレジット"}}}},
+    "Credits per million tokens": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Credits per million tokens"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"每百万 token 的额度"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"每百萬 token 的額度"}},"ja":{"stringUnit":{"state":"translated","value":"100万トークンあたりのクレジット"}}}},
+    "Paused during grace period": {"extractionState":"manual","localizations":{"en":{"stringUnit":{"state":"translated","value":"Paused during grace period"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"宽限期内已暂停"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"寬限期內已暫停"}},"ja":{"stringUnit":{"state":"translated","value":"猶予期間中は一時停止"}}}},
+    "Not applied": {"extractionState": "manual", "localizations": {"en": {"stringUnit": {"state": "translated", "value": "Not applied"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "未领取"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "未領取"}}, "ja": {"stringUnit": {"state": "translated", "value": "未適用"}}}},
+    "More services and updated cost estimates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More services and updated cost estimates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服务与更新后的费用估算"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多服務與更新後的費用估算"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応サービスの追加と費用見積もりの更新"
+          }
+        }
+      }
+    },
+    "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage from your Mac. Credit details follow your phone’s language, and Codex and Claude cost estimates are updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage from your Mac. Credit details follow your phone’s language, and Codex and Claude cost estimates are updated."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看从 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量。额度详情使用手机的语言，Codex 和 Claude 的费用估算也已更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看從 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量。額度詳情使用手機的語言，Codex 和 Claude 的費用估算也已更新。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から同期した SiliconFlow、Tripo、Google Developer Program、TrustedRouter の使用状況を確認できます。クレジットの詳細は iPhone の言語で表示され、Codex と Claude の費用見積もりも更新されました。"
+          }
+        }
+      }
+    },
     "Rewards": {
       "localizations": {
         "en": {

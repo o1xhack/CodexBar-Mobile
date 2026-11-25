@@ -1,5 +1,17 @@
 # Cost reporting periods
 
+Usage & Spend creates chart, ledger, and activity views as they approach the visible part of the scrolling pane. This reduces opening work without changing reporting windows, retained source data, or exported records.
+
+The **Models** view ranks models across providers within each displayed currency. Percentages use
+estimated spend when every named model is priced, or tracked tokens within a single provider when
+pricing is unavailable. Partial model history keeps the recorded values visible without percentages;
+unpriced models from different providers are not compared by token share.
+
+Share-card previews and exported images follow the app's current light or dark appearance. Their
+subscription amounts, coverage, separate currencies, and aggregate-only content are unchanged.
+Subscription and model rows identify each provider by its bundled mark, which stays legible on
+both the light and dark card.
+
 ## Conversation usage details
 
 In a cost submenu with session records, click a conversation to open the shared Sessions inspector in
@@ -23,6 +35,7 @@ model requests. This view does not estimate a tool's price from its duration or 
 Messages sharing a turn cannot be priced separately. Missing turn ownership or older history without
 request records appears as unattributed usage; unavailable prices remain unknown. Requests outside the
 selected period and usage belonging to separate subagent sessions are not added to a parent's turn.
+Selected-day tool activity ends at the next local day boundary, including when daylight saving skips midnight.
 For the Codex adapter, automatic approval-review sessions can appear alongside user-created
 conversations because its scanner reads local Codex session logs. A recorded zero-dollar amount does not imply zero tokens.
 
@@ -41,13 +54,21 @@ is selected. No additional history store is created.
 
 ## History windows
 
+Long model breakdowns in cost-history submenus use a scrollable list whose scrollbar stays aligned with the menu edge.
+
+Usage & Spend captures daily/hourly summaries and conversation/project details without retaining exact quota-window events or an unused native accounting alternative. This lets obsolete quota payloads be released after their source publication is replaced or cleared. The source publication and regular menu quota data keep their own lifetimes; dashboard totals, Overview, and stale last-known details are unchanged.
+
 The menu's **History window** supports rolling days, **Month to date**, and **All**. Usage & Spend uses the same period model and keeps its own range selection. Existing saved day counts retain their rolling windows; the dashboard's former All selection migrates to All available history.
+
+Usage & Spend prepares its detailed display model on demand and reuses it until the source, period, or selection changes. Background publications keep Overview current without eagerly preparing an unused dashboard model. Underlying source history remains available; a dashboard view that still observes updates can continue to request the model.
 
 Usage & Spend groups ranges longer than 45 reporting days by week, and ranges longer than 180 days by month. Select a bucket to inspect its days, then a day with hourly records to inspect individual hours. Daily scrolling keeps whole reporting days visible across daylight-saving changes. Hour labels use a shared 24-hour clock and include UTC offsets in the inspector to distinguish repeated hours. The legend can isolate an account without changing dashboard totals. It shows sources with recorded amounts in the displayed range, drilled interval, or hourly day, including recorded zero-dollar amounts. Sources without priced records in that scope are omitted; account labels and colors stay stable. Legend chips and inspector amounts wrap in narrow windows. Daily inspection only selects existing buckets, so plot padding cannot produce an adjacent date with an empty inspector.
 
 Chart summaries describe **recorded spend**, not an authoritative bill. A priced day alongside an unpriced day keeps the source and period totals unavailable. Missing hours remain distinct from recorded zero, incomplete sources retain their lower-bound marker, and an empty daily chart shows no usage only when coverage proves zero spend for the selected sources and interval. Aggregates that cannot be represented remain unavailable; valid individual records stay in the accounting model.
 
 Month to date starts at midnight on the first day of the current month and includes today. It uses the pinned cost-bucketing time zone from Settings, falling back to the current local zone. Calendar arithmetic handles leap years and 23/25-hour daylight-saving days. Local log scans reuse Gregorian calendars and the latest day interval for up to eight time zones; crossing a day boundary or changing zones resolves the day again without changing stored cost-cache identities. Each operation resolves its window again, and cache identities include the selection, dates, and time zone.
+
+Codex cached reports project retained history onto the requested period before building daily, hourly, and quota-window entries. A shorter selection preserves the wider cached history while reporting only its own tokens and spend.
 
 Menu cost and token charts retain one slot for every calendar day in the selected window, for every provider. A missing day is zero only after the history scan covers that window; incomplete scans and recorded unpriced costs remain unknown. OpenAI and Mistral keep their fixed UTC billing-day calendars; local history follows the selected bucket time zone.
 
@@ -60,6 +81,8 @@ codexbar cost --days 7 --json
 ```
 
 `--days N` always selects a rolling window, even alongside `--period`. Rolling windows accept 1–365 days and default to 30 on installations without a saved selection. JSON includes `reportingPeriod`, `historyLabel`, and period totals under `totals`; the existing `last30DaysTokens` and `last30DaysCostUSD` compatibility fields retain their documented meaning.
+
+An explicit `--days` value must be an integer; malformed, fractional, or overflowing values fail with an argument error. Valid integers are clamped to 1–365 days.
 
 The existing host-summary protocol (`--remote` and `--summary-only`) remains limited to 1–365 days. When All is selected, use an explicit `--days N` for those modes.
 
@@ -74,3 +97,10 @@ Within each transcript scan or cache decode, repeated session IDs and model name
 Claude and Vertex reserve the final transcript row count during cache decoding and parsed-row assembly, reducing retained spare capacity without changing cache bytes or report ordering.
 
 Claude and Vertex cache saves reuse encoded transcript fragments when their metadata bytes and row contents are unchanged. The bounded memo retains byte ranges in the previous artifact instead of encoded values; saves stream those ranges and newly encoded files into a replacement artifact. Reuse requires the same device, inode, size, and nanosecond modification time. Each cache URL has independent fragments; removed files are discarded and the memo can be evicted without changing saved JSON or report results. Transcript-cache loads use mapped input that is released after decoding. Key ordering and escaping still come from the JSON encoder.
+
+The Models lens withholds spend shares when the selected period or day contains unpriced requests, even when known
+model subtotals add up. It keeps the known amounts and marks the breakdown as partial. A fully priced selected day
+retains its shares even when another day in the wider reporting period has unpriced requests.
+Snapshot-backed sources reuse Usage & Spend data when same-day refreshes publish identical history. Changes to
+amounts, pricing, completeness, model details, source ownership, or the source coverage day still reload it.
+A successful refresh can also recover a prior load failure. Snapshot timestamps remain the actual fetch times.

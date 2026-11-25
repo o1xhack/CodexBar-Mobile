@@ -29,11 +29,11 @@ struct SummaryCardTests {
         windows: [SyncRateWindow]? = nil, captured: Date? = nil,
         isError: Bool = false, balance: SyncProviderAmount? = nil,
         extra: SyncClaudeExtraUsage? = nil, confidence: String? = nil,
-        identities: [String]? = nil) -> ProviderUsageSnapshot
+        identities: [String]? = nil, loginMethod: String = "Max 5x") -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: provider, providerName: provider.capitalized,
-            primary: nil, secondary: nil, accountEmail: email, loginMethod: "Max 5x",
+            primary: nil, secondary: nil, accountEmail: email, loginMethod: loginMethod,
             statusMessage: nil, isError: isError, lastUpdated: captured ?? self.now.addingTimeInterval(-60),
             rateWindows: windows ?? [self.window(), self.window(id: "secondary", minutes: 10080, resetIn: 3 * 86400)],
             accountIdentities: identities ?? ["\(provider):account:\(identity)"],
@@ -64,6 +64,15 @@ struct SummaryCardTests {
         let renamed = store.resolvedCards(accounts: [account], now: Self.now)
         #expect(renamed.first?.compactTitle == "C 5x")
         #expect(renamed.dropFirst().allSatisfy { $0.compactTitle == "Work" })
+    }
+
+    @Test
+    func `Google Summary account titles localize the Mac browser session label`() {
+        let account = Self.account(provider: "googledeveloper", organization: "Example", loginMethod: "Session du navigateur")
+        let title = SummaryCardResolver.accountTitle(
+            account, anchorID: "fictional-anchor", preferences: SummaryPreferences(),
+            accounts: [account], locale: Locale(identifier: "en"))
+        #expect(title == "Googledeveloper Example Browser session")
     }
 
     @Test

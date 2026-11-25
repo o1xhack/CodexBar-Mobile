@@ -41,24 +41,16 @@ extension CostUsageStore {
     /// Decodes usage rows as SQLite returns them, so raw payloads never accumulate alongside decoded rows.
     static func readDecodedCodexUsageRows(
         _ database: OpaquePointer,
-        files: [CostUsageStoreFile],
         home: String,
         recorder: CostUsageStoreReadWorkRecorder?) throws -> DecodedCodexUsageRows
     {
         var decoded = DecodedCodexUsageRows()
         let decoder = JSONDecoder()
         let rowStrings = CostUsageRowStringPool()
-        let readablePaths = Set(files.compactMap { file -> String? in
-            guard let data = file.scanState.detailsPayload,
-                  (try? decoder.decode(StoredFileDetails.self, from: data)) != nil
-            else { return nil }
-            return file.path
-        })
         var decodeAttempts = 0
         defer { recorder?.recordUsageRowDecodes(count: decodeAttempts) }
         try self.forEachUsageRow(database, path: nil, home: home, recorder: recorder, nativeOnly: true) { stored in
             decoded.rowCounts[stored.path, default: 0] += 1
-            guard readablePaths.contains(stored.path) else { return }
             decodeAttempts += 1
             if var row = try? decoder.decode(CostUsageScanner.CodexUsageRow.self, from: stored.payload) {
                 row.turnID = row.turnID.map(rowStrings.intern)
@@ -98,7 +90,8 @@ extension CostUsageStore {
                 maxFileBytes: fileBudgetBytes,
                 requestedSinceDay: budgetProtectionWindow.sinceKey,
                 requestedUntilDay: budgetProtectionWindow.untilKey,
-                calendar: calendar)
+                calendar: calendar,
+                forceCheckpoint: false)
             guard !result.catchUpRequired else { return result }
             self.codexSavePreLockCheckpoint()
             guard self.beginSaveTransaction() else { return Self.rescanRequired(result) }
@@ -244,7 +237,6 @@ extension CostUsageStore {
         restored.lastScanUnixMs = cache.lastScanUnixMs
         restored.timeZoneIdentifier = calendar.timeZone.identifier
         restored.codexScanCatchUpPending = cache.codexScanCatchUpPending
-        restored.files = restored.files.mapValues(Self.normalizingScanComplete)
         var incoming = cache
         incoming.timeZoneIdentifier = calendar.timeZone.identifier
         incoming.files = incoming.files.mapValues(Self.normalizingScanComplete)
@@ -292,6 +284,9 @@ extension CostUsageStore {
     }
 
     private static func normalizingScanComplete(_ usage: CostUsageFileUsage) -> CostUsageFileUsage {
+        #if DEBUG
+        CostUsageStoreTestHooks.current.codexScanCompleteNormalizationVisit?()
+        #endif
         var usage = usage
         usage.codexScanComplete = usage.codexScanComplete ?? true
         return usage
@@ -460,9 +455,10 @@ extension CostUsageStore {
             // Codex JSONL — they restore through the adapter's own checkpoint payload,
             // never through the Codex details/resume decoders.
             guard !file.belongsToOpenCodeLocalHistory,
-                  let detailsData = file.scanState.detailsPayload,
-                  let details = try? decoder.decode(StoredFileDetails.self, from: detailsData)
+                  let detailsData = file.scanState.detailsPayload
             else { continue }
+            recorder?.recordFileDetailsDecode()
+            guard let details = try? decoder.decode(StoredFileDetails.self, from: detailsData) else { continue }
             let aggregates = (aggregatesByPath[file.path] ?? []).map(\.aggregate)
             let rows: [CostUsageScanner.CodexUsageRow]
             if let decodedUsageRows {
@@ -924,8 +920,11 @@ extension CostUsageStore {
         let tokenSnapshotsLoaded = baseline.tokenSnapshotsLoaded || parserStateChanged
         let sourceSnapshots = usage.codexTokenSnapshots ?? []
         let sourceRows = usage.codexRows ?? []
+        // Archive state is filesystem-derived, not persisted; compare it at the same baseline.
+        var persistedUsage = usage
+        persistedUsage.codexArchived = baseline.usage?.codexArchived
         // The caller revalidates this baseline under the transaction's writer lock.
-        if canReuseRows, baseline.usage == usage,
+        if canReuseRows, baseline.usage == persistedUsage,
            sourceRows.count == baseline.rowCount,
            !tokenSnapshotsLoaded || sourceSnapshots.count == baseline.snapshotCount
         {
@@ -1035,9 +1034,9 @@ extension CostUsageStore {
             path: path,
             eventCount: tokenSnapshotsLoaded ? sourceSnapshots.count : baseline.snapshotCount,
             nextUsageRowIndex: usage.codexNextUsageRowIndex ?? CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
-            countedTotals: Self.totals(usage.lastCountedTotals),
-            rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
-            rawTotalsWatermark: Self.totals(usage.lastRawTotalsWatermark),
+            countedTotals: usage.lastCountedTotals.map(Self.totals),
+            rawTotalsBaseline: usage.lastRawTotalsBaseline.map(Self.totals),
+            rawTotalsWatermark: usage.lastRawTotalsWatermark.map(Self.totals),
             sawDivergentTotals: usage.hasDivergentTotals ?? false,
             sawInterleavedTotals: usage.hasInterleavedTotals ?? false,
             seenRawTotals: (usage.seenRawTotals ?? []).map(Self.totals),
@@ -1124,13 +1123,20 @@ extension CostUsageStore {
             aggregate.requestCount += 1
             let isPriority = row.pricingMode == "priority"
             let total = Int64(max(0, row.input) + max(0, row.output))
-            if isPriority {
+            let isUltrafast = row.pricingMode == "ultrafast"
+            if isUltrafast {
+                aggregate.ultrafastTokens += total
+            } else if isPriority {
                 aggregate.priorityTokens += total
             } else {
                 aggregate.standardTokens += total
             }
             if let cost = row.knownCostNanos {
                 aggregate.authoritativeCostNanos += cost
+            } else if isUltrafast {
+                aggregate.ultrafastInputTokens += Int64(row.input)
+                aggregate.ultrafastCachedTokens += Int64(row.cached)
+                aggregate.ultrafastOutputTokens += Int64(row.output)
             } else if isPriority {
                 aggregate.priorityInputTokens += Int64(row.input)
                 aggregate.priorityCachedTokens += Int64(row.cached)
@@ -1182,6 +1188,10 @@ extension CostUsageStore {
                 value.priorityOutputTokens += aggregate.priorityOutputTokens
                 value.standardTokens += aggregate.standardTokens
                 value.priorityTokens += aggregate.priorityTokens
+                value.ultrafastInputTokens += aggregate.ultrafastInputTokens
+                value.ultrafastCachedTokens += aggregate.ultrafastCachedTokens
+                value.ultrafastOutputTokens += aggregate.ultrafastOutputTokens
+                value.ultrafastTokens += aggregate.ultrafastTokens
                 values[key] = value
             }
         }
@@ -1226,6 +1236,11 @@ extension CostUsageStore {
                 cached: aggregate.priorityCachedTokens,
                 output: aggregate.priorityOutputTokens,
                 mode: "priority")
+            append(
+                input: aggregate.ultrafastInputTokens,
+                cached: aggregate.ultrafastCachedTokens,
+                output: aggregate.ultrafastOutputTokens,
+                mode: "ultrafast")
             if aggregate.authoritativeCostNanos != 0 {
                 rows.append(CostUsageScanner.CodexUsageRow(
                     day: aggregate.day,
@@ -1339,8 +1354,8 @@ extension CostUsageStore {
             timestamp: snapshot.timestamp,
             timestampUnixMs: date.map { Int64($0.timeIntervalSince1970 * 1000) },
             day: date.map { CostUsageScanner.CostUsageDayRange.dayKey(from: $0, calendar: calendar) },
-            last: Self.totals(snapshot.last),
-            total: Self.totals(snapshot.total),
+            last: snapshot.last.map(Self.totals),
+            total: snapshot.total.map(Self.totals),
             endOffset: snapshot.endOffset)
     }
 
@@ -1408,10 +1423,6 @@ extension CostUsageStore {
 
     private static func device(from identity: String?) -> String? {
         identity?.split(separator: ":", maxSplits: 1).first.map(String.init)
-    }
-
-    private static func totals(_ value: CostUsageCodexTotals?) -> CostUsageStoreTotals? {
-        value.map(self.totals)
     }
 
     private static func totals(_ value: CostUsageCodexTotals) -> CostUsageStoreTotals {

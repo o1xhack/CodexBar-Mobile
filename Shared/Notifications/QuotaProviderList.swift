@@ -187,6 +187,10 @@ public enum QuotaProviderList {
         Provider(id: "abliteration", displayName: "abliteration.ai"),
         Provider(id: "chatbox", displayName: "Chatbox AI"),
         Provider(id: "opendesign", displayName: "OpenDesign"),
+        Provider(id: "siliconflow", displayName: "SiliconFlow"),
+        Provider(id: "tripo", displayName: "Tripo"),
+        Provider(id: "googledeveloper", displayName: "Google Developer Program"),
+        Provider(id: "trustedrouter", displayName: "TrustedRouter"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

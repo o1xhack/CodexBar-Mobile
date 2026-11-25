@@ -555,6 +555,9 @@ extension UsageMenuCardView.Model {
         }
     }
 
+    /// Bar tint for cards whose latest refresh failed and therefore show the previous measurement.
+    static let staleProgressColor = Color(nsColor: .secondaryLabelColor)
+
     static func progressColor(for provider: UsageProvider) -> Color {
         let branding = ProviderDescriptorRegistry.descriptor(for: provider).branding
         if branding.progressColorStyle == .label {
@@ -704,12 +707,11 @@ extension UsageMenuCardView.Model {
         if self.shouldShowRateLimitsUnavailablePlaceholder(input: input, lastError: lastError) {
             return nil
         }
-        if self.hasCodexCreditOrRateMeters(input) {
-            if UsageError.isNoRateLimitsFoundDescription(lastError)
-                || ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(lastError)
-            {
-                return nil
-            }
+        if self.hasCodexCreditOrRateMeters(input),
+           UsageError.isNoRateLimitsFoundDescription(lastError)
+           || ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(lastError)
+        {
+            return nil
         }
         return lastError
     }
@@ -723,7 +725,7 @@ extension UsageMenuCardView.Model {
         let source = input.sourceLabel?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-        guard source != "local" else { return [] }
+        guard source != "local", source != "api" else { return [] }
         return [
             L("Balance updates in near-real time (up to 5 min lag)"),
             L("Daily billing data finalizes at 07:00 UTC"),
@@ -1231,6 +1233,9 @@ extension UsageMenuCardView.Model {
         now: Date,
         showUsed: Bool) -> (resetText: String, pace: PaceDetail)?
     {
+        if let regen = syntheticRollingRegenDetail(window: weekly, now: now, showUsed: showUsed) {
+            return regen
+        }
         guard let cost,
               cost.limit > 0,
               let nextRegenAmount = cost.nextRegenAmount,

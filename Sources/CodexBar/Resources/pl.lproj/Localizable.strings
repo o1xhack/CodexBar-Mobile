@@ -1314,7 +1314,8 @@
 "session_id=...\n\nor paste just the session_id value" = "session_id=...\n\nalbo wklej samą wartość session_id";
 "Clear" = "Wyczyść";
 "No matching providers" = "Brak pasujących dostawców";
-"Search providers" = "Szukaj dostawców";
+"No matching settings or providers" = "Brak pasujących ustawień lub dostawców";
+"Search settings" = "Szukaj w ustawieniach";
 
 "Request quota: %@ / %@" = "Limit żądań: %@ / %@";
 "language_arabic" = "العربية";
@@ -1646,7 +1647,7 @@
 "7-day usage" = "Użycie 7-dniowe";
 "Total usage" = "Łączne użycie";
 "claude_oauth_keychain_access_disabled" = "Dostęp do Keychain jest wyłączony, więc CodexBar nie może odczytać danych logowania do Claude.";
-"claude_oauth_keychain_access_revoked" = "Dostęp do pęku kluczy Claude został cofnięty wskutek rotacji tokenu przez Claude Code. Kliknij Odśwież, aby ponownie przyznać dostęp, albo przełącz źródło użycia Claude na CLI/Web.";
+"claude_oauth_keychain_access_revoked" = "Dane uwierzytelniające OAuth Claude są obecnie niedostępne dla CodexBar. Kliknij Odśwież, aby ponowić próbę dostępu, albo przełącz źródło użycia Claude na CLI/Web.";
 "claude_showing_last_known_usage" = "Wyświetlane jest ostatnie znane użycie zarejestrowane %@.";
 "claude_limited_usage_detail" = "Mniej szczegółowe dane o zużyciu";
 /* Spend dashboard cost analysis */
@@ -1833,7 +1834,7 @@
 "Automatic imports longcat.chat cookies from your browser." = "Automatyczny import longcat.chat cookies z Twojej przeglądarki.";
 "Automatically imports browser cookies for budget extras." = "Automatycznie importuje przeglądarkę cookies w celu uzyskania dodatków budżetowych.";
 "Automatically imports browser cookies for github.com budget extras." = "Automatycznie importuje przeglądarkę cookies dla dodatków budżetowych github.com.";
-"Automatically imports the app.devin.ai session from Chromium browsers." = "Automatycznie importuje sesję app.devin.ai z przeglądarek Chromium.";
+"Automatically imports the app.devin.ai session from the Devin app or Chromium browsers." = "Automatycznie importuje sesję app.devin.ai z aplikacji Devin lub przeglądarek Chromium.";
 "Automatically imports the browser session cookie." = "Automatycznie importuje sesję przeglądarki cookie.";
 "Automatically signs in using your ZoomMate session cookies from Chrome." = "Automatycznie loguje się przy użyciu sesji ZoomMate cookies z Chrome.";
 "BY USAGE" = "Ranking według użycia";
@@ -2882,3 +2883,81 @@
 "Leave blank to use the default name." = "Pozostaw puste, aby użyć domyślnej nazwy.";
 "Rewards" = "Nagrody";
 "Reward expiry" = "Wygaśnięcie nagród";
+"China (CNY) is the default. International accounts use https://api.siliconflow.com (USD)." = "Domyślnie Chiny (CNY). Konta międzynarodowe używają https://api.siliconflow.com (USD).";
+"https://api.siliconflow.cn" = "https://api.siliconflow.cn";
+"SiliconFlow API origin must be https://api.siliconflow.cn or https://api.siliconflow.com." = "Źródłem API SiliconFlow musi być https://api.siliconflow.cn lub https://api.siliconflow.com.";
+"SiliconFlow refused the balance query. Check the balance in the SiliconFlow console." = "SiliconFlow odrzucił zapytanie o saldo. Sprawdź saldo w konsoli SiliconFlow.";
+
+"SiliconFlow" = "SiliconFlow";
+"Show SiliconFlow usage" = "Pokaż użycie SiliconFlow";
+"SiliconFlow is rate limiting requests. Try again later." = "SiliconFlow ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"SiliconFlow request failed. Try refreshing later." = "Żądanie SiliconFlow nie powiodło się. Spróbuj odświeżyć później.";
+"SiliconFlow returned an unrecognized response. Update CodexBar and try again." = "SiliconFlow zwrócił nierozpoznaną odpowiedź. Zaktualizuj CodexBar i spróbuj ponownie.";
+"Sign in to cloud.siliconflow.cn in your browser, then refresh CodexBar." = "Zaloguj się do cloud.siliconflow.cn w przeglądarce, a następnie odśwież CodexBar.";
+"The SiliconFlow China balance API was retired. Switch SiliconFlow to Web and sign in to cloud.siliconflow.cn." = "API salda SiliconFlow dla Chin zostało wycofane. Ustaw źródło SiliconFlow na Web i zaloguj się do cloud.siliconflow.cn.";
+"SiliconFlow denied access to the console balance (HTTP 403). Open cloud.siliconflow.cn, check that this account can view billing, then refresh." = "SiliconFlow odmówił dostępu do salda konsoli (HTTP 403). Otwórz cloud.siliconflow.cn, sprawdź, czy to konto może wyświetlać rozliczenia, a następnie odśwież.";
+"Claude Platform session validated and saved." = "Sesja Claude Platform została zweryfikowana i zapisana.";
+"Use %@ or %@." = "Użyj %@ lub %@.";
+"Sign in at %@. Supply its Cookie header containing sessionKey privately to %@. Then run %@." = "Zaloguj się na %@. Przekaż poufnie nagłówek Cookie zawierający sessionKey do %@. Następnie uruchom %@.";
+"Read cookie header from stdin" = "Odczytaj nagłówek plików cookie ze stdin";
+"User-Agent" = "User-Agent";
+"Optional. Paste the User-Agent value from the same request as the Cookie." = "Opcjonalnie. Wklej wartość User-Agent z tego samego żądania co nagłówek Cookie.";
+"Paste the WorkBuddy User-Agent as a single request header value." = "Wklej User-Agent WorkBuddy jako pojedynczą wartość nagłówka żądania.";
+"TypeSafe billing overview could not be read. Open https://console.typesafe.ai/billing to check access; if the page opens, report the integration failure." = "Nie udało się odczytać podsumowania rozliczeń TypeSafe. Otwórz https://console.typesafe.ai/billing, aby sprawdzić dostęp. Jeśli strona się otwiera, zgłoś błąd integracji.";
+"No TypeSafe session cookies found. Sign in at console.typesafe.ai/billing or paste a Cookie header." = "Nie znaleziono plików cookie sesji TypeSafe. Zaloguj się na console.typesafe.ai/billing lub wklej nagłówek Cookie.";
+
+"Tripo" = "Tripo";
+"Show Tripo usage" = "Pokaż użycie Tripo";
+"Tripo is rate limiting requests. Try again later." = "Tripo ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"Tripo request failed. Try refreshing later." = "Żądanie Tripo nie powiodło się. Spróbuj odświeżyć później.";
+"Tripo returned an unrecognized response. Update CodexBar and try again." = "Tripo zwrócił nierozpoznaną odpowiedź. Zaktualizuj CodexBar i spróbuj ponownie.";
+
+/* Provider setup guidance. */
+"Authorize GitHub's device code to save a Copilot token account." = "Zatwierdź kod urządzenia GitHub, aby zapisać konto z tokenem Copilot.";
+"Supply a GitHub token accepted by the Copilot usage API." = "Podaj token GitHub akceptowany przez API użycia Copilot.";
+"Optional, best-effort budgets for public github.com only. Enable Budget extras in the macOS app; the browser session must match the token account. Quota usage does not need cookies." = "Opcjonalne budżety bez gwarancji, tylko dla publicznego github.com. Włącz dodatki budżetowe w aplikacji macOS; sesja przeglądarki musi odpowiadać kontu tokenu. Limity nie wymagają plików cookie.";
+"In the macOS app, select manual cookie source and supply the matching GitHub Cookie header." = "W aplikacji macOS wybierz ręczne źródło plików cookie i podaj odpowiedni nagłówek Cookie GitHub.";
+"Sign in to GitHub in a supported browser and select automatic cookie import in the macOS app." = "Zaloguj się do GitHub w obsługiwanej przeglądarce i wybierz automatyczny import plików cookie w aplikacji macOS.";
+"Use an organization Admin API key for organization costs and usage. Project/service-account keys cannot read those endpoints." = "Użyj klucza API Admin organizacji do odczytu jej kosztów i użycia. Klucze projektu i konta usługi nie mogą odczytywać tych punktów końcowych.";
+"A normal API key supports only best-effort legacy balance fallback, not organization usage. Configured keys with project scoping do not use that fallback." = "Zwykły klucz API obsługuje jedynie awaryjny odczyt dawnego salda bez gwarancji, a nie użycie organizacji. Skonfigurowane klucze ograniczone do projektu nie korzystają z tej metody.";
+"Supply a key, HTTPS resource endpoint, and deployment name. API version is optional. A usage refresh sends a potentially billable validation request, not a usage-history query." = "Podaj klucz, punkt końcowy zasobu HTTPS i nazwę wdrożenia. Wersja API jest opcjonalna. Odświeżenie wysyła potencjalnie płatne żądanie weryfikacji, a nie zapytanie o historię użycia.";
+"Mistral session expired or invalid." = "Sesja Mistral wygasła lub jest nieprawidłowa.";
+"The command reads a piped API key and saves it as a standalone key. A selected API token account overrides the standalone key." = "Polecenie odczytuje klucz API przekazany potokiem i zapisuje go jako osobny klucz. Wybrane konto tokenu API ma pierwszeństwo przed osobnym kluczem.";
+"Use an API key with user_read permission for subscription usage. The command saves a standalone key; a selected API key account takes priority." = "Użyj klucza API z uprawnieniem user_read, aby odczytać zużycie subskrypcji. Polecenie zapisuje osobny klucz; wybrane konto klucza API ma pierwszeństwo.";
+"Web" = "Web";
+"Credits per million tokens" = "Kredyty na milion tokenów";
+"Paused during grace period" = "Wstrzymano na czas okresu prolongaty";
+"Google Developer Program exposes the current monthly Cloud credit, not local token cost history." = "Google Developer Program pokazuje bieżący miesięczny kredyt Cloud, a nie lokalną historię kosztów tokenów.";
+"Paste a me.developers.google.com Cookie header from a signed-in Google account." = "Wklej nagłówek Cookie z me.developers.google.com z zalogowanego konta Google.";
+"Billing account" = "Konto rozliczeniowe";
+"Granted" = "Przyznano";
+"Not applied" = "Nie zastosowano";
+"%@ of %@ left" = "Pozostało %@ z %@";
+"No Cloud credit found. Check your Google Developer Program benefits." = "Nie znaleziono środków Cloud. Sprawdź swoje korzyści Google Developer Program.";
+"Google Developer Program" = "Google Developer Program";
+"Browser session" = "Sesja przeglądarki";
+"Google Developer Program is rate limiting requests. Try again later." = "Google Developer Program ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"Google Developer Program request failed. Try refreshing later." = "Żądanie Google Developer Program nie powiodło się. Spróbuj odświeżyć później.";
+"Google Developer Program returned an unrecognized response. Update CodexBar and try again." = "Google Developer Program zwrócił nierozpoznaną odpowiedź. Zaktualizuj CodexBar i spróbuj ponownie.";
+"Google session expired or invalid." = "Sesja Google wygasła lub jest nieprawidłowa.";
+"No Google Developer Program session cookies found. Sign in at me.developers.google.com/benefits or paste a Cookie header." = "Nie znaleziono plików cookie sesji Google Developer Program. Zaloguj się na me.developers.google.com/benefits lub wklej nagłówek Cookie.";
+
+"Enterprise" = "Enterprise";
+"Personal credits" = "Kredyty osobiste";
+"Standard remaining" = "Pozostałe Standard";
+"Select remaining" = "Pozostałe Select";
+"Remaining credits" = "Pozostałe kredyty";
+"Notion Credits" = "Kredyty Notion";
+"Notion did not provide usable personal AI allowances for this workspace. Check AI usage for the selected workspace in Notion, then refresh CodexBar again." = "Notion nie udostępnił użytecznych osobistych limitów AI dla tego obszaru roboczego. Sprawdź użycie AI w wybranym obszarze roboczym w Notion, a następnie ponownie odśwież CodexBar.";
+"Select" = "Select";
+"TrustedRouter" = "TrustedRouter";
+"Show TrustedRouter usage" = "Pokaż użycie TrustedRouter";
+"TrustedRouter is rate limiting requests. Try again later." = "TrustedRouter ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"TrustedRouter request failed. Try refreshing later." = "Żądanie TrustedRouter nie powiodło się. Spróbuj odświeżyć później.";
+"TrustedRouter returned an unrecognized response. Update CodexBar and try again." = "TrustedRouter zwrócił nierozpoznaną odpowiedź. Zaktualizuj CodexBar i spróbuj ponownie.";
+"MiMo returned an unrecognized response. Update CodexBar and try again." = "MiMo zwrócił nierozpoznaną odpowiedź. Zaktualizuj CodexBar i spróbuj ponownie.";
+"China mainland" = "Chiny kontynentalne";
+"Singapore" = "Singapur";
+"MiMo is rate limiting requests. Try again later." = "MiMo ogranicza częstotliwość żądań. Spróbuj ponownie później.";
+"MiMo request failed. Try refreshing later." = "Żądanie MiMo nie powiodło się. Spróbuj odświeżyć później.";
+"Skip cost refresh" = "Pomiń odświeżanie kosztów";

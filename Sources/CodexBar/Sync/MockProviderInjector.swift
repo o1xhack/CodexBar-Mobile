@@ -16,7 +16,7 @@ import Foundation
 ///
 /// **Mix design**: the eight rich fixtures include six snapshots for
 /// `codex`, `claude`, and `perplexity`, plus two `_mock_*` unknown-ID
-/// snapshots. The full catalog now has 126 snapshots: 121 using current
+/// snapshots. The full catalog now has 130 snapshots: 125 using current
 /// provider IDs (111 distinct), three legacy-ID compatibility fixtures,
 /// and two unknown-ID fixtures. This exercises both first-class account
 /// rendering and the fallback path when a future Mac sends a provider
@@ -247,6 +247,7 @@ enum MockProviderInjector {
         // Provider-specific by design: upstream v0.75.0–v0.76.0 bundled-plugin providers borrowed by mocks.
         "fal", "flora", "parallel", "claudeplatform", "futureagi", "munito",
         "soniox", "traecn", "abliteration", "chatbox", "opendesign",
+        "siliconflow", "tripo", "googledeveloper", "trustedrouter",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -2043,6 +2044,30 @@ enum MockProviderInjector {
                 label: "Weekly", usedPercent: 40, windowMinutes: 10080,
                 resetsInSeconds: 604_800, resetDescription: ""),
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "siliconflow", providerName: "SiliconFlow",
+            accountLocal: "fixture", loginMethod: "API key",
+            primaryUsage: nil, primaryLabel: "Balance",
+            primaryWindowMinutes: 0, primaryResetsInSeconds: 0,
+            primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "tripo", providerName: "Tripo",
+            accountLocal: "fixture", loginMethod: "API key",
+            primaryUsage: nil, primaryLabel: "Credits",
+            primaryWindowMinutes: 0, primaryResetsInSeconds: 0,
+            primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "googledeveloper", providerName: "Google Developer Program",
+            accountLocal: "fixture", loginMethod: "Browser session",
+            primaryUsage: 35, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200, primaryResetsInSeconds: 604_800,
+            primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "trustedrouter", providerName: "TrustedRouter",
+            accountLocal: "fixture", loginMethod: "API key",
+            primaryUsage: 25, primaryLabel: "Usage",
+            primaryWindowMinutes: 0, primaryResetsInSeconds: 0,
+            primaryResetDescription: "", secondary: nil, thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal
@@ -2298,6 +2323,29 @@ enum MockProviderInjector {
                 ],
                 averageDecisionMilliseconds: 7.4,
                 updatedAt: now))
+        case "siliconflow":
+            return V026MockExtras(details: [.init(title: "Balance", rows: [
+                .init(label: "Balance", value: "CN¥42.00"),
+                .init(label: "Purchased", value: "CN¥35.00"),
+                .init(label: "Bonus", value: "CN¥7.00"),
+            ])])
+        case "tripo":
+            return V026MockExtras(details: [.init(title: "Credits", rows: [
+                .init(label: "Balance", value: "420 credits"),
+                .init(label: "Reserved", value: "36 credits"),
+            ])])
+        case "googledeveloper":
+            return V026MockExtras(
+                providerAmount: .init(
+                    kind: "balance", amount: 6.50, currencyCode: "USD",
+                    period: "Monthly credits", isEstimated: false),
+                details: [.init(title: "Billing", rows: [.init(label: "Granted", value: "2026-11-01")])])
+        case "trustedrouter":
+            return V026MockExtras(details: [.init(title: "Usage", rows: [
+                .init(label: "Remaining", value: "$12.00"),
+                .init(label: "Limit", value: "$16.00"),
+                .init(label: "This month", value: "$4.00"),
+            ])])
         case "zoommate":
             return V026MockExtras(zoomMateCredits: SyncZoomMateCredits(
                 budgetCap: 1000,

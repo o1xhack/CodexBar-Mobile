@@ -8,7 +8,7 @@ import Testing
 @testable import CodexBarCore
 @testable import SweetCookieKit
 
-@Suite(.serialized, CodexCredentialFixtures())
+@Suite(.serialized, CodexCredentialFixtures(), BrowserCookiePromptFixtures())
 struct BrowserCookiePromptContractTests {
     private final class FakeKeychain: @unchecked Sendable {
         private let lock = NSLock()
@@ -42,7 +42,7 @@ struct BrowserCookiePromptContractTests {
         interaction: ProviderInteraction,
         preflight: KeychainAccessPreflight.Outcome) throws -> Int
     {
-        let browsers: [Browser] = [.chrome, .edge, .brave, .braveOrigin]
+        let browsers: [Browser] = [.chrome, .chromeDev, .edge, .brave, .braveOrigin]
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: home) }
         for browser in browsers {
@@ -142,7 +142,7 @@ struct BrowserCookiePromptContractTests {
         }
     }
 
-    @Test(arguments: [Browser.brave, .braveOrigin, .claudeDesktop])
+    @Test(arguments: [Browser.brave, .braveOrigin, .claudeDesktop, .chromeDev])
     func `unrelated cookie rows never request a Safe Storage key`(browser: Browser) throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
@@ -158,7 +158,9 @@ struct BrowserCookiePromptContractTests {
                 "is_secure INTEGER, is_httponly INTEGER, value TEXT, encrypted_value BLOB); " +
                 "INSERT INTO cookies VALUES ('unrelated.example', 'session', '/', 0, 1, 1, '', X'763130'), " +
                 "('platform.minimax.cn.evil.example', 'session', '/', 0, 1, 1, '', X'763130'), " +
-                "('notminimax.cn', 'session', '/', 0, 1, 1, '', X'763130')",
+                "('notminimax.cn', 'session', '/', 0, 1, 1, '', X'763130'), " +
+                "('cloud.siliconflow.cn.evil.example', 'session', '/', 0, 1, 1, '', X'763130'), " +
+                "('notsiliconflow.cn', 'session', '/', 0, 1, 1, '', X'763130')",
             nil,
             nil,
             nil) == SQLITE_OK)
@@ -177,6 +179,7 @@ struct BrowserCookiePromptContractTests {
                     for query in [
                         BrowserCookieQuery(domains: ["xiaomimimo.com"], domainMatch: .exact),
                         MiniMaxCookieImporter.cookieQuery,
+                        BrowserCookieQuery(domains: ["cloud.siliconflow.cn", "siliconflow.cn"], domainMatch: .exact),
                     ] {
                         let records = try client.codexBarRecords(matching: query, in: store)
                         #expect(records.isEmpty)
@@ -263,6 +266,7 @@ struct BrowserCookiePromptContractTests {
                             ("replicate.com", "sessionid"),
                             ("github.com", "user_session"),
                             ("admin.mistral.ai", "ory_session_fixture"),
+                            ("minimax.io", "HERTZ-SESSION"),
                         ].map { domain, name in
                             let encrypted = try Self.encrypt(browser.rawValue, domain: domain, key: key)
                             return "INSERT INTO cookies VALUES ('\(domain)', '\(name)', '/', 0, 1, 1, " +
@@ -347,6 +351,28 @@ struct BrowserCookiePromptContractTests {
     @Test(arguments: [UsageProvider.venice, .grok, .replicate, .copilot, .mistral])
     func `native loaders leave Brave cold after a valid Chrome session`(provider: UsageProvider) async throws {
         try await self.auditNativeLoader(provider, rejectingChrome: false)
+    }
+
+    @Test(arguments: [KeychainAccessPreflight.Outcome.allowed, .interactionRequired])
+    func `MiniMax automatic reimport stays prompt free and stops at the validated session`(
+        preflight: KeychainAccessPreflight.Outcome) throws
+    {
+        try self.withFakeKeychain {
+            let fixture = try NativeBrowserFixture()
+            KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting { _, _ in preflight } operation: {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    let header = try? MiniMaxCookieImporter.sessionCandidates(
+                        browserDetection: fixture.detection,
+                        loadRecords: { browser, query, logger in
+                            guard BrowserCookieAccessGate.shouldAttempt(browser) else { return [] }
+                            return try fixture.records(browser, query, logger)
+                        }).first(where: { fixture.accepts($0.cookieHeader, rejectingChrome: false) })?.cookieHeader
+                    #expect(header == (preflight == .allowed ? "HERTZ-SESSION=chrome" : nil))
+                }
+            }
+            #expect(fixture.reads.value == (preflight == .allowed ? [.chrome] : []))
+            #expect(fixture.keychain.interactiveQueries == 0)
+        }
     }
 
     @Test(arguments: [UsageProvider.venice, .grok, .replicate, .copilot, .mistral])
@@ -596,7 +622,7 @@ struct BrowserCookiePromptContractTests {
         #expect(keychain.interactiveQueries == 1)
     }
 
-    @Test(arguments: [Browser.chrome, .braveOrigin, .claudeDesktop])
+    @Test(arguments: [Browser.chrome, .braveOrigin, .claudeDesktop, .chromeDev])
     func `an actual interactive denial blocks the next manual action`(browser: Browser) {
         let keychain = FakeKeychain(deniesInteraction: true)
         self.withFakeKeychain {
@@ -770,6 +796,23 @@ struct BrowserCookiePromptContractTests {
                         }
                     }
                 }
+        }
+    }
+}
+
+/// Cooldown resets in this suite must not erase another suite's denial state.
+private struct BrowserCookiePromptFixtures: TestTrait, SuiteTrait, TestScoping {
+    var isRecursive: Bool {
+        true
+    }
+
+    func provideScope(
+        for test: Test,
+        testCase: Test.Case?,
+        performing function: @Sendable () async throws -> Void) async throws
+    {
+        try await BrowserCookieAccessGate.withIsolatedStateForTesting {
+            try await function()
         }
     }
 }
