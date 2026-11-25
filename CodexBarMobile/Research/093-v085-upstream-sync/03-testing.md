@@ -34,9 +34,9 @@
 
 ### 当前证据
 
-- 最终 iOS shipping 输入在 `289116106` 冻结。27.2 iPhone 18 Pro 的全量测试通过，包括 1303 个 Swift Testing 用例、75 个 XCTest 执行（1 个跳过），覆盖 WidgetSnapshotBuilder 与 Widget 渲染矩阵。
+- GitHub 复审修正前的 iOS 构建使用 `289116106`。27.2 iPhone 18 Pro 的全量测试通过，包括 1303 个 Swift Testing 用例、75 个 XCTest 执行（1 个跳过），覆盖 WidgetSnapshotBuilder 与 Widget 渲染矩阵。
 - iOS 26.5 iPhone SE 通过 Usage 选择、旋转、Cost 分享草稿和取消、Summary 返回保留筛选两条用户路径。本轮没有改变 iOS 的最低部署版本。
-- 候选 3.6.0 (264) 使用 Apple Development 签名，主 App、Push Extension、Widget Extension 均为 CloudKit Production；Widget Options 仅 App Group。Archive 未上传。真实源码、四 bundle 哈希与 Archive ZIP SHA256 见 [签名归档证据](evidence/ios-candidate-archive-verified.json)。
+- 复审修正前的候选 3.6.0 (264) 使用 Apple Development 签名，主 App、Push Extension、Widget Extension 均为 CloudKit Production；Widget Options 仅 App Group。Archive 未上传。真实源码、四 bundle 哈希与 Archive ZIP SHA256 见 [复审前签名归档证据](evidence/ios-candidate-archive-verified.json)。
 - 严格 SwiftLint 扫描 3,337 个文件，0 违规。CI 和 README guard、四语言、Mac 打包 WebKit 冒烟脚本单测通过。Mac 独立多账号筛选通过 137 和 11 个 Swift Testing 用例，两项 XCTest 执行含 1 个 opt-in 跳过。Claude 路径去重和 Codex 延迟确认测试修正均在全量运行中通过；该次运行在四个新 provider 的 mock 守卫处停止，固定成本历史例外后复跑验证四个新 provider mock 通过。冷启动 WebKit 的合成用例随后因共享偏好里 24 小时内的标记跳过清理。独立进程复现，补上对登录用户 Library/Preferences 的文件级隔离后，同一可执行文件清理 1 个合成 store，通过 smoke。修正后的冷启动 WebKit 用例在两轮全量运行中通过。随后修订了 Mac 的 provider 数量和 OpenDesign 原位置断言，最后一次全量测试已通过。
 - iPad mini 26.5 与 Duo 1 当前姿态复测中，Cost 页面、分享面板、取消及 Summary 详情往返保留筛选均通过。最初 Summary 模块重排序失败独立保留。Duo 外屏竖屏重排序复跑通过。最初测试把从 y=82 起的第一行排除在起点为 y=90 的手势区之外，修订后实际落点约 y=91。重排序立即生效，关闭重开后仍在首位，详情及账号往返通过。旧失败、复跑 `xcresult` 摘要均保留。账号选择、分享草稿与取消的旋转用例通过。另一用例等待实际横向视口超时，设备方向命令回执不足以证明 App 视口旋转成功。Device Hub 仍报 AppleEvent 超时，无法取得当前候选的内屏与原生折展证据。保留横向失败摘要。本任务模拟器已关闭，其他会话的 17e 保持运行。
 
@@ -68,3 +68,10 @@
 | 原生折叠再展开 | 保留热图草稿、范围和账号选择，取消原草稿后可创建新的 Classic 草稿，重跑通过 | `Duo-Recovered-Native-Fold-Retry.xcresult` |
 
 首轮原生折展测试在展开并打开新草稿时发生 SpringBoard 崩溃，原始失败 `Duo-Recovered-Native-Fold.xcresult` 保留。同一候选重跑使用 600 秒的默认单用例时限，两个姿态转换各自的 180 秒断言保持原值，98.382 秒通过。主检出目录 `CodexBarMobile/build/upstream-v085/qa` 保存原始日志、结果包和摘要。本次启动的 Duo 1、Duo 2 已关闭。
+
+
+## GitHub 复审后的 iOS 候选
+
+- [GitHub 复审](https://github.com/o1xhack/CodexBar-Mobile/pull/237#discussion_r4689136829) 发现 Notion 的个人额度明细仍以英文显示数值单位和用量。`8a8ea9b9c` 为 App 和 Widget 共用的展示逻辑修复了这两种格式，新增覆盖四种语言、零值和不适用内容的测试。
+- 27.2 iPhone 18 Pro 上复跑全量 iOS 单元测试，1,378 项通过，1 项跳过，0 项失败。结果保存在 `CodexBarMobile/build/upstream-v085/qa/iOS-Unit-Notion.xcresult`。Duo 原生姿态和折叠验收使用复审前候选。本次修正涉及 Notion 的两种文案格式，由全量回归覆盖。Mac 出包输入沿用已验证版本。
+- 从 `8a8ea9b9c` 重新归档 3.6.0 (264)，回读四个 bundle 的版本、签名、entitlement 和哈希。主 App、Push Extension、Widget Extension 的 CloudKit 环境为 Production。更新后的 ZIP SHA256 为 `aec819b0b8be900c3453d1ce89a6cb33be09eefb26b00e18dac1c9e40b50fcea`，旧归档移至 `superseded/`。新 Archive 保存在本机，上传待授权。[本轮签名归档证据](evidence/ios-notion-archive-verified.json)
