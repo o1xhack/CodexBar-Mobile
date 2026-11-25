@@ -135,6 +135,49 @@ struct V074ProviderPresentationTests {
             balance, providerID: "my-plugin", locale: zh) == balance)
     }
 
+    @Test func `localized Google Developer Mac snapshots render in the phone language`() {
+        let en = Locale(identifier: "en")
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "残り ¥750 / ¥1,000 · 2026-12-01に期限切れ", providerID: "googledeveloper", locale: en)
+            == "¥750 of ¥1,000 left · Expires Dec 1, 2026")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "7,50 € restants sur 10,00 € · Expire 2026-12-01", providerID: "googledeveloper", locale: zh)
+            == "剩余 7,50 €（共 10,00 €） · 2026年12月1日 到期")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "剩余 CN¥7.50，共 CN¥10.00", providerID: "googledeveloper", locale: en)
+            == "CN¥7.50 of CN¥10.00 left")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Non appliqué", providerID: "googledeveloper", rowLabel: "Status", sectionTitle: "Cloud credits", locale: zh)
+            == "未领取")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "ブラウザセッション", providerID: "googledeveloper", locale: en) == "Browser session")
+    }
+
+    @Test func `MiMo quota units and Helmcode plan labels localize without changing model names`() {
+        let model = SyncProviderDetailSection.Row(label: "Other models", value: "200")
+        let section = SyncProviderDetailSection(title: "Credits used", rows: [model])
+        let context = ProviderDetailLocalization.rowContext(
+            providerID: "helmcode", section: section, row: model, index: 0)
+        for (language, credit, perMillion, gracePeriod) in [
+            ("en", "Credits", "Credits per million tokens", "Paused during grace period"),
+            ("zh-Hans", "额度", "每百万 token 的额度", "宽限期内已暂停"),
+            ("zh-Hant", "額度", "每百萬 token 的額度", "寬限期內已暫停"),
+            ("ja", "クレジット", "100万トークンあたりのクレジット", "猶予期間中は一時停止"),
+        ] {
+            let locale = Locale(identifier: language)
+            #expect(ProviderDetailLocalization.localizedValue(
+                "120 / 500 Credits", providerID: "mimo", locale: locale) == "120 / 500 \(credit)")
+            #expect(ProviderDetailLocalization.localized(
+                "Credits per million tokens", providerID: "helmcode", locale: locale) == perMillion)
+            #expect(ProviderDetailLocalization.localized(
+                "Paused during grace period", providerID: "helmcode",
+                context: .rowLabel(sectionTitle: "Credits"), locale: locale) == gracePeriod)
+            #expect(ProviderDetailLocalization.localized(
+                model.label, providerID: "helmcode", context: context, locale: locale) == model.label)
+        }
+    }
+
     @Test func `the Mac's Claude credentials-changed error becomes phone guidance`() {
         let mac = "Claude Code credentials changed (Updated 5m ago). Click Refresh to re-grant CodexBar access."
         #expect(ProviderDetailLocalization.localizedStatusMessage(mac, isError: true, locale: Locale(identifier: "zh-Hans"))

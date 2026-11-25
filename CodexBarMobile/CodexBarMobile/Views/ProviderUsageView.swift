@@ -2,6 +2,8 @@ import CodexBarSync
 import SwiftUI
 
 struct ProviderUsageView: View {
+    @Environment(\.locale) private var locale
+
     let provider: ProviderUsageSnapshot
     /// Captured by the root cost-boundary clock so every Usage surface uses
     /// the same producer-day evaluation instant for one render.
@@ -232,7 +234,10 @@ struct ProviderUsageView: View {
                 }
 
                 if let plan = self.provider.loginMethod {
-                    Text(MobilePersonalInfoRedactor.redactEmails(in: plan, isEnabled: self.hidePersonalInfo) ?? plan)
+                    let displayPlan = ProviderDetailLocalization.localizedValue(
+                        plan, providerID: self.provider.providerID, locale: self.locale)
+                    Text(MobilePersonalInfoRedactor.redactEmails(in: displayPlan, isEnabled: self.hidePersonalInfo)
+                        ?? displayPlan)
                         .font(.caption)
                         .fontWeight(.medium)
                         .padding(.horizontal, 8)

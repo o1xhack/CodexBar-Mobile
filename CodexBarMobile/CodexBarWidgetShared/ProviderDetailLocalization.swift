@@ -45,7 +45,8 @@ enum ProviderDetailLocalization {
         "Billing account", "Billing type", "Bobcoin usage", "Bonus", "Bonus credits left", "Budget ledger", "Budgets",
         "Cache read", "Cache-hit input", "Cache-miss input", "Cached input", "Chart range",
         "Characters", "Context files", "Context used", "Cost items", "Credit", "Credit balance",
-        "Credit history", "Credit quota", "Credits", "Credits left", "Credits total", "Credits used",
+        "Credit history", "Credit quota", "Credits", "Credits left", "Credits per million tokens", "Credits total",
+        "Credits used",
         "Cycle remaining", "Cycle used", "Daemon", "Daily", "Hard", "Lifetime", "Monthly", "Monitor",
         "Daily credits", "Daily points", "Daily spend", "Daily tokens", "Detailed usage", "DevPass credits",
         "Exhausted keys", "Extra usage", "Gateway", "GPU time remaining", "GPU time used",
@@ -57,7 +58,9 @@ enum ProviderDetailLocalization {
         "Overage cost", "Overage credits left", "Overage usage", "Overages", "Pace",
         "Observed", "Organization", "Period", "Period resets", "Personal", "Plan", "Points", "Prepaid balance",
         "Premium weekly",
-        "Professional voices", "Project", "Promotional", "Providers", "Prompts", "Purchased", "Quota",
+        "Paused during grace period", "Professional voices", "Project", "Promotional", "Providers", "Prompts",
+        "Purchased",
+        "Quota",
         "Quota details", "Quota services", "Rate limit", "Rate-limit remaining", "Recurring",
         "Included limits", "Remaining", "Renews", "Request quota", "Requests", "Reset", "Reset window", "Reserved",
         "Session",
@@ -104,6 +107,7 @@ enum ProviderDetailLocalization {
         "claudeplatform": ["Other credit grants"],
         "futureagi": ["Used / free allowance"],
         "groq": ["Models"],
+        "helmcode": ["Credits used", "Credits per million tokens"],
         "ibmbob": ["Bobcoin usage"],
         "llmproxy": ["Providers"],
         "llmman": ["Loaded models"],
@@ -153,6 +157,11 @@ enum ProviderDetailLocalization {
         // A real model named "Other models" in those first five must stay verbatim.
         if providerID == "bifrost", section.title == "Models", section.rows.count == 6,
            index == 5, row.label == "Other models", Int(row.value) != nil
+        {
+            return .semantic
+        }
+        if providerID == "helmcode", section.title == "Credits used", section.rows.count == 21,
+           index == 20, row.label == "Other models", row.value == "—"
         {
             return .semantic
         }
@@ -224,17 +233,30 @@ enum ProviderDetailLocalization {
         }
         switch providerID {
         case "googledeveloper":
-            if sectionTitle == "Cloud credits", rowLabel == "Status", value == "Not applied" {
-                return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+            if sectionTitle == "Cloud credits", rowLabel == "Status",
+               self.googleDeveloperUnappliedStates.contains(value)
+            {
+                return MobileLocalizedString.value("Not applied", defaultValue: value, locale: locale)
             }
             if sectionTitle == "Billing", rowLabel == "Granted" {
                 return self.localizedGoogleDeveloperDay(value, locale: locale) ?? value
             }
             guard rowLabel == nil, sectionTitle == nil else { return value }
+            if self.googleDeveloperBrowserSessions.contains(value) {
+                return MobileLocalizedString.value("Browser session", defaultValue: value, locale: locale)
+            }
             return self.localizedGoogleDeveloperBalance(value, locale: locale) ?? value
         case "notion":
             guard sectionTitle == "Personal credits" else { return value }
             return self.localizedNotionAllowanceValue(value, locale: locale) ?? value
+        case "mimo":
+            let suffix = " Credits"
+            guard rowLabel == nil, sectionTitle == nil, value.hasSuffix(suffix) else { return value }
+            let amounts = String(value.dropLast(suffix.count))
+            let parts = amounts.components(separatedBy: " / ")
+            guard parts.count == 2, parts.allSatisfy({ $0.contains(where: \.isNumber) }) else { return value }
+            let credits = MobileLocalizedString.value("Credits", defaultValue: "Credits", locale: locale)
+            return "\(amounts) \(credits)"
         case "aixy":
             if rowLabel == nil,
                let localized = self.localizedAixyResetDescription(value, locale: locale)
@@ -326,19 +348,71 @@ enum ProviderDetailLocalization {
         return value
     }
 
-    /// Google sends locale-formatted currency and a Mac calendar day in YYYY-MM-DD form.
+    /// Exact MESSAGES strings written by the bundled Google Developer Mac plugin.
+    /// Older synced snapshots contain the Mac translation without a locale or semantic key.
+    private static let googleDeveloperBalanceFormats: [NSRegularExpression] = [
+        "متبقٍ %@ من %@", "Queden %@ de %@", "%@ von %@ übrig", "%@ of %@ left",
+        "Quedan %@ de %@", "%@ از %@ باقی مانده", "%@ restants sur %@", "%@ dari %@ tersisa",
+        "%@ rimanenti su %@", "残り %@ / %@", "%@ 남음 / %@", "%@ van %@ over",
+        "Pozostało %@ z %@", "%@ restantes de %@", "Осталось %@ из %@", "%@ av %@ kvar",
+        "เหลือ %@ จาก %@", "%@ / %@ kaldı", "Залишилося %@ з %@", "Còn %@ trên %@",
+        "剩余 %@，共 %@", "剩餘 %@，共 %@",
+    ].compactMap(Self.googleDeveloperPattern)
+
+    private static let googleDeveloperExpiryFormats: [NSRegularExpression] = [
+        "تنتهي الصلاحية %@", "Caduca %@", "Läuft %@ ab", "Expires %@",
+        "انقضا %@", "Expire %@", "Kedaluwarsa %@", "Scade %@",
+        "%@に期限切れ", "%@에 만료", "Verloopt %@", "Wygasa %@",
+        "Expira %@", "Истекает %@", "Upphör %@", "หมดอายุ %@",
+        "%@ sona eriyor", "Спливає %@", "Hết hạn %@", "%@ 到期",
+    ].compactMap(Self.googleDeveloperPattern)
+
+    private static let googleDeveloperUnappliedStates: Set<String> = [
+        "غير مطبّق", "No aplicat", "Nicht angewendet", "Not applied",
+        "Sin aplicar", "اعمال نشده", "Non appliqué", "Sen aplicar",
+        "Belum diterapkan", "Non applicato", "未適用", "미적용",
+        "Niet toegepast", "Nie zastosowano", "Não aplicado", "Не применено",
+        "Inte tillämpat", "ยังไม่ได้ใช้กับบัญชี", "Uygulanmadı", "Не застосовано",
+        "Chưa áp dụng", "未应用", "尚未套用",
+    ]
+
+    private static let googleDeveloperBrowserSessions: Set<String> = [
+        "جلسة المتصفح", "Sessió del navegador", "Browsersitzung", "Browser session",
+        "Sesión del navegador", "نشست مرورگر", "Session du navigateur", "Sesión do navegador",
+        "Sesi browser", "Sessione del browser", "ブラウザセッション", "브라우저 세션",
+        "Browsersessie", "Sesja przeglądarki", "Sessão do navegador", "Сеанс браузера",
+        "Webbläsarsession", "เซสชันเบราว์เซอร์", "Tarayıcı oturumu", "Сесія браузера",
+        "Phiên trình duyệt", "浏览器会话", "瀏覽器工作階段",
+    ]
+
+    private static func googleDeveloperPattern(_ format: String) -> NSRegularExpression? {
+        let parts = format.components(separatedBy: "%@").map { NSRegularExpression.escapedPattern(for: $0) }
+        return try? NSRegularExpression(pattern: "^" + parts.joined(separator: "(.+?)") + "$")
+    }
+
+    private static func googleDeveloperArguments(_ value: String, patterns: [NSRegularExpression]) -> [String]? {
+        let range = NSRange(value.startIndex..<value.endIndex, in: value)
+        for pattern in patterns {
+            guard let match = pattern.firstMatch(in: value, range: range), match.range == range else { continue }
+            return (1..<match.numberOfRanges).compactMap { index in
+                Range(match.range(at: index), in: value).map { String(value[$0]) }
+            }
+        }
+        return nil
+    }
+
+    /// Preserve the original currency display and translate the surrounding balance and calendar day.
     private static func localizedGoogleDeveloperBalance(_ value: String, locale: Locale) -> String? {
         let fragments = value.components(separatedBy: " · ")
-        let suffix = " left"
-        guard fragments.count <= 2, let balance = fragments.first, balance.hasSuffix(suffix) else { return nil }
-        let amounts = String(balance.dropLast(suffix.count)).components(separatedBy: " of ")
-        guard amounts.count == 2, amounts.allSatisfy({ $0.contains(where: \.isNumber) }) else { return nil }
+        guard fragments.count <= 2, let balance = fragments.first,
+              let amounts = self.googleDeveloperArguments(balance, patterns: self.googleDeveloperBalanceFormats),
+              amounts.count == 2, amounts.allSatisfy({ $0.contains(where: \.isNumber) })
+        else { return nil }
         let localizedBalance = self.localizedFormat("%@ of %@ left", arguments: amounts, locale: locale)
         guard fragments.count == 2 else { return localizedBalance }
-        let expiryPrefix = "Expires "
         let expiry = fragments[1]
-        guard expiry.hasPrefix(expiryPrefix) else { return "\(localizedBalance) · \(expiry)" }
-        let dayText = String(expiry.dropFirst(expiryPrefix.count))
+        guard let dayText = self.googleDeveloperArguments(expiry, patterns: self.googleDeveloperExpiryFormats)?.first
+        else { return "\(localizedBalance) · \(expiry)" }
         let day = self.localizedGoogleDeveloperDay(dayText, locale: locale) ?? dayText
         return "\(localizedBalance) · \(self.localizedFormat("Expires %@", argument: day, locale: locale))"
     }
