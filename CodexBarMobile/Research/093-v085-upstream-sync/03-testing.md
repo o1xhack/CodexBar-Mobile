@@ -53,7 +53,7 @@
 - 测试源码 `4fba9be2925c36b04fae13e52335de88bc995f04`。仓库全量测试退出 0，1,970 个选择项全部执行，运行器交叉核对 17,055 个测试方法。176 个分组首轮全过，0 失败，0 超时，0 重试。之后仅更新验收文档。
 - 原始日志位于主检出目录 `CodexBarMobile/build/upstream-v085/qa/mac-full-v085.log`。SHA256 为 `87cc7f6b1a8d53119874addcef93d99bdc26250a9865a4a630c122f2f9e69375`。Mac 草稿流程重新执行完整 lint，3,337 文件 0 违规。
 - [GitHub Mac 草稿](https://github.com/o1xhack/CodexBar-Mobile/releases/tag/untagged-c20885d2f9fe8c04d910) ID 为 `457487375`，`mobile-dev` 是占位 target。GitHub 上两个上传附件的大小与 SHA256 均和本地一致。草稿说明已回读并确认采用实际打包源码。预定标签在本地与远端均未创建。
-- [#235](https://github.com/o1xhack/CodexBar-Mobile/issues/235) 跟踪 v0.84.0，[#236](https://github.com/o1xhack/CodexBar-Mobile/issues/236) 跟踪 v0.85.0，二者仍开放。Duo 补测完成后进入候选 PR、GitHub Code Review 和远端门禁。
+- [#235](https://github.com/o1xhack/CodexBar-Mobile/issues/235) 跟踪 v0.84.0，[#236](https://github.com/o1xhack/CodexBar-Mobile/issues/236) 跟踪 v0.85.0，二者仍开放。候选 [PR #237](https://github.com/o1xhack/CodexBar-Mobile/pull/237) 已创建，关联本轮两个 Issue。GitHub Code Review 和远端门禁通过后交接。
 
 ## Duo 原生姿态补测
 
@@ -67,4 +67,4 @@
 | 内屏竖屏 | Cost、分享和 Summary 全宽回归通过，Summary 实际网格宽 669 pt | `Duo-Recovered-Inner-Portrait.xcresult` |
 | 原生折叠再展开 | 保留热图草稿、范围和账号选择，取消原草稿后可创建新的 Classic 草稿，重跑通过 | `Duo-Recovered-Native-Fold-Retry.xcresult` |
 
-首轮原生折展测试在展开并打开新草稿时发生 SpringBoard 崩溃，原始失败 `Duo-Recovered-Native-Fold.xcresult` 保留。同一候选重跑使用 600 秒的默认单用例时限，两个姿态转换各自的 180 秒断言保持原值，约 97 秒通过。主检出目录 `CodexBarMobile/build/upstream-v085/qa` 保存原始日志、结果包和摘要。本次启动的 Duo 1、Duo 2 已关闭。
+首轮原生折展测试在展开并打开新草稿时发生 SpringBoard 崩溃，原始失败 `Duo-Recovered-Native-Fold.xcresult` 保留。同一候选重跑使用 600 秒的默认单用例时限，两个姿态转换各自的 180 秒断言保持原值，98.382 秒通过。主检出目录 `CodexBarMobile/build/upstream-v085/qa` 保存原始日志、结果包和摘要。本次启动的 Duo 1、Duo 2 已关闭。
