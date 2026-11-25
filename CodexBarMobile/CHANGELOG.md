@@ -7,6 +7,7 @@
 
 ### Changed
 - Display the OpenAI API credit balance reported by the paired Mac and pick up updated Codex and Claude cost estimates.
+- Localize synced Google Developer Program and Notion credit details, MiMo quota units and Helmcode plan labels.
 
 ## 3.5.0 (263) — 2026-11-06
 

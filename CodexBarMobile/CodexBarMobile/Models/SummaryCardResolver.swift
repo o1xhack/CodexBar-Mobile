@@ -288,7 +288,7 @@ enum SummaryCardResolver {
 
     static func accountTitle(
         _ account: ProviderUsageSnapshot, anchorID: String,
-        preferences: SummaryPreferences, accounts: [ProviderUsageSnapshot]) -> String
+        preferences: SummaryPreferences, accounts: [ProviderUsageSnapshot], locale: Locale = .current) -> String
     {
         var components = [self.providerName(account)]
         let alias = preferences.accountAliases[anchorID].flatMap { $0.isEmpty ? nil : $0 }
@@ -305,7 +305,10 @@ enum SummaryCardResolver {
             }
             identity = label
         }
-        for value in [identity, account.loginMethod].compactMap(\.self) where !value.isEmpty {
+        let login = account.loginMethod.map {
+            ProviderDetailLocalization.localizedValue($0, providerID: account.providerID, locale: locale)
+        }
+        for value in [identity, login].compactMap(\.self) where !value.isEmpty {
             if !components.contains(value) { components.append(value) }
         }
         return components.joined(separator: " ")

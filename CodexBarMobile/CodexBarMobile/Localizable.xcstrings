@@ -39,30 +39,30 @@
         }
       }
     },
-    "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage synced from your Mac, along with updated Codex and Claude cost estimates.": {
+    "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage from your Mac. Credit details follow your phone’s language, and Codex and Claude cost estimates are updated.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage synced from your Mac, along with updated Codex and Claude cost estimates."
+            "value": "See SiliconFlow, Tripo, Google Developer Program and TrustedRouter usage from your Mac. Credit details follow your phone’s language, and Codex and Claude cost estimates are updated."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "查看从 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量，以及更新后的 Codex 和 Claude 费用估算。"
+            "value": "查看从 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量。额度详情使用手机的语言，Codex 和 Claude 的费用估算也已更新。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "查看從 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量，以及更新後的 Codex 和 Claude 費用估算。"
+            "value": "查看從 Mac 同步的 SiliconFlow、Tripo、Google Developer Program 和 TrustedRouter 用量。額度詳情使用手機的語言，Codex 和 Claude 的費用估算也已更新。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac から同期した SiliconFlow、Tripo、Google Developer Program、TrustedRouter の使用状況と、更新された Codex と Claude の費用見積もりを確認できます。"
+            "value": "Mac から同期した SiliconFlow、Tripo、Google Developer Program、TrustedRouter の使用状況を確認できます。クレジットの詳細は iPhone の言語で表示され、Codex と Claude の費用見積もりも更新されました。"
           }
         }
       }
