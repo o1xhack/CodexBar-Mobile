@@ -223,6 +223,15 @@ enum ProviderDetailLocalization {
             return value
         }
         switch providerID {
+        case "googledeveloper":
+            if sectionTitle == "Cloud credits", rowLabel == "Status", value == "Not applied" {
+                return MobileLocalizedString.value(value, defaultValue: value, locale: locale)
+            }
+            if sectionTitle == "Billing", rowLabel == "Granted" {
+                return self.localizedGoogleDeveloperDay(value, locale: locale) ?? value
+            }
+            guard rowLabel == nil, sectionTitle == nil else { return value }
+            return self.localizedGoogleDeveloperBalance(value, locale: locale) ?? value
         case "notion":
             guard sectionTitle == "Personal credits" else { return value }
             return self.localizedNotionAllowanceValue(value, locale: locale) ?? value
@@ -315,6 +324,37 @@ enum ProviderDetailLocalization {
         }
 
         return value
+    }
+
+    /// Google sends locale-formatted currency and a Mac calendar day in YYYY-MM-DD form.
+    private static func localizedGoogleDeveloperBalance(_ value: String, locale: Locale) -> String? {
+        let fragments = value.components(separatedBy: " · ")
+        let suffix = " left"
+        guard fragments.count <= 2, let balance = fragments.first, balance.hasSuffix(suffix) else { return nil }
+        let amounts = String(balance.dropLast(suffix.count)).components(separatedBy: " of ")
+        guard amounts.count == 2, amounts.allSatisfy({ $0.contains(where: \.isNumber) }) else { return nil }
+        let localizedBalance = self.localizedFormat("%@ of %@ left", arguments: amounts, locale: locale)
+        guard fragments.count == 2 else { return localizedBalance }
+        let expiryPrefix = "Expires "
+        let expiry = fragments[1]
+        guard expiry.hasPrefix(expiryPrefix) else { return "\(localizedBalance) · \(expiry)" }
+        let dayText = String(expiry.dropFirst(expiryPrefix.count))
+        let day = self.localizedGoogleDeveloperDay(dayText, locale: locale) ?? dayText
+        return "\(localizedBalance) · \(self.localizedFormat("Expires %@", argument: day, locale: locale))"
+    }
+
+    private static func localizedGoogleDeveloperDay(_ value: String, locale: Locale) -> String? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        // UTC keeps the transmitted calendar day stable regardless of the phone's time zone.
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: value), formatter.string(from: date) == value else { return nil }
+        formatter.locale = locale
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.setLocalizedDateFormatFromTemplate("yMMMd")
+        return formatter.string(from: date)
     }
 
     /// Notion personal allowances send remaining credits and a separate used / total string.

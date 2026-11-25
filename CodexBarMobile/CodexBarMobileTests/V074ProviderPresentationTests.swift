@@ -95,6 +95,46 @@ struct V074ProviderPresentationTests {
                                               locale: Locale(identifier: "zh-Hant")) == "方案額度")
     }
 
+    @Test func `Google Developer cloud credit details and quota descriptions localize in four languages`() {
+        let balance = "$7.50 of $10.00 left"
+        let status = SyncProviderDetailSection.Row(
+            label: "Status", value: "Not applied", secondaryValue: "me.developers.google.com/benefits")
+        let granted = SyncProviderDetailSection.Row(label: "Granted", value: "2026-12-01")
+        for (language, expectedStatus, expectedBalance, day, expiry) in [
+            ("en", "Not applied", balance, "Dec 1, 2026", "Expires Dec 1, 2026"),
+            ("zh-Hans", "未领取", "剩余 $7.50（共 $10.00）", "2026年12月1日", "2026年12月1日 到期"),
+            ("zh-Hant", "未領取", "剩餘 $7.50（共 $10.00）", "2026年12月1日", "2026年12月1日 到期"),
+            ("ja", "未適用", "残り $7.50 / $10.00", "2026年12月1日", "有効期限：2026年12月1日"),
+        ] {
+            let locale = Locale(identifier: language)
+            let statusPresentation = ProviderDetailRowPresentation(
+                providerID: "googledeveloper", row: status, sectionTitle: "Cloud credits", locale: locale)
+            let grantPresentation = ProviderDetailRowPresentation(
+                providerID: "googledeveloper", row: granted, sectionTitle: "Billing", locale: locale)
+            #expect(statusPresentation.value == expectedStatus)
+            #expect(statusPresentation.secondaryValue == "me.developers.google.com/benefits")
+            #expect(grantPresentation.value == day)
+            #expect(ProviderDetailLocalization.localizedValue(balance, providerID: "googledeveloper", locale: locale)
+                == expectedBalance)
+            #expect(ProviderDetailLocalization.localizedValue(
+                balance + " · Expires 2026-12-01", providerID: "googledeveloper", locale: locale)
+                == "\(expectedBalance) · \(expiry)")
+        }
+
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "CHF 0.00 of CHF 10.00 left", providerID: "googledeveloper", locale: zh)
+            == "剩余 CHF 0.00（共 CHF 10.00）")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "Not applied", providerID: "googledeveloper", rowLabel: "Billing account", sectionTitle: "Billing", locale: zh)
+            == "Not applied")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "2026-02-30", providerID: "googledeveloper", rowLabel: "Granted", sectionTitle: "Billing", locale: zh)
+            == "2026-02-30")
+        #expect(ProviderDetailLocalization.localizedValue(
+            balance, providerID: "my-plugin", locale: zh) == balance)
+    }
+
     @Test func `the Mac's Claude credentials-changed error becomes phone guidance`() {
         let mac = "Claude Code credentials changed (Updated 5m ago). Click Refresh to re-grant CodexBar access."
         #expect(ProviderDetailLocalization.localizedStatusMessage(mac, isError: true, locale: Locale(identifier: "zh-Hans"))
