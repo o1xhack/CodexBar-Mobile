@@ -261,6 +261,24 @@ enum CloudSyncBatchRecordProvider {
         return record
     }
 
+    /// Replaces a snapshot save with a delete. A save that never left the queue gets no result
+    /// callback, so its in-flight marker is cleared here. A save that was already sent cannot confirm
+    /// a later payload with different contents: its result no longer matches `desiredRecords` (see
+    /// `shouldApplySaveResult`). A later identical payload may be confirmed by it, which is what the
+    /// server then stores.
+    static func replaceSaveWithDelete(
+        _ recordID: CKRecord.ID,
+        desiredRecords: inout [CKRecord.ID: CKRecord],
+        pendingSaveHashes: inout [String: String],
+        changePending: (
+            _ remove: CKSyncEngine.PendingRecordZoneChange,
+            _ add: CKSyncEngine.PendingRecordZoneChange) -> Void)
+    {
+        desiredRecords.removeValue(forKey: recordID)
+        pendingSaveHashes.removeValue(forKey: recordID.recordName)
+        changePending(.saveRecord(recordID), .deleteRecord(recordID))
+    }
+
     static func snapshot(_ record: CKRecord) throws -> AccountSnapshotSyncPayload? {
         guard let providerRaw = record["provider"] as? String,
               let provider = ProviderInstanceID(rawValue: providerRaw),
@@ -2234,10 +2252,14 @@ extension CloudSyncEngine {
         }
         self.pendingSnapshots.removeAll { recordNamesToDelete.contains($0.recordName) }
         for recordName in recordNamesToDelete {
-            let recordID = self.recordID(named: recordName)
-            self.desiredRecords.removeValue(forKey: recordID)
-            engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
-            engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+            CloudSyncBatchRecordProvider.replaceSaveWithDelete(
+                self.recordID(named: recordName),
+                desiredRecords: &self.desiredRecords,
+                pendingSaveHashes: &self.pendingSaveHashes)
+            { remove, add in
+                engine.state.remove(pendingRecordZoneChanges: [remove])
+                engine.state.add(pendingRecordZoneChanges: [add])
+            }
         }
         self.persistEnvelope()
     }
@@ -2448,10 +2470,14 @@ extension CloudSyncEngine {
                 engine.state.remove(pendingRecordZoneChanges: [.deleteRecord(self.recordID(named: recordName))])
             }
             for recordName in immediateDeletes {
-                let recordID = self.recordID(named: recordName)
-                self.desiredRecords.removeValue(forKey: recordID)
-                engine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
-                engine.state.add(pendingRecordZoneChanges: [.deleteRecord(recordID)])
+                CloudSyncBatchRecordProvider.replaceSaveWithDelete(
+                    self.recordID(named: recordName),
+                    desiredRecords: &self.desiredRecords,
+                    pendingSaveHashes: &self.pendingSaveHashes)
+                { remove, add in
+                    engine.state.remove(pendingRecordZoneChanges: [remove])
+                    engine.state.add(pendingRecordZoneChanges: [add])
+                }
             }
 
             if !snapshots.isEmpty {
