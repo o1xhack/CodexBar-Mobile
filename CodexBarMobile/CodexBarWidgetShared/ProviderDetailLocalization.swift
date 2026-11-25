@@ -223,6 +223,9 @@ enum ProviderDetailLocalization {
             return value
         }
         switch providerID {
+        case "notion":
+            guard sectionTitle == "Personal credits" else { return value }
+            return self.localizedNotionAllowanceValue(value, locale: locale) ?? value
         case "aixy":
             if rowLabel == nil,
                let localized = self.localizedAixyResetDescription(value, locale: locale)
@@ -312,6 +315,26 @@ enum ProviderDetailLocalization {
         }
 
         return value
+    }
+
+    /// Notion personal allowances send remaining credits and a separate used / total string.
+    /// Keep the producer's formatted numbers and translate the unit and usage phrase.
+    private static func localizedNotionAllowanceValue(_ value: String, locale: Locale) -> String? {
+        func isAmount(_ text: String) -> Bool {
+            text.contains(where: \.isNumber)
+                && text.allSatisfy { $0.isNumber || ",. \u{00A0}\u{202F}".contains($0) }
+        }
+
+        let creditsSuffix = " credits"
+        if value.hasSuffix(creditsSuffix), isAmount(String(value.dropLast(creditsSuffix.count))) {
+            return self.localizedV074Value(value, locale: locale)
+        }
+        let usedSuffix = " used"
+        guard value.hasSuffix(usedSuffix) else { return nil }
+        let amounts = String(value.dropLast(usedSuffix.count))
+        let parts = amounts.components(separatedBy: " / ")
+        guard parts.count == 2, parts.allSatisfy(isAmount) else { return nil }
+        return self.localizedFormat("%@ used", argument: amounts, locale: locale)
     }
 
     /// Upstream v0.74 plugin values: fixed allowance states and "<number> credits" amounts.

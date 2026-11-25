@@ -60,6 +60,31 @@ struct V074ProviderPresentationTests {
         #expect(ProviderDetailLocalization.localizedValue("Something new", providerID: "sofya", locale: zh) == "Something new")
     }
 
+    @Test func `Notion allowance rows render credit and usage values in four languages`() {
+        let row = SyncProviderDetailSection.Row(
+            label: "Standard remaining", value: "1,365.33 credits", secondaryValue: "134.67 / 1,500 used")
+        for (language, primary, secondary) in [
+            ("en", "1,365.33 credits", "134.67 / 1,500 used"),
+            ("zh-Hans", "1,365.33 额度", "已用 134.67 / 1,500"),
+            ("zh-Hant", "1,365.33 額度", "已用 134.67 / 1,500"),
+            ("ja", "1,365.33 クレジット", "134.67 / 1,500 使用済み"),
+        ] {
+            let presentation = ProviderDetailRowPresentation(
+                providerID: "notion", row: row, sectionTitle: "Personal credits", locale: Locale(identifier: language))
+            #expect(presentation.value == primary)
+            #expect(presentation.secondaryValue == secondary)
+        }
+
+        let zh = Locale(identifier: "zh-Hans")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "0 credits", providerID: "notion", sectionTitle: "Personal credits", locale: zh) == "0 额度")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "workspace credits", providerID: "notion", sectionTitle: "Personal credits", locale: zh)
+            == "workspace credits")
+        #expect(ProviderDetailLocalization.localizedValue(
+            "420 credits", providerID: "my-plugin", sectionTitle: "Personal credits", locale: zh) == "420 credits")
+    }
+
     @Test func `new quota window labels localize`() {
         let ja = Locale(identifier: "ja")
         #expect(ProviderWindowLabel.localized("Team", fallback: "Session", providerID: "qwencloud", locale: ja)
