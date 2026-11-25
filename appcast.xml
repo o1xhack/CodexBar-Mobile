@@ -3,6 +3,27 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.85.0.1</title>
+            <pubDate>Wed, 25 Nov 2026 00:12:47 -0800</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>178.1.3.5.0</sparkle:version>
+            <sparkle:shortVersionString>0.85.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.85.0.1-Mobile 3.5.0</h2>
+<h3>Changed</h3>
+<ul>
+<li>Sync upstream v0.84.0 and v0.85.0, including lower refresh costs, revised Codex and Claude spending reports, and new provider usage sources.</li>
+<li>Send newly supported provider usage and OpenAI API balances to CodexBar Mobile through the existing CloudKit payload.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Prevent a startup crash when checking existing OpenAI dashboard cache stores on affected macOS builds.</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.85.0.1-mobile.3.5.0/CodexBar-0.85.0.1-mobile.3.5.0.zip" length="95552516" type="application/octet-stream" sparkle:edSignature="aHhcVPNM/vNHQzSdsbLN72SCc6PYpf7rv3n86IC7Wqf5K5S3tq1UxcZddApsVth9pufh7kkahtonrXH1NbMlAg=="/>
+        </item>
+        <item>
             <title>0.83.0.1</title>
             <pubDate>Sat, 07 Nov 2026 16:17:01 -0800</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -39,24 +60,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.82.0.1-mobile.3.2.0/CodexBar-0.82.0.1-mobile.3.2.0.zip" length="92810579" type="application/octet-stream" sparkle:edSignature="GiA4x4LObNaRbht/4HjziGea4sLTIQhQn94gv18M/X4vF9lRcj+Xd5Uc02Sfv2zZZK+1/8ib3S19sDpjIgeoAw=="/>
-        </item>
-        <item>
-            <title>0.79.0.1</title>
-            <pubDate>Wed, 21 Oct 2026 22:42:02 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>172.1.3.1.0</sparkle:version>
-            <sparkle:shortVersionString>0.79.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.79.0.1-Mobile 3.1.0</h2>
-<h3>Highlights — Mobile 3.1.0</h3>
-<ul>
-<li>Sync upstream v0.77.0–v0.79.0 in one release: Future AGI and Munito, Gemini app quotas, Claude desktop/tcr accounts, safer local-only Agent Sessions, and lower CPU, memory and cost-cache disk I/O.</li>
-<li>Keep existing Codex history and checkpoints when upgrading the fork cost cache; keep account-specific Claude local history on the Mac so it cannot contaminate the iPhone’s combined history.</li>
-<li>Sync cached claude-swap/tcr account quotas and plugin warning details to iPhone through the existing Production payload. Keep Gemini app five-hour and weekly window names distinct from CLI model quotas, with device-scoped Web identities to preserve different accounts across Macs. The companion iOS 3.1.0 update includes the existing iPhone Duo layouts and calendar features.</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/mobile-dev/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.79.0.1-mobile.3.1.0/CodexBar-0.79.0.1-mobile.3.1.0.zip" length="90774554" type="application/octet-stream" sparkle:edSignature="1hvtItg2YrZFJCBXmnTIrWcwSH1/M8rvXB+FDUrTaBlePlC2QbZVWtAacO97CPEGRF2Ett2JUifiMGKpskhzCQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
